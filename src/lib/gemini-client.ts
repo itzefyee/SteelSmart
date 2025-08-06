@@ -45,7 +45,7 @@ interface GeminiAnalysisResponse {
 
 export class GeminiClient {
   private genAI: GoogleGenerativeAI | null = null;
-  private model: any = null;
+  private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
   private apiKey: string;
 
   constructor() {

@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { useDropzone, FileRejection } from 'react-dropzone';
 import Button from '@/components/ui/Button';
 import ProductCard from '@/components/ProductCard';
 import { DrawingAnalysis, FileUploadState, APIResponse } from '@/types';
-import { formatFileSize, isValidFileType, isValidFileSize } from '@/lib/utils';
+import { formatFileSize } from '@/lib/utils';
 
 const CADAnalyzerFull: React.FC = () => {
   const [uploadState, setUploadState] = useState<FileUploadState>({
@@ -40,17 +40,17 @@ const CADAnalyzerFull: React.FC = () => {
     }
   }, []);
 
-  const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg'];
+
   const maxSizeInMB = 10;
 
-  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
+  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
     if (rejectedFiles.length > 0) {
       const rejection = rejectedFiles[0];
       let errorMessage = 'File rejected';
       
-      if (rejection.errors?.find((e: any) => e.code === 'file-too-large')) {
+      if (rejection.errors?.find((e) => e.code === 'file-too-large')) {
         errorMessage = `File size exceeds ${maxSizeInMB}MB limit`;
-      } else if (rejection.errors?.find((e: any) => e.code === 'file-invalid-type')) {
+      } else if (rejection.errors?.find((e) => e.code === 'file-invalid-type')) {
         errorMessage = 'Invalid file type. Please upload PDF, PNG, or JPG files';
       }
       
@@ -241,7 +241,7 @@ const CADAnalyzerFull: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
                 <p className="text-green-700 text-sm font-medium">
-                  Sample "{sampleLoadSuccess}" loaded successfully!
+                  Sample &quot;{sampleLoadSuccess}&quot; loaded successfully!
                 </p>
               </div>
             </div>
@@ -296,10 +296,7 @@ const CADAnalyzerFull: React.FC = () => {
                 size="sm" 
                 variant="outline"
                 className="w-full mt-auto"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  tryWithSample('servo-motor-drawing.pdf', 'Servo Motor');
-                }}
+                onClick={() => tryWithSample('servo-motor-drawing.pdf', 'Servo Motor')}
               >
                 Load Sample
               </Button>
@@ -323,10 +320,7 @@ const CADAnalyzerFull: React.FC = () => {
                 size="sm" 
                 variant="outline"
                 className="w-full mt-auto"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  tryWithSample('bracket-drawing.pdf', 'Mounting Bracket');
-                }}
+                onClick={() => tryWithSample('bracket-drawing.pdf', 'Mounting Bracket')}
               >
                 Load Sample
               </Button>
@@ -350,10 +344,7 @@ const CADAnalyzerFull: React.FC = () => {
                 size="sm" 
                 variant="outline"
                 className="w-full mt-auto"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  tryWithSample('steel-beam-drawing.pdf', 'I-Beam Steel');
-                }}
+                onClick={() => tryWithSample('steel-beam-drawing.pdf', 'I-Beam Steel')}
               >
                 Load Sample
               </Button>

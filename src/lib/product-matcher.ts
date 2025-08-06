@@ -80,7 +80,7 @@ export class ProductMatcher {
     return compatibleProducts.slice(0, 4);
   }
 
-  private calculateMatchScore(product: Product, specs: any): number {
+  private calculateMatchScore(product: Product, specs: DrawingAnalysis['extractedSpecs']): number {
     let score = 0;
 
     // Component type matching (highest weight)
@@ -169,7 +169,7 @@ export class ProductMatcher {
       'stainless': ['stainless', 'corrosion', 'resistant']
     };
 
-    for (const [family, keywords] of Object.entries(materialFamilies)) {
+    for (const [, keywords] of Object.entries(materialFamilies)) {
       const specInFamily = keywords.some(k => specMaterial.includes(k));
       const productInFamily = keywords.some(k => productMaterial.includes(k));
       if (specInFamily && productInFamily) {
@@ -217,7 +217,7 @@ export class ProductMatcher {
     return matches ? matches.map(Number) : [];
   }
 
-  private generateReasoning(product: Product, specs: any, score: number): string {
+  private generateReasoning(product: Product, specs: DrawingAnalysis['extractedSpecs'], score: number): string {
     const reasons: string[] = [];
 
     if (specs.componentType && this.matchesComponentType(product, specs.componentType)) {
@@ -239,7 +239,7 @@ export class ProductMatcher {
     return `High compatibility: ${reasons.join(', ')}`;
   }
 
-  private getMatchedSpecs(product: Product, specs: any): string[] {
+  private getMatchedSpecs(product: Product, specs: DrawingAnalysis['extractedSpecs']): string[] {
     const matched: string[] = [];
 
     if (specs.componentType && this.matchesComponentType(product, specs.componentType)) {
@@ -258,7 +258,7 @@ export class ProductMatcher {
     return matched;
   }
 
-  private getCategoryBonus(product: Product, specs: any): number {
+  private getCategoryBonus(product: Product, specs: DrawingAnalysis['extractedSpecs']): number {
     // Give a small bonus for products in relevant categories
     if (specs.componentType) {
       const type = specs.componentType.toLowerCase();
@@ -280,7 +280,7 @@ export class ProductMatcher {
     return 0.1; // Small bonus for any product
   }
 
-  private getFallbackProducts(specs: any): RecommendationScore[] {
+  private getFallbackProducts(specs: DrawingAnalysis['extractedSpecs']): RecommendationScore[] {
     const fallbacks: RecommendationScore[] = [];
     
     // Get some products from relevant categories

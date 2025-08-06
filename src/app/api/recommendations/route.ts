@@ -4,7 +4,7 @@ import { productMatcher } from '@/lib/product-matcher';
 
 export async function POST(request: NextRequest) {
   try {
-    const { productId, specifications } = await request.json();
+    const { productId } = await request.json();
     
     if (!productId) {
       return NextResponse.json<APIResponse<null>>({

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+
 import { Product } from '@/types';
 
 const FeaturedProducts: React.FC = () => {

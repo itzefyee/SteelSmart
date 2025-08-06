@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+
 import { RFQFormData, ValidationErrors, APIResponse } from '@/types';
 import { validateEmail, formatFileSize, isValidFileType, isValidFileSize } from '@/lib/utils';
 
@@ -12,7 +12,7 @@ const RFQForm: React.FC = () => {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
+
   const [rfqId, setRfqId] = useState<string>('');
 
   const [formData, setFormData] = useState<RFQFormData>({
@@ -188,7 +188,6 @@ const RFQForm: React.FC = () => {
 
       if (result.success && result.data) {
         setRfqId(result.data.rfqId);
-        setSubmitSuccess(true);
         setCurrentStep(4);
       } else {
         throw new Error(result.error || 'Failed to submit RFQ');
@@ -428,7 +427,7 @@ const RFQForm: React.FC = () => {
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Request Submitted Successfully!</h2>
               <p className="text-gray-600 mb-4">
-                Thank you for your request. We'll review your requirements and get back to you within 24 hours.
+                Thank you for your request. We&apos;ll review your requirements and get back to you within 24 hours.
               </p>
               
               <div className="bg-blue-50 rounded-lg p-4 mb-6">
@@ -436,7 +435,7 @@ const RFQForm: React.FC = () => {
                   <strong>Reference Number:</strong> {rfqId}
                 </p>
                 <p className="text-sm text-blue-600 mt-1">
-                  Please keep this number for your records. We've also sent a confirmation email to {formData.contactInfo.email}.
+                  Please keep this number for your records. We&apos;ve also sent a confirmation email to {formData.contactInfo.email}.
                 </p>
               </div>
             </div>

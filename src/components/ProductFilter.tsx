@@ -22,7 +22,7 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
   materials,
   priceRange
 }) => {
-  const updateFilter = (key: keyof FilterOptions, value: any) => {
+  const updateFilter = (key: keyof FilterOptions, value: string | number | string[] | number[] | boolean) => {
     onFiltersChange({
       ...filters,
       [key]: value

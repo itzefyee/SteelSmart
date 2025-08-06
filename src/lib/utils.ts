@@ -1,4 +1,5 @@
 // Utility functions for SteelSmart application
+import { Product } from '@/types';
 
 export const formatPrice = (price: number): string => {
   return new Intl.NumberFormat('en-US', {
@@ -22,7 +23,7 @@ export const slugify = (text: string): string => {
     .replace(/ +/g, '-');
 };
 
-export const debounce = <T extends (...args: any[]) => any>(
+export const debounce = <T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): ((...args: Parameters<T>) => void) => {
@@ -76,12 +77,12 @@ export const classNames = (...classes: (string | undefined | null | false)[]): s
 };
 
 // Product filtering utilities
-export const filterProductsByCategory = (products: any[], category: string) => {
+export const filterProductsByCategory = (products: Product[], category: string) => {
   if (!category || category === 'all') return products;
   return products.filter(product => product.category === category);
 };
 
-export const filterProductsBySearch = (products: any[], query: string) => {
+export const filterProductsBySearch = (products: Product[], query: string) => {
   if (!query) return products;
   const lowercaseQuery = query.toLowerCase();
   return products.filter(product => 
@@ -91,12 +92,12 @@ export const filterProductsBySearch = (products: any[], query: string) => {
   );
 };
 
-export const filterProductsByPriceRange = (products: any[], range: [number, number]) => {
+export const filterProductsByPriceRange = (products: Product[], range: [number, number]) => {
   const [min, max] = range;
   return products.filter(product => product.price >= min && product.price <= max);
 };
 
-export const sortProducts = (products: any[], sortBy: string) => {
+export const sortProducts = (products: Product[], sortBy: string) => {
   switch (sortBy) {
     case 'price-asc':
       return [...products].sort((a, b) => a.price - b.price);

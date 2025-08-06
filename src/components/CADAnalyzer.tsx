@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { useDropzone, FileRejection } from 'react-dropzone';
 import Button from '@/components/ui/Button';
-import { FileUploadState, APIResponse } from '@/types';
-import { formatFileSize, isValidFileType, isValidFileSize } from '@/lib/utils';
+import { FileUploadState, APIResponse, DrawingAnalysis } from '@/types';
+import { formatFileSize } from '@/lib/utils';
 
 const CADAnalyzer: React.FC = () => {
   const [uploadState, setUploadState] = useState<FileUploadState>({
@@ -16,17 +16,17 @@ const CADAnalyzer: React.FC = () => {
   
   const [sampleLoadSuccess, setSampleLoadSuccess] = useState<string | null>(null);
 
-  const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg'];
+
   const maxSizeInMB = 10;
 
-  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
+  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
     if (rejectedFiles.length > 0) {
       const rejection = rejectedFiles[0];
       let errorMessage = 'File rejected';
       
-      if (rejection.errors?.find((e: any) => e.code === 'file-too-large')) {
+      if (rejection.errors?.find((e) => e.code === 'file-too-large')) {
         errorMessage = `File size exceeds ${maxSizeInMB}MB limit`;
-      } else if (rejection.errors?.find((e: any) => e.code === 'file-invalid-type')) {
+      } else if (rejection.errors?.find((e) => e.code === 'file-invalid-type')) {
         errorMessage = 'Invalid file type. Please upload PDF, PNG, or JPG files';
       }
       
@@ -235,7 +235,7 @@ const CADAnalyzer: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               <p className="text-green-700 text-sm font-medium">
-                Sample "{sampleLoadSuccess}" loaded successfully!
+                Sample &quot;{sampleLoadSuccess}&quot; loaded successfully!
               </p>
             </div>
           </div>
