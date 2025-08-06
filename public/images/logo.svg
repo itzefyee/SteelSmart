@@ -1,0 +1,10 @@
+<svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- SteelSmart Logo -->
+  <rect x="0" y="8" width="32" height="24" rx="4" fill="#2563eb"/>
+  <rect x="4" y="12" width="24" height="4" fill="white"/>
+  <rect x="4" y="20" width="16" height="4" fill="white"/>
+  
+  <!-- Text -->
+  <text x="40" y="16" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#1f2937">Steel</text>
+  <text x="40" y="28" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#2563eb">Smart</text>
+</svg>

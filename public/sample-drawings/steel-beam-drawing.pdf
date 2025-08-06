@@ -1,0 +1,152 @@
+%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+/Resources <<
+  /Font <<
+    /F1 5 0 R
+  >>
+>>
+>>
+endobj
+
+4 0 obj
+<<
+/Length 1300
+>>
+stream
+BT
+/F1 18 Tf
+50 750 Td
+(STRUCTURAL STEEL I-BEAM SPECIFICATION) Tj
+ET
+
+BT
+/F1 12 Tf
+50 700 Td
+(Designation: IPE 200) Tj
+0 -20 Td
+(Material: Grade S355 Steel) Tj
+0 -20 Td
+(Standard: EN 10025-2) Tj
+0 -20 Td
+(Finish: Hot Rolled, Mill Finish) Tj
+ET
+
+BT
+/F1 10 Tf
+50 600 Td
+(CROSS-SECTION DIMENSIONS:) Tj
+0 -15 Td
+(Height (h): 200mm) Tj
+0 -15 Td
+(Flange Width (b): 100mm) Tj
+0 -15 Td
+(Web Thickness (tw): 5.6mm) Tj
+0 -15 Td
+(Flange Thickness (tf): 8.5mm) Tj
+0 -15 Td
+(Root Radius (r): 12mm) Tj
+0 -15 Td
+(Standard Length: 6000mm) Tj
+ET
+
+BT
+/F1 10 Tf
+50 450 Td
+(MECHANICAL PROPERTIES:) Tj
+0 -15 Td
+(Yield Strength: 355 MPa minimum) Tj
+0 -15 Td
+(Tensile Strength: 470-630 MPa) Tj
+0 -15 Td
+(Section Modulus: 194.3 cm³) Tj
+0 -15 Td
+(Moment of Inertia: 1943 cm⁴) Tj
+0 -15 Td
+(Weight: 22.4 kg/m) Tj
+ET
+
+BT
+/F1 10 Tf
+50 320 Td
+(APPLICATIONS:) Tj
+0 -15 Td
+(- Building construction frameworks) Tj
+0 -15 Td
+(- Industrial platform structures) Tj
+0 -15 Td
+(- Bridge construction) Tj
+0 -15 Td
+(- Heavy machinery supports) Tj
+0 -15 Td
+(- Load-bearing structural elements) Tj
+ET
+
+BT
+/F1 10 Tf
+50 220 Td
+(TOLERANCES:) Tj
+0 -15 Td
+(Height: ±2.0mm) Tj
+0 -15 Td
+(Width: ±1.5mm) Tj
+0 -15 Td
+(Web/Flange Thickness: ±0.5mm) Tj
+0 -15 Td
+(Length: +50mm/-0mm) Tj
+ET
+
+BT
+/F1 8 Tf
+50 100 Td
+(Drawing Scale: Cross-section 1:2) Tj
+0 -12 Td
+(Date: 2024) Tj
+0 -12 Td
+(Revision: A) Tj
+endstream
+endobj
+
+5 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+endobj
+
+xref
+0 6
+0000000000 65535 f 
+0000000010 00000 n 
+0000000053 00000 n 
+0000000110 00000 n 
+0000000251 00000 n 
+0000001605 00000 n 
+trailer
+<<
+/Size 6
+/Root 1 0 R
+>>
+startxref
+1671
+%%EOF

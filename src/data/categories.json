@@ -1,0 +1,28 @@
+{
+  "categories": [
+    {
+      "id": "robotic",
+      "name": "Robotic Components",
+      "description": "Motors, actuators, sensors, and control systems for robotics applications",
+      "icon": "robot"
+    },
+    {
+      "id": "structural",
+      "name": "Structural Steel",
+      "description": "Beams, plates, angles, and custom structural components",
+      "icon": "building"
+    },
+    {
+      "id": "fasteners",
+      "name": "Fasteners",
+      "description": "Bolts, screws, nuts, washers, and specialty fastening hardware",
+      "icon": "wrench"
+    },
+    {
+      "id": "custom",
+      "name": "Custom Parts",
+      "description": "Made-to-order fabricated components and custom machining services",
+      "icon": "cog"
+    }
+  ]
+}

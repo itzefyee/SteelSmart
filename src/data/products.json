@@ -1,0 +1,364 @@
+{
+  "products": [
+    {
+      "id": "servo-motor-001",
+      "name": "High-Torque Servo Motor - 50Nm",
+      "category": "robotic",
+      "material": "Aluminum Housing",
+      "specifications": {
+        "dimensions": "120mm x 80mm x 65mm",
+        "weight": "2.1 kg",
+        "loadCapacity": "50 Nm continuous torque",
+        "tolerance": "±0.02mm",
+        "operatingTemp": "-20°C to +80°C"
+      },
+      "price": 245.99,
+      "images": ["/images/products/servo-motor-sample.svg"],
+      "description": "Precision servo motor ideal for robotic applications requiring high torque and accuracy.",
+      "technicalDetails": "Integrated encoder, 24V DC operation, IP65 rating, CAN bus communication",
+      "compatibleWith": ["mounting-bracket-001", "coupling-002", "encoder-001"],
+      "inStock": true,
+      "leadTime": "2-3 business days"
+    },
+    {
+      "id": "linear-actuator-001",
+      "name": "Electric Linear Actuator - 1000N",
+      "category": "robotic",
+      "material": "Stainless Steel",
+      "specifications": {
+        "dimensions": "300mm x 50mm x 50mm",
+        "weight": "1.8 kg",
+        "loadCapacity": "1000N push/pull",
+        "tolerance": "±0.1mm",
+        "operatingTemp": "-40°C to +85°C"
+      },
+      "price": 189.50,
+      "images": ["/images/products/servo-motor-sample.svg"],
+      "description": "High-force electric linear actuator with precise position control.",
+      "technicalDetails": "12V/24V operation, built-in position feedback, IP67 protection",
+      "compatibleWith": ["mounting-bracket-002", "position-sensor-001"],
+      "inStock": true,
+      "leadTime": "1-2 business days"
+    },
+    {
+      "id": "steel-beam-001",
+      "name": "I-Beam Steel 200x100mm",
+      "category": "structural",
+      "material": "Grade S355 Steel",
+      "specifications": {
+        "dimensions": "200mm x 100mm x 6m length",
+        "weight": "89.4 kg/m",
+        "loadCapacity": "120 kN/m²",
+        "tolerance": "±2mm",
+        "operatingTemp": "-40°C to +200°C"
+      },
+      "price": 156.75,
+      "images": ["/images/products/steel-beam-sample.svg"],
+      "description": "Standard I-beam for structural applications with excellent load-bearing capacity.",
+      "technicalDetails": "Hot-rolled steel, compliant with EN 10025-2, galvanized coating available",
+      "compatibleWith": ["steel-plate-001", "connection-bracket-001"],
+      "inStock": true,
+      "leadTime": "5-7 business days"
+    },
+    {
+      "id": "steel-plate-001",
+      "name": "Steel Plate 10mm Thickness",
+      "category": "structural",
+      "material": "Grade S235 Steel",
+      "specifications": {
+        "dimensions": "2000mm x 1000mm x 10mm",
+        "weight": "157 kg",
+        "loadCapacity": "235 MPa yield strength",
+        "tolerance": "±0.5mm thickness",
+        "operatingTemp": "-20°C to +150°C"
+      },
+      "price": 298.40,
+      "images": ["/images/products/steel-beam-sample.svg"],
+      "description": "High-quality steel plate suitable for fabrication and structural work.",
+      "technicalDetails": "Hot-rolled, pickled and oiled surface, cut to size available",
+      "compatibleWith": ["steel-beam-001", "welding-rod-001"],
+      "inStock": false,
+      "leadTime": "10-14 business days"
+    },
+    {
+      "id": "hex-bolt-m12",
+      "name": "Hex Bolt M12x80 Grade 8.8",
+      "category": "fasteners",
+      "material": "Alloy Steel",
+      "specifications": {
+        "dimensions": "M12 x 80mm",
+        "weight": "0.095 kg",
+        "loadCapacity": "800 MPa tensile strength",
+        "tolerance": "6g thread tolerance",
+        "operatingTemp": "-40°C to +150°C"
+      },
+      "price": 2.45,
+      "images": ["/images/products/fastener-sample.svg"],
+      "description": "High-strength hex bolt for critical structural connections.",
+      "technicalDetails": "Zinc plated, ISO 4017 standard, torque specification included",
+      "compatibleWith": ["hex-nut-m12", "washer-m12", "steel-beam-001"],
+      "inStock": true,
+      "leadTime": "Same day"
+    },
+    {
+      "id": "hex-nut-m12",
+      "name": "Hex Nut M12 Grade 8",
+      "category": "fasteners",
+      "material": "Alloy Steel",
+      "specifications": {
+        "dimensions": "M12 thread",
+        "weight": "0.015 kg",
+        "loadCapacity": "800 MPa proof load",
+        "tolerance": "6H thread tolerance",
+        "operatingTemp": "-40°C to +150°C"
+      },
+      "price": 0.85,
+      "images": ["/images/products/fastener-sample.svg"],
+      "description": "Matching hex nut for M12 bolts with high strength rating.",
+      "technicalDetails": "Zinc plated, ISO 4032 standard, compatible with grade 8.8 bolts",
+      "compatibleWith": ["hex-bolt-m12", "washer-m12"],
+      "inStock": true,
+      "leadTime": "Same day"
+    },
+    {
+      "id": "custom-bracket-001",
+      "name": "Custom Aluminum Mounting Bracket",
+      "category": "custom",
+      "material": "6061-T6 Aluminum",
+      "specifications": {
+        "dimensions": "Custom sized",
+        "weight": "Varies",
+        "loadCapacity": "Variable based on design",
+        "tolerance": "±0.1mm",
+        "operatingTemp": "-50°C to +120°C"
+      },
+      "price": 45.00,
+      "images": ["/images/products/custom-bracket-sample.svg"],
+      "description": "Precision machined aluminum bracket customized to your specifications.",
+      "technicalDetails": "CNC machined, anodized finish, custom drilling patterns available",
+      "compatibleWith": ["servo-motor-001", "linear-actuator-001"],
+      "inStock": false,
+      "leadTime": "7-10 business days"
+    },
+    {
+      "id": "pressure-sensor-001",
+      "name": "Industrial Pressure Sensor 0-100 Bar",
+      "category": "robotic",
+      "material": "Stainless Steel",
+      "specifications": {
+        "dimensions": "50mm x 25mm x 15mm",
+        "weight": "0.12 kg",
+        "loadCapacity": "100 bar maximum",
+        "tolerance": "±0.25% FS",
+        "operatingTemp": "-40°C to +125°C"
+      },
+      "price": 89.95,
+      "images": ["/images/products/servo-motor-sample.svg"],
+      "description": "High-accuracy pressure sensor for industrial automation and control systems.",
+      "technicalDetails": "4-20mA output, M12 connector, IP67 rated, CE certified",
+      "compatibleWith": ["linear-actuator-001", "control-module-001"],
+      "inStock": true,
+      "leadTime": "3-5 business days"
+    },
+    {
+      "id": "servo-motor-002",
+      "name": "Compact Servo Motor - 25Nm",
+      "category": "robotic",
+      "material": "Aluminum Housing",
+      "specifications": {
+        "dimensions": "90mm x 60mm x 50mm",
+        "weight": "1.4 kg",
+        "loadCapacity": "25 Nm continuous torque",
+        "tolerance": "±0.01mm",
+        "operatingTemp": "-10°C to +70°C"
+      },
+      "price": 189.99,
+      "images": ["/images/products/servo-motor-sample.svg"],
+      "description": "Compact servo motor perfect for smaller robotic applications and automation systems.",
+      "technicalDetails": "Integrated encoder, 12V DC operation, IP54 rating, RS485 communication",
+      "compatibleWith": ["mounting-bracket-001", "coupling-001", "encoder-002"],
+      "inStock": true,
+      "leadTime": "1-2 business days"
+    },
+    {
+      "id": "servo-motor-003",
+      "name": "Heavy-Duty Servo Motor - 100Nm",
+      "category": "robotic",
+      "material": "Cast Iron Housing",
+      "specifications": {
+        "dimensions": "150mm x 100mm x 80mm",
+        "weight": "3.8 kg",
+        "loadCapacity": "100 Nm continuous torque",
+        "tolerance": "±0.03mm",
+        "operatingTemp": "-30°C to +90°C"
+      },
+      "price": 425.00,
+      "images": ["/images/products/servo-motor-sample.svg"],
+      "description": "Industrial-grade servo motor for heavy-duty applications requiring high torque output.",
+      "technicalDetails": "Integrated encoder, 48V DC operation, IP65 rating, EtherCAT communication",
+      "compatibleWith": ["mounting-bracket-003", "coupling-003", "gearbox-001"],
+      "inStock": true,
+      "leadTime": "3-4 business days"
+    },
+    {
+      "id": "mounting-bracket-001",
+      "name": "Universal Servo Motor Mount",
+      "category": "custom",
+      "material": "Steel",
+      "specifications": {
+        "dimensions": "140mm x 90mm x 20mm",
+        "weight": "0.8 kg",
+        "loadCapacity": "500N static load",
+        "tolerance": "±0.1mm",
+        "operatingTemp": "-40°C to +100°C"
+      },
+      "price": 35.50,
+      "images": ["/images/products/custom-bracket-sample.svg"],
+      "description": "Universal mounting bracket compatible with most servo motors up to 100Nm.",
+      "technicalDetails": "Powder coated steel, multiple mounting holes, vibration dampening pads included",
+      "compatibleWith": ["servo-motor-001", "servo-motor-002", "servo-motor-003"],
+      "inStock": true,
+      "leadTime": "Same day"
+    },
+    {
+      "id": "coupling-002",
+      "name": "Flexible Shaft Coupling 8mm-12mm",
+      "category": "robotic",
+      "material": "Aluminum Alloy",
+      "specifications": {
+        "dimensions": "30mm x 25mm diameter",
+        "weight": "0.15 kg",
+        "loadCapacity": "50 Nm max torque",
+        "tolerance": "±0.02mm bore",
+        "operatingTemp": "-20°C to +80°C"
+      },
+      "price": 28.75,
+      "images": ["/images/products/servo-motor-sample.svg"],
+      "description": "Flexible coupling for connecting servo motors to driven shafts with misalignment compensation.",
+      "technicalDetails": "Zero backlash design, keyway available, corrosion resistant anodized finish",
+      "compatibleWith": ["servo-motor-001", "servo-motor-002", "linear-actuator-001"],
+      "inStock": true,
+      "leadTime": "1-2 business days"
+    },
+    {
+      "id": "steel-angle-001",
+      "name": "Steel Angle Iron 50x50x5mm",
+      "category": "structural",
+      "material": "Grade S275 Steel",
+      "specifications": {
+        "dimensions": "50mm x 50mm x 5mm x 6m length",
+        "weight": "14.6 kg/m",
+        "loadCapacity": "275 MPa yield strength",
+        "tolerance": "±1mm",
+        "operatingTemp": "-40°C to +200°C"
+      },
+      "price": 24.80,
+      "images": ["/images/products/steel-beam-sample.svg"],
+      "description": "Equal angle steel for structural framing and support applications.",
+      "technicalDetails": "Hot-rolled steel, mill finish, can be galvanized or painted to specification",
+      "compatibleWith": ["steel-beam-001", "connection-bracket-002", "hex-bolt-m12"],
+      "inStock": true,
+      "leadTime": "2-3 business days"
+    },
+    {
+      "id": "steel-channel-001",
+      "name": "Steel Channel 100x50x6mm",
+      "category": "structural",
+      "material": "Grade S355 Steel",
+      "specifications": {
+        "dimensions": "100mm x 50mm x 6mm x 6m length",
+        "weight": "26.1 kg/m",
+        "loadCapacity": "355 MPa yield strength",
+        "tolerance": "±1.5mm",
+        "operatingTemp": "-40°C to +200°C"
+      },
+      "price": 45.20,
+      "images": ["/images/products/steel-beam-sample.svg"],
+      "description": "U-channel steel beam for structural support and framework construction.",
+      "technicalDetails": "Hot-rolled steel, EN 10025-2 compliant, custom lengths available",
+      "compatibleWith": ["steel-beam-001", "steel-angle-001", "connection-bracket-001"],
+      "inStock": true,
+      "leadTime": "3-5 business days"
+    },
+    {
+      "id": "connection-bracket-001",
+      "name": "Steel Beam Connection Bracket",
+      "category": "custom",
+      "material": "Grade S355 Steel",
+      "specifications": {
+        "dimensions": "120mm x 80mm x 10mm",
+        "weight": "0.75 kg",
+        "loadCapacity": "50 kN shear load",
+        "tolerance": "±0.5mm",
+        "operatingTemp": "-40°C to +200°C"
+      },
+      "price": 18.95,
+      "images": ["/images/products/custom-bracket-sample.svg"],
+      "description": "Heavy-duty bracket for connecting steel beams and structural members.",
+      "technicalDetails": "Laser cut, formed steel, galvanized finish, pre-drilled holes for M12 bolts",
+      "compatibleWith": ["steel-beam-001", "steel-angle-001", "hex-bolt-m12"],
+      "inStock": true,
+      "leadTime": "1-2 business days"
+    },
+    {
+      "id": "washer-m12",
+      "name": "Flat Washer M12 DIN 125",
+      "category": "fasteners",
+      "material": "Stainless Steel A2",
+      "specifications": {
+        "dimensions": "M12 x 24mm OD x 2.5mm thick",
+        "weight": "0.008 kg",
+        "loadCapacity": "Grade A2 stainless",
+        "tolerance": "±0.1mm thickness",
+        "operatingTemp": "-200°C to +400°C"
+      },
+      "price": 0.45,
+      "images": ["/images/products/fastener-sample.svg"],
+      "description": "Stainless steel flat washer for M12 bolt applications.",
+      "technicalDetails": "DIN 125 standard, corrosion resistant, suitable for outdoor use",
+      "compatibleWith": ["hex-bolt-m12", "hex-nut-m12"],
+      "inStock": true,
+      "leadTime": "Same day"
+    },
+    {
+      "id": "socket-head-m8",
+      "name": "Socket Head Cap Screw M8x40",
+      "category": "fasteners",
+      "material": "Alloy Steel",
+      "specifications": {
+        "dimensions": "M8 x 40mm",
+        "weight": "0.032 kg",
+        "loadCapacity": "1040 MPa tensile strength",
+        "tolerance": "6g thread tolerance",
+        "operatingTemp": "-40°C to +150°C"
+      },
+      "price": 1.25,
+      "images": ["/images/products/fastener-sample.svg"],
+      "description": "High-strength socket head cap screw for precision applications.",
+      "technicalDetails": "Black oxide finish, ISO 4762 standard, allen key drive",
+      "compatibleWith": ["mounting-bracket-001", "connection-bracket-001"],
+      "inStock": true,
+      "leadTime": "Same day"
+    },
+    {
+      "id": "encoder-001",
+      "name": "Rotary Encoder 1024 PPR",
+      "category": "robotic",
+      "material": "Aluminum Housing",
+      "specifications": {
+        "dimensions": "58mm diameter x 35mm",
+        "weight": "0.25 kg",
+        "loadCapacity": "1024 pulses per revolution",
+        "tolerance": "±0.1° accuracy",
+        "operatingTemp": "-10°C to +70°C"
+      },
+      "price": 145.00,
+      "images": ["/images/products/servo-motor-sample.svg"],
+      "description": "High-resolution incremental rotary encoder for precise position feedback.",
+      "technicalDetails": "TTL/HTL output, IP54 protection, 6mm shaft, differential line driver",
+      "compatibleWith": ["servo-motor-001", "servo-motor-002", "coupling-002"],
+      "inStock": true,
+      "leadTime": "2-3 business days"
+    }
+  ]
+}

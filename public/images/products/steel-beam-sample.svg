@@ -1,0 +1,54 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Steel I-Beam Realistic Representation -->
+  <defs>
+    <linearGradient id="steelGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f3f4f6;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#d1d5db;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9ca3af;stop-opacity:1" />
+    </linearGradient>
+    <filter id="beamShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="400" height="300" fill="#f8fafc"/>
+  
+  <!-- I-Beam Structure -->
+  <!-- Top Flange -->
+  <rect x="50" y="80" width="300" height="20" fill="url(#steelGradient)" stroke="#6b7280" stroke-width="1" filter="url(#beamShadow)"/>
+  
+  <!-- Web (vertical section) -->
+  <rect x="195" y="80" width="10" height="140" fill="url(#steelGradient)" stroke="#6b7280" stroke-width="1"/>
+  
+  <!-- Bottom Flange -->
+  <rect x="50" y="200" width="300" height="20" fill="url(#steelGradient)" stroke="#6b7280" stroke-width="1" filter="url(#beamShadow)"/>
+  
+  <!-- Dimension Lines -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+     refX="0" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
+    </marker>
+  </defs>
+  
+  <!-- Width dimension -->
+  <line x1="50" y1="60" x2="350" y2="60" stroke="#ef4444" stroke-width="1" marker-start="url(#arrowhead)" marker-end="url(#arrowhead)"/>
+  <text x="200" y="55" text-anchor="middle" fill="#ef4444" font-size="12" font-family="Arial">300mm</text>
+  
+  <!-- Height dimension -->
+  <line x1="30" y1="80" x2="30" y2="220" stroke="#ef4444" stroke-width="1" marker-start="url(#arrowhead)" marker-end="url(#arrowhead)"/>
+  <text x="25" y="155" text-anchor="middle" fill="#ef4444" font-size="12" font-family="Arial" transform="rotate(-90 25 155)">140mm</text>
+  
+  <!-- Material Grade -->
+  <rect x="80" y="130" width="80" height="40" rx="4" fill="#ffffff" stroke="#d1d5db" stroke-width="1"/>
+  <text x="120" y="145" text-anchor="middle" fill="#374151" font-size="10" font-weight="bold" font-family="Arial">ASTM A992</text>
+  <text x="120" y="158" text-anchor="middle" fill="#6b7280" font-size="8" font-family="Arial">Grade 50</text>
+  
+  <!-- Specifications -->
+  <text x="200" y="45" text-anchor="middle" fill="#374151" font-size="14" font-weight="bold" font-family="Arial">W12 x 26 Steel I-Beam</text>
+  
+  <text x="50" y="260" fill="#6b7280" font-size="10" font-family="Arial">• Material: ASTM A992 Structural Steel</text>
+  <text x="50" y="275" fill="#6b7280" font-size="10" font-family="Arial">• Yield Strength: 50 ksi (345 MPa)</text>
+  <text x="50" y="290" fill="#6b7280" font-size="10" font-family="Arial">• Weight: 26 lbs/ft (38.7 kg/m)</text>
+</svg>
