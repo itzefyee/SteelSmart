@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import ProductCard from '@/components/ProductCard';
 import { DrawingAnalysis, FileUploadState, APIResponse } from '@/types';
 import { formatFileSize, isValidFileType, isValidFileSize } from '@/lib/utils';

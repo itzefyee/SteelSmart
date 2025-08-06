@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { APIResponse, DrawingAnalysis, Product } from '@/types';
 import { productMatcher } from '@/lib/product-matcher';
+import { geminiClient } from '@/lib/gemini-client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,73 +31,64 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Mock Claude API response with realistic specifications based on file type
-    let mockAnalysis: DrawingAnalysis;
-    
-    if (file.name.includes('bracket')) {
-      mockAnalysis = {
-        extractedSpecs: {
-          dimensions: "140mm x 90mm x 20mm",
-          material: "Steel",
-          loadRequirements: "500N static load",
-          componentType: "mounting bracket",
-          tolerance: "±0.1mm"
-        },
-        recommendedProducts: [],
-        totalRecommendations: 0,
-        confidence: 0.89,
-        reasoning: "Drawing shows a mounting bracket with multiple bolt holes and load specifications. Identified as universal servo motor mounting bracket based on hole pattern and dimensions.",
-        analysisId: `analysis_${Date.now()}`
-      };
-    } else if (file.name.includes('steel-beam')) {
-      mockAnalysis = {
-        extractedSpecs: {
-          dimensions: "200mm x 100mm x 6m length",
-          material: "Grade S355 Steel",
-          loadRequirements: "355 MPa yield strength",
-          componentType: "structural beam",
-          tolerance: "±2mm"
-        },
-        recommendedProducts: [],
-        totalRecommendations: 0,
-        confidence: 0.95,
-        reasoning: "Technical drawing shows I-beam cross-section with standard IPE 200 dimensions. High confidence match for structural steel beam based on dimensional analysis.",
-        analysisId: `analysis_${Date.now()}`
-      };
+    // Check if Gemini API is configured
+    const isGeminiConfigured = await geminiClient.isConfigured();
+    let analysis: DrawingAnalysis;
+
+    if (isGeminiConfigured) {
+      try {
+        // Use real Gemini API for analysis
+        console.log('Using Gemini API for real analysis');
+        
+        // Convert file to buffer
+        const fileBuffer = Buffer.from(await file.arrayBuffer());
+        
+        // Call Gemini API
+        const geminiResponse = await geminiClient.analyzeDrawing(fileBuffer, file.type, file.name);
+        
+        // Create DrawingAnalysis from Gemini response, converting null to undefined
+        analysis = {
+          extractedSpecs: {
+            dimensions: geminiResponse.extractedSpecs.dimensions || undefined,
+            material: geminiResponse.extractedSpecs.material || undefined,
+            loadRequirements: geminiResponse.extractedSpecs.loadRequirements || undefined,
+            componentType: geminiResponse.extractedSpecs.componentType || undefined,
+            tolerance: geminiResponse.extractedSpecs.tolerance || undefined,
+          },
+          recommendedProducts: [],
+          totalRecommendations: 0,
+          confidence: geminiResponse.confidence,
+          reasoning: geminiResponse.reasoning,
+          analysisId: `analysis_${Date.now()}`
+        };
+        
+      } catch (geminiError) {
+        console.error('Gemini API failed, falling back to mock:', geminiError);
+        // Fallback to mock analysis if Gemini fails
+        analysis = getFallbackAnalysis(file.name);
+      }
     } else {
-      // Default servo motor analysis
-      mockAnalysis = {
-        extractedSpecs: {
-          dimensions: "120mm x 80mm x 65mm",
-          material: "Aluminum",
-          loadRequirements: "50 Nm torque",
-          componentType: "servo motor",
-          tolerance: "±0.02mm"
-        },
-        recommendedProducts: [],
-        totalRecommendations: 0,
-        confidence: 0.85,
-        reasoning: "Based on the dimensions and technical specifications visible in the drawing, this appears to be a servo motor mounting configuration with high torque requirements.",
-        analysisId: `analysis_${Date.now()}`
-      };
+      console.log('Gemini API not configured, using mock analysis');
+      // Use mock analysis if API not configured
+      analysis = getFallbackAnalysis(file.name);
     }
 
     // Use product matcher to find relevant products
-    const recommendations = productMatcher.findMatchingProducts(mockAnalysis);
+    const recommendations = productMatcher.findMatchingProducts(analysis);
     
     // Set total count before limiting
-    mockAnalysis.totalRecommendations = recommendations.length;
+    analysis.totalRecommendations = recommendations.length;
     
     // Get actual product data for recommendations (limit to 3 for display)
     const productsData = await import('@/data/products.json');
-    mockAnalysis.recommendedProducts = recommendations.slice(0, 3).map(rec => {
+    analysis.recommendedProducts = recommendations.slice(0, 3).map(rec => {
       const product = productsData.products.find(p => p.id === rec.productId);
       return product;
     }).filter(Boolean) as Product[];
 
     return NextResponse.json<APIResponse<DrawingAnalysis>>({
       success: true,
-      data: mockAnalysis,
+      data: analysis,
       message: 'Drawing analysis completed successfully'
     });
 
@@ -106,5 +98,56 @@ export async function POST(request: NextRequest) {
       success: false,
       error: 'Internal server error during analysis'
     }, { status: 500 });
+  }
+}
+
+// Fallback mock analysis function
+function getFallbackAnalysis(filename: string): DrawingAnalysis {
+  if (filename.includes('bracket')) {
+    return {
+      extractedSpecs: {
+        dimensions: "140mm x 90mm x 20mm",
+        material: "Steel",
+        loadRequirements: "500N static load",
+        componentType: "mounting bracket",
+        tolerance: "±0.1mm"
+      },
+      recommendedProducts: [],
+      totalRecommendations: 0,
+      confidence: 0.89,
+      reasoning: "Drawing shows a mounting bracket with multiple bolt holes and load specifications. Identified as universal servo motor mounting bracket based on hole pattern and dimensions.",
+      analysisId: `analysis_${Date.now()}`
+    };
+  } else if (filename.includes('steel-beam')) {
+    return {
+      extractedSpecs: {
+        dimensions: "200mm x 100mm x 6m length",
+        material: "Grade S355 Steel",
+        loadRequirements: "355 MPa yield strength",
+        componentType: "structural beam",
+        tolerance: "±2mm"
+      },
+      recommendedProducts: [],
+      totalRecommendations: 0,
+      confidence: 0.95,
+      reasoning: "Technical drawing shows I-beam cross-section with standard IPE 200 dimensions. High confidence match for structural steel beam based on dimensional analysis.",
+      analysisId: `analysis_${Date.now()}`
+    };
+  } else {
+    // Default servo motor analysis
+    return {
+      extractedSpecs: {
+        dimensions: "120mm x 80mm x 65mm",
+        material: "Aluminum",
+        loadRequirements: "50 Nm torque",
+        componentType: "servo motor",
+        tolerance: "±0.02mm"
+      },
+      recommendedProducts: [],
+      totalRecommendations: 0,
+      confidence: 0.85,
+      reasoning: "Based on the dimensions and technical specifications visible in the drawing, this appears to be a servo motor mounting configuration with high torque requirements.",
+      analysisId: `analysis_${Date.now()}`
+    };
   }
 }

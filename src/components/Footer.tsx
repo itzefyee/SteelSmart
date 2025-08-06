@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
           {/* Company Info */}
           <div className="space-y-4">
             <div className="flex items-center">
-              <img src="/images/logo.svg" alt="SteelSmart" className="h-10 w-auto brightness-0 invert" />
+              <img src="/images/logo-white.svg" alt="SteelSmart" className="h-10 w-auto" />
             </div>
             <p className="text-gray-400 text-sm">
               AI-powered marketplace for metal and steel parts, serving engineers and manufacturers worldwide.
