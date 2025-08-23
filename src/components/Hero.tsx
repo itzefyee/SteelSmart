@@ -11,10 +11,10 @@ const Hero: React.FC = () => {
       <TechnicalPattern />
       <div className="absolute inset-0 bg-black/20"></div>
       
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-12 items-start lg:items-center">
           {/* Left Column - Text Content */}
-          <div className="space-y-8">
+          <div className="lg:col-span-4 space-y-6 lg:-mt-44">
             <div>
               <h1 className="text-4xl lg:text-6xl font-bold leading-tight mb-6">
                 <span className="text-gradient bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
@@ -65,7 +65,7 @@ const Hero: React.FC = () => {
           </div>
 
           {/* Right Column - CAD Analyzer Widget */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
+          <div className="lg:col-span-6 bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
             <CADAnalyzer />
           </div>
         </div>

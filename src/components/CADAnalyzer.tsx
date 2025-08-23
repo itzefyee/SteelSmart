@@ -142,7 +142,7 @@ const CADAnalyzer: React.FC = () => {
     <div className="w-full max-w-2xl mx-auto">
       <div className="bg-white rounded-xl shadow-lg border p-6">
         <div className="text-center mb-5">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">CAD Drawing Analyzer</h2>
             <a 
               href="/cad-analyzer" 
@@ -274,14 +274,12 @@ const CADAnalyzer: React.FC = () => {
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {/* Servo Motor Sample */}
                       <div className="bg-white rounded-lg p-3 border border-blue-200 text-center flex flex-col h-full">
-                        <div className="mb-2">
-                          <img 
-                            src="/images/sample-cad-preview.svg" 
-                            alt="Servo Motor Drawing"
-                            className="w-16 h-12 mx-auto rounded border border-gray-200"
-                          />
-                        </div>
-                        <div className="mb-2 flex-1 flex flex-col justify-center text-center">
+                        <img 
+                          src="/images/sample-cad-preview.svg" 
+                          alt="Servo Motor Drawing"
+                          className="w-16 h-12 mx-auto rounded border border-gray-200"
+                        />
+                        <div className="flex-1 flex flex-col justify-center text-center">
                           <p className="text-sm font-medium text-gray-900">Servo Motor</p>
                           <p className="text-xs text-gray-600">50Nm Torque</p>
                         </div>
@@ -296,14 +294,12 @@ const CADAnalyzer: React.FC = () => {
 
                       {/* Bracket Sample */}
                       <div className="bg-white rounded-lg p-3 border border-blue-200 text-center flex flex-col h-full">
-                        <div className="mb-2">
-                          <img 
-                            src="/images/bracket-cad-preview.svg" 
-                            alt="Bracket Drawing"
-                            className="w-16 h-12 mx-auto rounded border border-gray-200"
-                          />
-                        </div>
-                        <div className="mb-2 flex-1 flex flex-col justify-center text-center">
+                        <img 
+                          src="/images/bracket-cad-preview.svg" 
+                          alt="Bracket Drawing"
+                          className="w-16 h-12 mx-auto rounded border border-gray-200"
+                        />
+                        <div className=" flex-1 flex flex-col justify-center text-center">
                           <p className="text-sm font-medium text-gray-900">Mounting Bracket</p>
                           <p className="text-xs text-gray-600">Steel, 500N Load</p>
                         </div>
@@ -318,14 +314,12 @@ const CADAnalyzer: React.FC = () => {
 
                       {/* Steel Beam Sample */}
                       <div className="bg-white rounded-lg p-3 border border-blue-200 text-center flex flex-col h-full">
-                        <div className="mb-2">
-                          <img 
-                            src="/images/steel-beam-cad-preview.svg" 
-                            alt="Steel Beam Drawing"
-                            className="w-16 h-12 mx-auto rounded border border-gray-200"
-                          />
-                        </div>
-                        <div className="mb-2 flex-1 flex flex-col justify-center text-center">
+                        <img 
+                          src="/images/steel-beam-cad-preview.svg" 
+                          alt="Steel Beam Drawing"
+                          className="w-16 h-12 mx-auto rounded border border-gray-200"
+                        />
+                        <div className="flex-1 flex flex-col justify-center text-center">
                           <p className="text-sm font-medium text-gray-900">I-Beam Steel</p>
                           <p className="text-xs text-gray-600">200x100mm</p>
                         </div>
