@@ -4,8 +4,11 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone, FileRejection } from 'react-dropzone';
 import Button from '@/components/ui/Button';
 import ProductCard from '@/components/ProductCard';
+import Modal from '@/components/ui/Modal';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { DrawingAnalysis, FileUploadState, APIResponse } from '@/types';
 import { formatFileSize } from '@/lib/utils';
+import { sampleManufacturabilityResults, sampleSpecificationResults, sampleAnalysisReport } from '@/data/sample-data';
 
 const CADAnalyzerFull: React.FC = () => {
   const [uploadState, setUploadState] = useState<FileUploadState>({
@@ -17,6 +20,14 @@ const CADAnalyzerFull: React.FC = () => {
   
   const [analysis, setAnalysis] = useState<DrawingAnalysis | null>(null);
   const [sampleLoadSuccess, setSampleLoadSuccess] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'analysis' | 'validation' | 'verification' | 'report'>('analysis');
+  const [manufacturabilityResults, setManufacturabilityResults] = useState<any[]>([]);
+  const [specificationResults, setSpecificationResults] = useState<any[]>([]);
+  const [isValidating, setIsValidating] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportGenerated, setReportGenerated] = useState(false);
 
   // Check for stored analysis results on component mount
   useEffect(() => {
@@ -144,6 +155,9 @@ const CADAnalyzerFull: React.FC = () => {
   const tryWithSample = (filename: string, displayName: string) => {
     // Clear previous analysis results when loading a new sample
     setAnalysis(null);
+    setManufacturabilityResults([]);
+    setSpecificationResults([]);
+    setReportGenerated(false);
     
     // Simulate loading a sample drawing
     setUploadState({
@@ -156,6 +170,61 @@ const CADAnalyzerFull: React.FC = () => {
     // Show success indicator
     setSampleLoadSuccess(displayName);
     setTimeout(() => setSampleLoadSuccess(null), 3000); // Hide after 3 seconds
+  };
+
+  const validateManufacturability = async () => {
+    if (!analysis) return;
+    
+    setIsValidating(true);
+    
+    // Simulate validation process
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    setManufacturabilityResults(sampleManufacturabilityResults);
+    setIsValidating(false);
+    setActiveTab('validation');
+  };
+
+  const verifySpecifications = async () => {
+    if (!analysis) return;
+    
+    setIsVerifying(true);
+    
+    // Simulate verification process
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    setSpecificationResults(sampleSpecificationResults);
+    setIsVerifying(false);
+    setActiveTab('verification');
+  };
+
+  const generateReport = async () => {
+    if (!analysis) return;
+    
+    setIsGeneratingReport(true);
+    
+    // Simulate report generation
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    setReportGenerated(true);
+    setIsGeneratingReport(false);
+    setShowReportModal(true);
+  };
+
+  const downloadReport = (format: 'pdf' | 'txt') => {
+    // Simulate download
+    const content = format === 'pdf' ? 'PDF Report Content' : 'Text Report Content';
+    const blob = new Blob([content], { 
+      type: format === 'pdf' ? 'application/pdf' : 'text/plain' 
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analysis_report_${Date.now()}.${format}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -357,78 +426,424 @@ const CADAnalyzerFull: React.FC = () => {
       <div className="space-y-6">
         {analysis ? (
           <>
-            {/* Analysis Summary */}
+            {/* Action Buttons
             <div className="bg-white rounded-xl shadow-lg border p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Analysis Results</h3>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm text-gray-600">
-                    {Math.round(analysis.confidence * 100)}% confidence
-                  </span>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Button
+                  onClick={validateManufacturability}
+                  disabled={isValidating}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  {isValidating ? <LoadingSpinner size="sm" /> : 'Validate Manufacturability'}
+                </Button>
+                <Button
+                  onClick={verifySpecifications}
+                  disabled={isVerifying}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  {isVerifying ? <LoadingSpinner size="sm" /> : 'Verify Specifications'}
+                </Button>
+                <Button
+                  onClick={generateReport}
+                  disabled={isGeneratingReport}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  {isGeneratingReport ? <LoadingSpinner size="sm" /> : 'Generate Report'}
+                </Button>
               </div>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  {Object.entries(analysis.extractedSpecs).map(([key, value]) => (
-                    value && (
-                      <div key={key} className="bg-gray-50 p-3 rounded-lg">
-                        <span className="font-medium text-gray-700 capitalize block">
-                          {key.replace(/([A-Z])/g, ' $1').trim()}:
-                        </span>
-                        <span className="text-gray-900">{value}</span>
-                      </div>
-                    )
-                  ))}
-                </div>
-                
-                <div className="pt-3 border-t border-gray-200">
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Analysis:</span> {analysis.reasoning}
-                  </p>
-                </div>
-              </div>
-            </div>
+            </div> */}
 
-            {/* Recommended Products */}
-            <div className="bg-white rounded-xl shadow-lg border p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Recommended Products ({analysis.totalRecommendations})
-                </h3>
-                {analysis.totalRecommendations > 3 && (
-                  <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                    +{Math.max(0, analysis.totalRecommendations - 3)} more available
-                  </span>
+            {/* Tab Navigation */}
+            <div className="bg-white rounded-xl shadow-lg border">
+              <div className="border-b border-gray-200">
+                <nav className="flex space-x-6 px-6 overflow-x-auto">
+                  <button
+                    onClick={() => setActiveTab('analysis')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                      activeTab === 'analysis'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Analysis Results
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('validation')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                      activeTab === 'validation'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Manufacturability
+                    {manufacturabilityResults.length > 0 && (
+                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {manufacturabilityResults.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('verification')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                      activeTab === 'verification'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Specifications
+                    {specificationResults.length > 0 && (
+                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        {specificationResults.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('report')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                      activeTab === 'report'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Report
+                    {reportGenerated && (
+                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Ready
+                      </span>
+                    )}
+                  </button>
+                </nav>
+              </div>
+
+              <div className="p-6">
+                {activeTab === 'analysis' && (
+                  <div className="space-y-6">
+                    {/* Analysis Summary */}
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900">Analysis Results</h3>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-sm text-gray-600">
+                            {Math.round(analysis.confidence * 100)}% confidence
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          {Object.entries(analysis.extractedSpecs).map(([key, value]) => (
+                            value && (
+                              <div key={key} className="bg-gray-50 p-3 rounded-lg">
+                                <span className="font-medium text-gray-700 capitalize block">
+                                  {key.replace(/([A-Z])/g, ' $1').trim()}:
+                                </span>
+                                <span className="text-gray-900">{value}</span>
+                              </div>
+                            )
+                          ))}
+                        </div>
+                        
+                        <div className="pt-3 border-t border-gray-200">
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Analysis:</span> {analysis.reasoning}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recommended Products */}
+                    <div>
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Recommended Products ({analysis.totalRecommendations})
+                        </h3>
+                        {analysis.totalRecommendations > 3 && (
+                          <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                            +{Math.max(0, analysis.totalRecommendations - 3)} more available
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="mb-6 space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Button 
+                            onClick={() => {
+                              // Store analysis data and redirect to product recommender
+                              const analysisData = {
+                                drawingName: uploadState.file?.name || 'Analyzed Drawing',
+                                extractedSpecs: analysis.extractedSpecs,
+                                confidence: analysis.confidence
+                              };
+                              sessionStorage.setItem('analysisForRecommendation', JSON.stringify(analysisData));
+                              window.location.href = '/product-recommender?fromAnalysis=true';
+                            }}
+                            className="w-full"
+                          >
+                            Get AI Recommendations
+                          </Button>
+                          {analysis.recommendedProducts.length > 0 && (
+                            <Button 
+                              onClick={() => window.open('/catalog', '_blank')} 
+                              variant="outline" 
+                              className="w-full"
+                            >
+                              Browse All Products
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <Button
+                          onClick={() => {
+                            // Store analysis data for RFQ
+                            const rfqData = {
+                              drawingName: uploadState.file?.name || 'Analyzed Drawing',
+                              specifications: Object.entries(analysis.extractedSpecs)
+                                .map(([key, value]) => `${key}: ${value}`)
+                                .join(', '),
+                              material: analysis.extractedSpecs.material || 'Steel',
+                              analysisConfidence: analysis.confidence
+                            };
+                            sessionStorage.setItem('analysisForRFQ', JSON.stringify(rfqData));
+                            window.location.href = '/rfq?fromAnalysis=true';
+                          }}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          Create RFQ from Analysis
+                        </Button>
+                      </div>
+
+                      <div className="border-t border-gray-200 pt-6">
+                        {analysis.recommendedProducts.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-4">
+                            {analysis.recommendedProducts.slice(0, 3).map((product) => (
+                              <ProductCard key={product.id} product={product} />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <p>No specific product matches found.</p>
+                            <p className="text-sm mt-1">Try browsing our catalog or submit an RFQ for custom parts.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'validation' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">Manufacturability Validation</h3>
+                      {manufacturabilityResults.length === 0 && (
+                        <Button onClick={validateManufacturability} disabled={isValidating} size="sm">
+                          {isValidating ? <LoadingSpinner size="sm" /> : 'Run Validation'}
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {manufacturabilityResults.length > 0 ? (
+                      <div className="space-y-4">
+                        {manufacturabilityResults.map((result, index) => (
+                          <div 
+                            key={index}
+                            className={`p-4 rounded-lg border-l-4 ${
+                              result.status === 'Valid' ? 'bg-green-50 border-green-500' :
+                              result.status === 'Warning' ? 'bg-yellow-50 border-yellow-500' :
+                              'bg-red-50 border-red-500'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-medium text-gray-900">{result.check}</h4>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                result.status === 'Valid' ? 'bg-green-100 text-green-800' :
+                                result.status === 'Warning' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {result.status}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600 mb-2">
+                              <span className="font-medium">Current Value:</span> {result.value} | 
+                              <span className="font-medium ml-2">Requirement:</span> {result.requirement}
+                            </div>
+                            <p className="text-sm text-gray-700 mb-2">{result.message}</p>
+                            {result.suggestion && (
+                              <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-2">
+                                <div className="flex items-start">
+                                  <svg className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <div>
+                                    <p className="text-sm font-medium text-blue-900">Suggestion:</p>
+                                    <p className="text-sm text-blue-700">{result.suggestion}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p>No manufacturability validation results yet.</p>
+                        <p className="text-sm mt-1">Click "Validate Manufacturability" to check manufacturing feasibility.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'verification' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">Specification Verification</h3>
+                      {specificationResults.length === 0 && (
+                        <Button onClick={verifySpecifications} disabled={isVerifying} size="sm">
+                          {isVerifying ? <LoadingSpinner size="sm" /> : 'Run Verification'}
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {specificationResults.length > 0 ? (
+                      <div className="space-y-4">
+                        {specificationResults.map((result, index) => (
+                          <div 
+                            key={index}
+                            className={`p-4 rounded-lg border ${
+                              result.status === 'Valid' ? 'bg-green-50 border-green-200' :
+                              result.status === 'Missing' ? 'bg-yellow-50 border-yellow-200' :
+                              'bg-red-50 border-red-200'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center space-x-3">
+                                <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                                  result.verified ? 'bg-green-500' : 'bg-gray-400'
+                                }`}>
+                                  {result.verified ? (
+                                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <h4 className="font-medium text-gray-900">{result.specification}</h4>
+                              </div>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                result.status === 'Valid' ? 'bg-green-100 text-green-800' :
+                                result.status === 'Missing' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {result.status}
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-3">
+                              <div>
+                                <span className="font-medium text-gray-700">Current Value:</span>
+                                <p className="text-gray-900">{result.value}</p>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">Standard:</span>
+                                <p className="text-gray-900">{result.standard}</p>
+                              </div>
+                            </div>
+                            
+                            <p className="text-sm text-gray-700">{result.notes}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p>No specification verification results yet.</p>
+                        <p className="text-sm mt-1">Click "Verify Specifications" to check drawing specifications against standards.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'report' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">Analysis Report</h3>
+                      {!reportGenerated && (
+                        <Button onClick={generateReport} disabled={isGeneratingReport} size="sm">
+                          {isGeneratingReport ? <LoadingSpinner size="sm" /> : 'Generate Report'}
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {reportGenerated ? (
+                      <div className="space-y-4">
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <h4 className="font-medium text-gray-900 mb-3">Report Summary</h4>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-700">Drawing:</span>
+                              <p className="text-gray-900">{sampleAnalysisReport.drawingName}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Status:</span>
+                              <p className="text-gray-900">{sampleAnalysisReport.overallStatus}</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Manufacturability:</span>
+                              <p className="text-gray-900">{sampleAnalysisReport.manufacturability}%</p>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Cost Estimate:</span>
+                              <p className="text-gray-900">{sampleAnalysisReport.costEstimate}</p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <h4 className="font-medium text-gray-900 mb-2">Recommendations</h4>
+                          <ul className="text-sm text-gray-700 space-y-1">
+                            {sampleAnalysisReport.recommendations.map((rec, index) => (
+                              <li key={index} className="flex items-start">
+                                <span className="text-blue-600 mr-2">•</span>
+                                {rec}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        
+                        <div className="flex space-x-3">
+                          <Button onClick={() => downloadReport('pdf')} className="flex-1">
+                            Download PDF
+                          </Button>
+                          <Button onClick={() => downloadReport('txt')} variant="outline" className="flex-1">
+                            Download Text
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>No report generated yet.</p>
+                        <p className="text-sm mt-1">Click "Generate Report" to create a detailed analysis report.</p>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-              
-              {analysis.recommendedProducts.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4">
-                  {analysis.recommendedProducts.slice(0, 3).map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <p>No specific product matches found.</p>
-                  <p className="text-sm mt-1">Try browsing our catalog or submit an RFQ for custom parts.</p>
-                </div>
-              )}
-
-              {/* View All Products Button */}
-              {analysis.recommendedProducts.length > 0 && (
-                <div className="mt-6 pt-4 border-t">
-                  <Button 
-                    onClick={() => window.open('/catalog', '_blank')} 
-                    variant="outline" 
-                    className="w-full"
-                  >
-                    Browse All Products
-                  </Button>
-                </div>
-              )}
             </div>
           </>
         ) : (
@@ -445,6 +860,53 @@ const CADAnalyzerFull: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Report Modal */}
+      <Modal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Analysis Report Generated">
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3 p-4 bg-green-50 rounded-lg">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <div>
+              <h4 className="font-medium text-green-900">Report Ready!</h4>
+              <p className="text-sm text-green-700">Your detailed analysis report has been generated successfully.</p>
+            </div>
+          </div>
+          
+          <div className="text-sm text-gray-600">
+            <p>The report includes:</p>
+            <ul className="mt-2 space-y-1 ml-4">
+              <li>• Manufacturability assessment</li>
+              <li>• Cost estimates and lead times</li>
+              <li>• Technical specifications</li>
+              <li>• Recommendations for optimization</li>
+            </ul>
+          </div>
+          
+          <div className="flex space-x-3 mt-6">
+            <Button onClick={() => downloadReport('pdf')} className="flex-1">
+              Download PDF
+            </Button>
+            <Button onClick={() => downloadReport('txt')} variant="outline" className="flex-1">
+              Download Text
+            </Button>
+          </div>
+          
+          <div className="text-center">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowReportModal(false);
+                setActiveTab('report');
+              }}
+              className="text-sm"
+            >
+              View Report Details
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
