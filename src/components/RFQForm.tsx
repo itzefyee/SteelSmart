@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 
 import { RFQFormData, ValidationErrors, APIResponse } from '@/types';
 import { validateEmail, formatFileSize, isValidFileType, isValidFileSize } from '@/lib/utils';
+import { sampleDrawings, cadTemplates } from '@/data/sample-data';
 
 const RFQForm: React.FC = () => {
   const router = useRouter();
@@ -34,8 +35,40 @@ const RFQForm: React.FC = () => {
   });
 
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [selectedDrawing, setSelectedDrawing] = useState<number | null>(null);
+  const [showAutoFill, setShowAutoFill] = useState(false);
+  const [analysisSource, setAnalysisSource] = useState<any>(null);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
 
   const totalSteps = 4;
+
+  // Check for drawing ID in URL params for auto-fill
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const drawingId = urlParams.get('drawingId');
+    if (drawingId) {
+      const drawing = sampleDrawings.find(d => d.id === parseInt(drawingId));
+      if (drawing) {
+        setSelectedDrawing(drawing.id);
+        setShowAutoFill(true);
+      }
+    }
+  }, []);
+
+  // Check for auto-fill from analysis
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('fromAnalysis') === 'true') {
+      const analysisData = sessionStorage.getItem('analysisForRFQ');
+      if (analysisData) {
+        const data = JSON.parse(analysisData);
+        setAnalysisSource(data);
+        autoFillFromAnalysis(data);
+        sessionStorage.removeItem('analysisForRFQ');
+      }
+    }
+  }, []);
 
   const updateContactInfo = (field: string, value: string) => {
     setFormData(prev => ({
@@ -156,6 +189,49 @@ const RFQForm: React.FC = () => {
     }));
   };
 
+  const autoFillFromAnalysis = (analysisData: any) => {
+    setFormData(prev => ({
+      ...prev,
+      requirements: {
+        ...prev.requirements,
+        projectDescription: `Analysis-based RFQ for ${analysisData.drawingName || 'analyzed component'}`,
+        material: analysisData.material || 'Steel',
+        specifications: analysisData.specifications || 'Based on CAD analysis results',
+        quantity: prev.requirements.quantity || 1,
+        budget: prev.requirements.budget || ''
+      }
+    }));
+    setShowAutoFill(false);
+  };
+
+  const autoFillFromTemplate = (template: any) => {
+    const specifications = Object.entries(template.parameters)
+      .map(([key, param]: [string, any]) => {
+        if (param.value) {
+          return `${param.label || key}: ${param.value}${param.unit || ''}`;
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .join(', ');
+
+    const material = template.parameters.material?.value || 'Steel';
+
+    setFormData(prev => ({
+      ...prev,
+      requirements: {
+        ...prev.requirements,
+        projectDescription: `Manufacturing request for ${template.name} - ${template.description}`,
+        material: material,
+        specifications: specifications,
+        quantity: prev.requirements.quantity || 1,
+        budget: prev.requirements.budget || ''
+      }
+    }));
+    setShowTemplateModal(false);
+    setSelectedTemplate(template);
+  };
+
   const submitRFQ = async () => {
     if (!validateStep(2)) return;
 
@@ -215,6 +291,35 @@ const RFQForm: React.FC = () => {
       case 1:
         return (
           <div className="space-y-6">
+            {/* Analysis Source Information */}
+            {analysisSource && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center mb-2">
+                  <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <h3 className="text-sm font-semibold text-blue-900">RFQ Based on CAD Analysis</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">Drawing:</span>
+                    <span className="ml-2 text-gray-900">{analysisSource.drawingName || 'Analyzed Component'}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Material:</span>
+                    <span className="ml-2 text-gray-900">{analysisSource.material || 'Steel'}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Confidence:</span>
+                    <span className="ml-2 text-gray-900">{analysisSource.analysisConfidence || 'High'}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-blue-700 mt-2">
+                  Form fields have been pre-filled based on the CAD analysis results. You can modify them as needed.
+                </p>
+              </div>
+            )}
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input
                 label="Full Name"
@@ -268,6 +373,70 @@ const RFQForm: React.FC = () => {
               error={errors.projectDescription}
               placeholder="Describe your project and what you need manufactured..."
             />
+
+            {/* Analysis Source Information or Template Auto-fill Section */}
+            {analysisSource ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <h3 className="text-sm font-semibold text-blue-900">RFQ Based on CAD Analysis</h3>
+                  </div>
+                  <Button
+                    onClick={() => setShowTemplateModal(true)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Browse Templates
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm mb-3">
+                  <div>
+                    <span className="font-medium text-gray-700">Drawing:</span>
+                    <span className="ml-2 text-gray-900">{analysisSource.drawingName || 'Analyzed Component'}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Material:</span>
+                    <span className="ml-2 text-gray-900">{analysisSource.material || 'Steel'}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Confidence:</span>
+                    <span className="ml-2 text-gray-900">{analysisSource.analysisConfidence || 'High'}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-blue-700">
+                  Form fields have been pre-filled based on the CAD analysis results. You can modify them as needed or use templates for additional options.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <h3 className="text-sm font-semibold text-gray-900">Quick Fill from Templates</h3>
+                  </div>
+                  <Button
+                    onClick={() => setShowTemplateModal(true)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Browse Templates
+                  </Button>
+                </div>
+                {selectedTemplate && (
+                  <div className="text-sm text-gray-600 mb-3">
+                    <span className="font-medium">Currently using:</span> {selectedTemplate.name}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">
+                  Select from predefined CAD templates to quickly populate specifications and requirements.
+                </p>
+              </div>
+            )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input
@@ -460,25 +629,27 @@ const RFQForm: React.FC = () => {
     <div className="max-w-4xl mx-auto">
       {/* Progress Bar */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          {[1, 2, 3, 4].map((step) => (
-            <div key={step} className="flex items-center">
-              <div className={`
-                w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
-                ${currentStep >= step 
-                  ? 'bg-primary text-white' 
-                  : 'bg-gray-200 text-gray-600'
-                }
-              `}>
-                {step}
+        <div className="flex items-center mb-4">
+          {[1, 2, 3, 4].map((step, index) => (
+            <React.Fragment key={step}>
+              <div className="flex justify-center">
+                <div className={`
+                  w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
+                  ${currentStep >= step 
+                    ? 'bg-primary text-white' 
+                    : 'bg-gray-200 text-gray-600'
+                  }
+                `}>
+                  {step}
+                </div>
               </div>
               {step < 4 && (
                 <div className={`
-                  h-1 w-24 mx-2
+                  h-1 flex-1 mx-4
                   ${currentStep > step ? 'bg-primary' : 'bg-gray-200'}
                 `} />
               )}
-            </div>
+            </React.Fragment>
           ))}
         </div>
         <div className="text-center">
@@ -526,6 +697,87 @@ const RFQForm: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Template Selection Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">Select CAD Template</h2>
+                <button
+                  onClick={() => setShowTemplateModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-gray-600 mt-2">
+                Choose a template to auto-fill your RFQ with predefined specifications and parameters.
+              </p>
+            </div>
+            
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {cadTemplates.map((template) => (
+                  <div
+                    key={template.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
+                    onClick={() => autoFillFromTemplate(template)}
+                  >
+                    <div className="flex items-start space-x-4">
+                      <div className="w-24 h-24 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                        <img
+                          src={template.preview}
+                          alt={template.name}
+                          className="w-full h-full object-contain p-2"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 mb-1">{template.name}</h3>
+                        <p className="text-sm text-gray-600 mb-2">{template.description}</p>
+                        <div className="text-xs text-gray-500">
+                          <div className="mb-1">
+                            <span className="font-medium">Material:</span> {template.parameters.material?.value || 'Steel'}
+                          </div>
+                          <div className="mb-1">
+                            <span className="font-medium">Category:</span> {template.category}
+                          </div>
+                          <div>
+                            <span className="font-medium">Parameters:</span> {Object.keys(template.parameters).length} included
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Click to use template</span>
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => setShowTemplateModal(false)}
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
