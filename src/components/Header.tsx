@@ -24,34 +24,46 @@ const Header: React.FC = () => {
             </Link>
             <div className="relative group">
               <button className="text-gray-700 hover:text-primary transition-colors flex items-center">
-                Categories
+                AI CAD Tools
                 <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
               <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                 <div className="py-2">
-                  <Link href="/catalog?category=robotic" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Robotic Components
+                  <Link href="/cad-generator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+                    <svg className="w-4 h-4 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                    </svg>
+                    CAD Generator
                   </Link>
-                  <Link href="/catalog?category=structural" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Structural Steel
+                  <Link href="/cad-analyzer" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+                    <svg className="w-4 h-4 mr-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    CAD Analyzer
                   </Link>
-                  <Link href="/catalog?category=fasteners" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Fasteners
-                  </Link>
-                  <Link href="/catalog?category=custom" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Custom Parts
+                  <Link href="/product-recommender" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+                    <svg className="w-4 h-4 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    Product Recommender
                   </Link>
                 </div>
               </div>
             </div>
-            <Link href="/cad-analyzer" className="text-gray-700 hover:text-primary transition-colors">
-              CAD Analyzer
-            </Link>
             <Link href="/rfq" className="text-gray-700 hover:text-primary transition-colors">
               Request Quote
             </Link>
+            
+            {/* TARUMT Logo */}
+            <div className="flex items-center ml-6 pl-6 border-l border-gray-200">
+              <img 
+                src="/images/tarumt-logo-767.png" 
+                alt="TARUMT" 
+                className="h-8 w-auto opacity-100"
+              />
+            </div>
           </nav>
 
           {/* Mobile menu button */}
@@ -79,28 +91,40 @@ const Header: React.FC = () => {
                 Catalog
               </Link>
               <div className="px-4 py-2">
-                <p className="text-sm font-medium text-gray-900 mb-2">Categories</p>
+                <p className="text-sm font-medium text-gray-900 mb-2">AI CAD Tools</p>
                 <div className="ml-2 space-y-1">
-                  <Link href="/catalog?category=robotic" className="block py-1 text-sm text-gray-700">
-                    Robotic Components
+                  <Link href="/cad-generator" className="block py-1 text-sm text-gray-700 flex items-center">
+                    <svg className="w-3 h-3 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                    </svg>
+                    CAD Generator
                   </Link>
-                  <Link href="/catalog?category=structural" className="block py-1 text-sm text-gray-700">
-                    Structural Steel
+                  <Link href="/cad-analyzer" className="block py-1 text-sm text-gray-700 flex items-center">
+                    <svg className="w-3 h-3 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    CAD Analyzer
                   </Link>
-                  <Link href="/catalog?category=fasteners" className="block py-1 text-sm text-gray-700">
-                    Fasteners
-                  </Link>
-                  <Link href="/catalog?category=custom" className="block py-1 text-sm text-gray-700">
-                    Custom Parts
+                  <Link href="/product-recommender" className="block py-1 text-sm text-gray-700 flex items-center">
+                    <svg className="w-3 h-3 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    Product Recommender
                   </Link>
                 </div>
               </div>
-              <Link href="/cad-analyzer" className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg">
-                CAD Analyzer
-              </Link>
               <Link href="/rfq" className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg">
                 Request Quote
               </Link>
+              
+              {/* TARUMT Logo - Mobile */}
+              <div className="flex items-center justify-center px-4 py-4 border-t border-gray-100 mt-2">
+                <img 
+                  src="/images/tarumt-logo-767.png" 
+                  alt="TARUMT" 
+                  className="h-6 w-auto opacity-100"
+                />
+              </div>
             </div>
           </div>
         )}

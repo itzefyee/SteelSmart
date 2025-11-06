@@ -22,34 +22,91 @@ const CADGenerator: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
   const [generatedDrawing, setGeneratedDrawing] = useState<GeneratedDrawing | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState<string>('');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editParameters, setEditParameters] = useState<Record<string, string>>({});
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const handleTextGeneration = async () => {
     if (!textInput.trim()) return;
     
     setIsGenerating(true);
+    setErrorMessage('');
+    setGenerationProgress('Initializing CAD generation...');
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Find matching sample generation or use first one as fallback
-    const matchingGeneration = sampleTextGenerations.find(gen => 
-      textInput.toLowerCase().includes('beam') && gen.input.includes('beam') ||
-      textInput.toLowerCase().includes('bracket') && gen.input.includes('bracket')
-    ) || sampleTextGenerations[0];
-    
-    const drawing = sampleDrawings.find(d => d.id === matchingGeneration.result.drawingId) || sampleDrawings[0];
-    
-    setGeneratedDrawing({
-      ...drawing,
-      parameters: matchingGeneration.result.parameters
-    });
-    
-    setIsGenerating(false);
-    setShowSuccessMessage(true);
-    setTimeout(() => setShowSuccessMessage(false), 3000);
+    try {
+      setGenerationProgress('Sending request to Zoo Dev API...');
+      
+      // Call the real Zoo Dev API
+      const response = await fetch('/api/generate-cad', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description: textInput,
+          category: 'custom', // Could be enhanced to detect category from text
+          format: 'step',
+          units: 'mm'
+        }),
+      });
+
+      setGenerationProgress('Processing your request...');
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'CAD generation failed');
+      }
+
+      setGenerationProgress('Finalizing your CAD model...');
+      
+      // Convert the API response to our component format
+      const { data } = result;
+      
+      setGeneratedDrawing({
+        id: parseInt(data.id.replace(/\D/g, '')) || Date.now(),
+        name: `Generated CAD Model`,
+        description: `AI-generated model from: "${textInput}"`,
+        preview: '/images/sample-cad-preview.svg', // Placeholder - in production, generate preview from model
+        dxf: `data:application/octet-stream;base64,${data.model_data}`,
+        parameters: {
+          format: data.parameters.format,
+          units: data.parameters.units,
+          category: data.parameters.category,
+          generated_at: data.parameters.generated_at,
+          prompt: textInput
+        }
+      });
+      
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+      
+    } catch (error: any) {
+      console.error('CAD generation error:', error);
+      
+      // Show error to user
+      setErrorMessage(`CAD generation failed: ${error.message}`);
+      
+      // Fallback to sample data for demo purposes
+      const matchingGeneration = sampleTextGenerations.find(gen => 
+        textInput.toLowerCase().includes('beam') && gen.input.includes('beam') ||
+        textInput.toLowerCase().includes('bracket') && gen.input.includes('bracket')
+      ) || sampleTextGenerations[0];
+      
+      const drawing = sampleDrawings.find(d => d.id === matchingGeneration.result.drawingId) || sampleDrawings[0];
+      
+      setGeneratedDrawing({
+        ...drawing,
+        parameters: {
+          ...matchingGeneration.result.parameters,
+          note: 'Using sample data - API unavailable'
+        }
+      });
+    } finally {
+      setIsGenerating(false);
+      setGenerationProgress('');
+    }
   };
 
   const handleTemplateGeneration = async () => {
@@ -114,19 +171,68 @@ const CADGenerator: React.FC = () => {
     setTimeout(() => setShowSuccessMessage(false), 3000);
   };
 
-  const handleDownload = (format: 'dxf' | 'pdf') => {
+  const handleDownload = async (format: 'step' | 'stl' | 'obj' | 'dxf' | 'pdf') => {
     if (!generatedDrawing) return;
     
-    // Simulate download
-    const link = document.createElement('a');
-    link.href = format === 'dxf' ? generatedDrawing.dxf : generatedDrawing.dxf;
-    link.download = `${generatedDrawing.name.replace(/\s+/g, '_')}.${format}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    setShowSuccessMessage(true);
-    setTimeout(() => setShowSuccessMessage(false), 3000);
+    try {
+      let downloadUrl = generatedDrawing.dxf;
+      let filename = `${generatedDrawing.name.replace(/\s+/g, '_')}.${format}`;
+      
+      // If it's a real CAD file (base64 data URL), handle conversion if needed
+      if (generatedDrawing.dxf.startsWith('data:application/octet-stream;base64,')) {
+        const base64Data = generatedDrawing.dxf.split(',')[1];
+        
+        // For formats other than the original, we might need conversion
+        if (format === 'step' || format === 'stl' || format === 'obj') {
+          // Create a blob from the base64 data
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const blob = new Blob([bytes], { type: 'application/octet-stream' });
+          downloadUrl = URL.createObjectURL(blob);
+        } else if (format === 'pdf') {
+          // For PDF, we'd need to render the 3D model - for now, use original
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          downloadUrl = URL.createObjectURL(blob);
+        } else if (format === 'dxf') {
+          // For DXF, convert from STEP if needed
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const blob = new Blob([bytes], { type: 'application/dxf' });
+          downloadUrl = URL.createObjectURL(blob);
+        }
+      }
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up object URL if we created one
+      if (downloadUrl.startsWith('blob:')) {
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      }
+      
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Download failed. Please try again.');
+    }
   };
 
   return (
@@ -288,8 +394,35 @@ const CADGenerator: React.FC = () => {
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                           </div>
-                          <span className="text-gray-600 text-sm">Generating your CAD drawing...</span>
+                          <span className="text-gray-600 text-sm">
+                            {generationProgress || 'Generating your CAD drawing...'}
+                          </span>
                         </div>
+                        {generationProgress && (
+                          <div className="mt-2">
+                            <div className="w-full bg-gray-200 rounded-full h-1">
+                              <div className="bg-gradient-to-r from-purple-500 to-blue-600 h-1 rounded-full animate-pulse" style={{width: '60%'}}></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2 ml-4">SteelSmart AI • Powered by Zoo Dev</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Error Message */}
+                {errorMessage && (
+                  <div className="flex items-start space-x-4">
+                    <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <div className="bg-red-50 rounded-2xl rounded-tl-md p-4 border border-red-200">
+                        <p className="text-red-800 text-sm">{errorMessage}</p>
+                        <p className="text-red-600 text-xs mt-2">Don't worry - we've loaded a sample drawing for you to explore the interface.</p>
                       </div>
                       <p className="text-xs text-gray-500 mt-2 ml-4">SteelSmart AI</p>
                     </div>
@@ -383,19 +516,54 @@ const CADGenerator: React.FC = () => {
               <Button variant="outline" onClick={handleEditDrawing}>
                 Edit Drawing
               </Button>
-              <div className="relative">
-                <Button 
-                  onClick={() => handleDownload('dxf')}
-                  className="mr-2"
-                >
-                  Download DXF
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => handleDownload('pdf')}
-                >
-                  Download PDF
-                </Button>
+              <div className="flex space-x-2">
+                <div className="relative group">
+                  <Button className="flex items-center space-x-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Download</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Button>
+                  
+                  {/* Dropdown Menu */}
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                    <div className="py-1">
+                      <button
+                        onClick={() => handleDownload('step')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Download STEP (.step)
+                      </button>
+                      <button
+                        onClick={() => handleDownload('stl')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Download STL (.stl)
+                      </button>
+                      <button
+                        onClick={() => handleDownload('obj')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Download OBJ (.obj)
+                      </button>
+                      <button
+                        onClick={() => handleDownload('dxf')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Download DXF (.dxf)
+                      </button>
+                      <button
+                        onClick={() => handleDownload('pdf')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Download PDF (.pdf)
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -447,7 +615,7 @@ const CADGenerator: React.FC = () => {
                 value={value}
                 onChange={(e) => setEditParameters(prev => ({
                   ...prev,
-                  [key]: e.target.value
+                  [key]: (e.target as HTMLInputElement).value
                 }))}
                 className="w-full"
               />
