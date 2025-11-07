@@ -6,6 +6,9 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import CADHistory from '@/components/CADHistory';
+import CADGenerationDebug from '@/components/CADGenerationDebug';
+import CADPreview3D from '@/components/CADPreview3D';
 
 interface GeneratedDrawing {
   id: number;
@@ -27,6 +30,108 @@ const CADGenerator: React.FC = () => {
   const [editParameters, setEditParameters] = useState<Record<string, string>>({});
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [debugSteps, setDebugSteps] = useState<any[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
+  const [conversationId, setConversationId] = useState<string>('');
+
+  // Debug step management
+  const addDebugStep = (id: string, title: string, status: 'pending' | 'in_progress' | 'completed' | 'failed', details?: string, error?: string) => {
+    const timestamp = new Date().toISOString();
+    setDebugSteps(prev => {
+      const existing = prev.find(step => step.id === id);
+      if (existing) {
+        return prev.map(step => 
+          step.id === id 
+            ? { ...step, status, timestamp, details, error, duration: status === 'completed' || status === 'failed' ? Date.now() - new Date(step.timestamp).getTime() : undefined }
+            : step
+        );
+      }
+      return [...prev, { id, title, status, timestamp, details, error }];
+    });
+  };
+
+  const clearDebugSteps = () => {
+    setDebugSteps([]);
+  };
+
+  const handleHistorySelect = (historyItem: any) => {
+    console.log('handleHistorySelect called with:', {
+      id: historyItem.id,
+      hasModelData: !!historyItem.model_data,
+      modelDataLength: historyItem.model_data?.length || 0,
+      format: historyItem.format,
+      prompt: historyItem.prompt
+    });
+    
+    // Ensure model_data is a valid base64 string
+    let modelData = historyItem.model_data;
+    
+    // If model_data doesn't start with data: URL, create one
+    if (modelData && !modelData.startsWith('data:')) {
+      // Check if it's already base64 (no need to encode again)
+      // If it contains non-base64 characters, it might need encoding
+      try {
+        // Try to decode a sample to verify it's valid base64
+        const sample = modelData.substring(0, Math.min(100, modelData.length));
+        atob(sample);
+        // If successful, it's valid base64, create data URL
+        modelData = `data:application/octet-stream;base64,${modelData}`;
+      } catch (e) {
+        // If not valid base64, try to encode it
+        console.warn('Model data might not be base64, attempting to handle...');
+        try {
+          modelData = `data:application/octet-stream;base64,${btoa(modelData)}`;
+        } catch (encodeError) {
+          console.error('Failed to encode model data:', encodeError);
+          modelData = null;
+        }
+      }
+    }
+    
+    if (!modelData) {
+      console.error('No model data available in history item');
+      alert('Error: No model data available for this drawing.');
+      return;
+    }
+    
+    // Convert history item to generated drawing format
+    const drawing = {
+      id: parseInt(historyItem.id.replace(/\D/g, '')) || Date.now(),
+      name: 'Generated CAD Model (from history)',
+      description: `AI-generated model from: "${historyItem.prompt}"`,
+      preview: '/images/sample-cad-preview.svg',
+      dxf: modelData,
+      parameters: {
+        format: historyItem.format || 'step',
+        units: historyItem.units || 'mm',
+        category: historyItem.category || 'custom',
+        generated_at: historyItem.generated_at || new Date().toISOString(),
+        prompt: historyItem.prompt
+      }
+    };
+    
+    console.log('Setting generated drawing:', {
+      id: drawing.id,
+      hasDxf: !!drawing.dxf,
+      dxfLength: drawing.dxf?.length || 0
+    });
+    
+    setGeneratedDrawing(drawing);
+    
+    // Also set the text input to the historical prompt
+    setTextInput(historyItem.prompt);
+    
+    setShowSuccessMessage(true);
+    setTimeout(() => setShowSuccessMessage(false), 3000);
+    
+    // Scroll to the generated drawing section
+    setTimeout(() => {
+      const drawingElement = document.querySelector('[data-generated-drawing]');
+      if (drawingElement) {
+        drawingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
 
   const handleTextGeneration = async () => {
     if (!textInput.trim()) return;
@@ -34,9 +139,17 @@ const CADGenerator: React.FC = () => {
     setIsGenerating(true);
     setErrorMessage('');
     setGenerationProgress('Initializing CAD generation...');
+    clearDebugSteps();
     
     try {
+      // Debug Step 1: Initialize
+      addDebugStep('init', 'Initialize Generation', 'in_progress', `Prompt: "${textInput}"`);
+      
       setGenerationProgress('Sending request to Zoo Dev API...');
+      addDebugStep('init', 'Initialize Generation', 'completed');
+      
+      // Debug Step 2: API Request
+      addDebugStep('api_request', 'Send API Request', 'in_progress', 'Calling Zoo Dev text-to-CAD API');
       
       // Call the real Zoo Dev API
       const response = await fetch('/api/generate-cad', {
@@ -52,13 +165,24 @@ const CADGenerator: React.FC = () => {
         }),
       });
 
+      addDebugStep('api_request', 'Send API Request', 'completed', `Response status: ${response.status}`);
+      
+      // Debug Step 3: Process Response
+      addDebugStep('process_response', 'Process API Response', 'in_progress', 'Parsing Zoo Dev API response');
+      
       setGenerationProgress('Processing your request...');
       const result = await response.json();
 
       if (!result.success) {
+        addDebugStep('process_response', 'Process API Response', 'failed', undefined, result.error);
         throw new Error(result.error || 'CAD generation failed');
       }
 
+      addDebugStep('process_response', 'Process API Response', 'completed', `Model ID: ${result.data.id}`);
+      
+      // Debug Step 4: Finalize
+      addDebugStep('finalize', 'Finalize CAD Model', 'in_progress', 'Converting to display format');
+      
       setGenerationProgress('Finalizing your CAD model...');
       
       // Convert the API response to our component format
@@ -79,11 +203,19 @@ const CADGenerator: React.FC = () => {
         }
       });
       
+      // Store conversation ID for Zoo Dev API integration
+      setConversationId(data.id);
+      
+      addDebugStep('finalize', 'Finalize CAD Model', 'completed', 'CAD model ready for display');
+      
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
       
     } catch (error: any) {
       console.error('CAD generation error:', error);
+      
+      // Update debug steps with error
+      addDebugStep('finalize', 'Finalize CAD Model', 'failed', undefined, error.message);
       
       // Show error to user
       setErrorMessage(`CAD generation failed: ${error.message}`);
@@ -175,68 +307,90 @@ const CADGenerator: React.FC = () => {
     if (!generatedDrawing) return;
     
     try {
-      let downloadUrl = generatedDrawing.dxf;
-      let filename = `${generatedDrawing.name.replace(/\s+/g, '_')}.${format}`;
+      // Get the actual format from parameters or default to step
+      const actualFormat = generatedDrawing.parameters?.format || 'step';
+      const filename = `${generatedDrawing.name.replace(/\s+/g, '_')}.${format}`;
       
-      // If it's a real CAD file (base64 data URL), handle conversion if needed
-      if (generatedDrawing.dxf.startsWith('data:application/octet-stream;base64,')) {
-        const base64Data = generatedDrawing.dxf.split(',')[1];
-        
-        // For formats other than the original, we might need conversion
-        if (format === 'step' || format === 'stl' || format === 'obj') {
-          // Create a blob from the base64 data
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          const blob = new Blob([bytes], { type: 'application/octet-stream' });
-          downloadUrl = URL.createObjectURL(blob);
-        } else if (format === 'pdf') {
-          // For PDF, we'd need to render the 3D model - for now, use original
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          const blob = new Blob([bytes], { type: 'application/pdf' });
-          downloadUrl = URL.createObjectURL(blob);
-        } else if (format === 'dxf') {
-          // For DXF, convert from STEP if needed
-          const binaryString = atob(base64Data);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          const blob = new Blob([bytes], { type: 'application/dxf' });
-          downloadUrl = URL.createObjectURL(blob);
+      // Extract base64 data from the dxf field (which contains the model data)
+      let base64Data = '';
+      
+      if (generatedDrawing.dxf.startsWith('data:')) {
+        // Extract base64 from data URL
+        const parts = generatedDrawing.dxf.split(',');
+        if (parts.length > 1) {
+          base64Data = parts[1];
+        } else {
+          // If no comma, the whole thing might be base64
+          base64Data = generatedDrawing.dxf.replace(/^data:.*;base64,/, '');
         }
+      } else {
+        // If it's already base64 without data URL prefix
+        base64Data = generatedDrawing.dxf;
       }
+      
+      if (!base64Data) {
+        alert('No model data available for download.');
+        return;
+      }
+      
+      // Decode base64 to binary
+      let binaryString: string;
+      try {
+        binaryString = atob(base64Data);
+      } catch (e) {
+        console.error('Base64 decode error:', e);
+        alert('Failed to decode model data. The file may be corrupted.');
+        return;
+      }
+      
+      // Convert to Uint8Array
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      // Determine MIME type based on format
+      const mimeTypes: Record<string, string> = {
+        'step': 'application/octet-stream',
+        'stl': 'application/octet-stream',
+        'obj': 'text/plain',
+        'dxf': 'application/dxf',
+        'pdf': 'application/pdf'
+      };
+      
+      const mimeType = mimeTypes[format] || 'application/octet-stream';
+      
+      // Create blob with correct MIME type
+      const blob = new Blob([bytes], { type: mimeType });
+      const downloadUrl = URL.createObjectURL(blob);
       
       // Create download link
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.download = filename;
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
       
-      // Clean up object URL if we created one
-      if (downloadUrl.startsWith('blob:')) {
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-      }
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
+      }, 100);
       
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Download error:', error);
-      alert('Download failed. Please try again.');
+      alert(`Download failed: ${error.message || 'Unknown error'}. Please try again.`);
     }
   };
 
   return (
     <div className="space-y-8">
+      {/* CAD History */}
+      <CADHistory onSelectHistory={handleHistorySelect} />
       {/* Success Message */}
       {showSuccessMessage && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -506,7 +660,7 @@ const CADGenerator: React.FC = () => {
 
       {/* Generated Drawing Display */}
       {generatedDrawing && (
-        <div className="bg-white rounded-lg shadow border p-6">
+        <div className="bg-white rounded-lg shadow border p-6" data-generated-drawing>
           <div className="flex justify-between items-start mb-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Generated Drawing</h2>
@@ -569,22 +723,31 @@ const CADGenerator: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Drawing Preview */}
+            {/* 3D Model Preview */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Drawing Preview</h3>
-              <div className="w-full h-96 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                <img 
-                  src={generatedDrawing.preview} 
-                  alt={generatedDrawing.name}
-                  className="w-full h-full object-contain p-2"
+              <h3 className="text-lg font-medium text-gray-900 mb-4">3D Model Preview</h3>
+              {generatedDrawing.dxf && (generatedDrawing.dxf.includes('base64') || generatedDrawing.dxf.length > 50) ? (
+                <CADPreview3D
+                  modelData={generatedDrawing.dxf}
+                  format={(generatedDrawing.parameters?.format as 'step' | 'stl' | 'obj') || 'step'}
                 />
-              </div>
+              ) : (
+                <div className="w-full h-96 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                  <div className="text-center p-4">
+                    <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="text-sm text-gray-600">Model preview unavailable</p>
+                    <p className="text-xs text-gray-500 mt-2">Download the file to view in CAD software</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Parameters */}
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Drawing Parameters</h3>
-              <div className="space-y-3">
+              <div className="space-y-3 mb-6">
                 {generatedDrawing.parameters ? (
                   Object.entries(generatedDrawing.parameters).map(([key, value]) => (
                     <div key={key} className="flex justify-between py-2 border-b border-gray-100">
@@ -596,10 +759,31 @@ const CADGenerator: React.FC = () => {
                   <div className="text-gray-500 italic">No parameters available</div>
                 )}
               </div>
+
+              {/* Compatibility Info */}
+              {generatedDrawing.dxf && (generatedDrawing.dxf.includes('base64') || generatedDrawing.dxf.length > 50) && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="text-xs text-gray-500">
+                    <p className="flex items-center">
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Compatible with AutoCAD, SolidWorks, FreeCAD, Fusion 360
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Debug Information */}
+      <CADGenerationDebug 
+        steps={debugSteps}
+        isVisible={showDebug}
+        onToggle={() => setShowDebug(!showDebug)}
+      />
 
       {/* Drawing Editor Modal */}
       <Modal isOpen={isEditorOpen} onClose={() => setIsEditorOpen(false)} title="Edit Drawing">
@@ -613,9 +797,9 @@ const CADGenerator: React.FC = () => {
               <Input
                 type={key.includes('holes') || key.includes('count') ? 'number' : 'text'}
                 value={value}
-                onChange={(e) => setEditParameters(prev => ({
+                onChange={(value) => setEditParameters(prev => ({
                   ...prev,
-                  [key]: (e.target as HTMLInputElement).value
+                  [key]: value
                 }))}
                 className="w-full"
               />

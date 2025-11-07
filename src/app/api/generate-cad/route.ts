@@ -41,23 +41,27 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
       }, { status: 400 });
     }
 
-    // Enhance the prompt with context for steel/metal components
-    const enhancedPrompt = `Generate a ${category} component for steel/metal manufacturing: ${description}. 
-    Make it suitable for CNC machining or fabrication with proper tolerances and standard dimensions.
-    Include mounting holes and standard fastener patterns where appropriate.`;
-
+    // Use the original description without enhancement
     console.log('Starting CAD generation with Zoo Dev API...');
-    console.log('Enhanced prompt:', enhancedPrompt);
+    console.log('Original prompt:', description);
 
     try {
       // Use Zoo Dev API for text-to-CAD generation
-      console.log('Calling Zoo Dev API with prompt:', enhancedPrompt);
+      console.log('Calling Zoo Dev API with prompt:', description);
       
       const result = await ml.create_text_to_cad({
           body: {
-              prompt: enhancedPrompt,
+              prompt: description,
           },
           output_format: format
+      });
+
+      console.log('Zoo Dev API raw response:', {
+        type: typeof result,
+        keys: result ? Object.keys(result) : null,
+        hasError: result && 'error_code' in result,
+        hasStatus: result && 'status' in result,
+        hasId: result && 'id' in result
       });
 
       // Check for API errors
@@ -69,26 +73,98 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
         }, { status: 500 });
       }
 
-      console.log('CAD generation completed, result:', result);
-
-      // Extract the generated model data
-      const modelData = result.outputs ? Object.values(result.outputs)[0] : null;
-      
-      if (!modelData) {
+      // Check if this is an async operation that needs polling
+      if (result && 'status' in result && result.status !== 'completed') {
+        console.log('CAD generation is async, status:', result.status);
+        // For now, return the operation ID and let the client handle polling
+        // Or we could implement server-side polling here
         return NextResponse.json({
           success: false,
-          error: 'No model data received from Zoo Dev API'
+          error: `CAD generation is in progress (status: ${result.status}). The operation may need to be polled for completion. Operation ID: ${result.id || 'unknown'}`
+        }, { status: 202 }); // 202 Accepted for async operations
+      }
+
+      console.log('CAD generation completed, result structure:', {
+        hasId: !!result.id,
+        hasOutputs: !!result.outputs,
+        outputsType: typeof result.outputs,
+        outputsKeys: result.outputs ? Object.keys(result.outputs) : null,
+        resultKeys: Object.keys(result),
+        resultString: JSON.stringify(result).substring(0, 500)
+      });
+
+      // Extract the generated model data from various possible locations
+      // Use type assertion to access properties that may exist but aren't in the type definition
+      const resultAny = result as any;
+      let modelData = null;
+      
+      // Try different possible locations for model data
+      if (result.outputs && typeof result.outputs === 'object') {
+        const outputValues = Object.values(result.outputs);
+        if (outputValues.length > 0) {
+          modelData = outputValues[0];
+          console.log('Found model data in outputs, size:', typeof modelData === 'string' ? modelData.length : 'unknown');
+        }
+      } else if (resultAny.model_data) {
+        modelData = resultAny.model_data;
+        console.log('Found model data in model_data field, size:', modelData.length);
+      } else if (resultAny.data?.outputs) {
+        const outputValues = Object.values(resultAny.data.outputs);
+        if (outputValues.length > 0) {
+          modelData = outputValues[0];
+          console.log('Found model data in data.outputs, size:', typeof modelData === 'string' ? modelData.length : 'unknown');
+        }
+      } else if (resultAny.data?.model_data) {
+        modelData = resultAny.data.model_data;
+        console.log('Found model data in data.model_data field, size:', modelData.length);
+      } else if (resultAny.file || resultAny.file_data) {
+        modelData = resultAny.file || resultAny.file_data;
+        console.log('Found model data in file/file_data field');
+      }
+      
+      if (!modelData) {
+        console.error('No model data found in result. Full result:', JSON.stringify(result, null, 2));
+        return NextResponse.json({
+          success: false,
+          error: `No model data received from Zoo Dev API. Response structure: ${JSON.stringify(Object.keys(result))}. Please check the console for details.`
         }, { status: 500 });
+      }
+      
+      // Ensure modelData is a string (base64)
+      if (typeof modelData !== 'string') {
+        console.warn('Model data is not a string, attempting to convert:', typeof modelData);
+        modelData = String(modelData);
       }
 
       console.log('CAD generation completed successfully');
+
+      const generationId = result.id || `cad_${Date.now()}`;
+      
+      // Add to history
+      try {
+        await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/cad-history`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: description,
+            category,
+            format,
+            units,
+            model_data: modelData as string,
+            status: 'completed'
+          })
+        });
+      } catch (historyError) {
+        console.error('Failed to add to history:', historyError);
+        // Don't fail the main request if history fails
+      }
 
       // For now, we'll return the base64 model data
       // In a production app, you might want to store this in cloud storage
       return NextResponse.json({
         success: true,
         data: {
-          id: result.id || `cad_${Date.now()}`,
+          id: generationId,
           status: 'completed',
           model_data: modelData as string,
           parameters: {
@@ -96,13 +172,33 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
             units,
             category,
             generated_at: new Date().toISOString(),
-            prompt: enhancedPrompt
+            prompt: description
           }
         }
       });
 
     } catch (apiError: any) {
       console.error('Zoo Dev API call failed:', apiError);
+      
+      const errorMessage = apiError.message || 'Unknown error';
+      
+      // Add failed generation to history
+      try {
+        await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/cad-history`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: description,
+            category,
+            format,
+            units,
+            status: 'failed',
+            error: errorMessage
+          })
+        });
+      } catch (historyError) {
+        console.error('Failed to add failed generation to history:', historyError);
+      }
       
       // Handle specific API errors
       if (apiError.message?.includes('rate limit')) {
@@ -121,7 +217,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
 
       return NextResponse.json({
         success: false,
-        error: `CAD generation service error: ${apiError.message || 'Unknown error'}`
+        error: `CAD generation service error: ${errorMessage}`
       }, { status: 500 });
     }
 
