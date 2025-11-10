@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { sampleDrawings, cadTemplates, sampleTextGenerations } from '@/data/sample-data';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -33,6 +33,7 @@ const CADGenerator: React.FC = () => {
   const [debugSteps, setDebugSteps] = useState<any[]>([]);
   const [showDebug, setShowDebug] = useState(false);
   const [conversationId, setConversationId] = useState<string>('');
+  const [cadFileForPreview, setCadFileForPreview] = useState<File | null>(null);
 
   // Debug step management
   const addDebugStep = (id: string, title: string, status: 'pending' | 'in_progress' | 'completed' | 'failed', details?: string, error?: string) => {
@@ -53,6 +54,55 @@ const CADGenerator: React.FC = () => {
   const clearDebugSteps = () => {
     setDebugSteps([]);
   };
+
+  // Helper function to convert base64 to File
+  const base64ToFile = (base64Data: string, format: string): File | null => {
+    try {
+      // Extract base64 data
+      let base64 = base64Data;
+      if (base64Data.startsWith('data:')) {
+        const parts = base64Data.split(',');
+        base64 = parts.length > 1 ? parts[1] : base64Data.replace(/^data:.*;base64,/, '');
+      }
+
+      // Decode base64 to binary
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Determine MIME type
+      const mimeTypes: Record<string, string> = {
+        'step': 'application/step',
+        'stp': 'application/step',
+        'stl': 'model/stl',
+        'obj': 'model/obj',
+        'dxf': 'application/dxf',
+      };
+
+      const mimeType = mimeTypes[format.toLowerCase()] || 'application/octet-stream';
+      const filename = `model.${format.toLowerCase()}`;
+
+      // Create File object
+      const file = new File([bytes], filename, { type: mimeType });
+      return file;
+    } catch (error) {
+      console.error('Error converting base64 to file:', error);
+      return null;
+    }
+  };
+
+  // Convert generated drawing to File for preview whenever it changes
+  useEffect(() => {
+    if (generatedDrawing?.dxf) {
+      const format = (generatedDrawing.parameters?.format || 'step') as string;
+      const file = base64ToFile(generatedDrawing.dxf, format);
+      setCadFileForPreview(file);
+    } else {
+      setCadFileForPreview(null);
+    }
+  }, [generatedDrawing]);
 
   const handleHistorySelect = (historyItem: any) => {
     console.log('handleHistorySelect called with:', {
@@ -241,32 +291,156 @@ const CADGenerator: React.FC = () => {
     }
   };
 
+  // Helper function to generate prompt from template
+  const generatePromptFromTemplate = (template: typeof cadTemplates[0]): string => {
+    const params = template.parameters as any; // Type assertion to avoid undefined errors
+
+    switch (template.id) {
+      case 1: // I-Beam
+        return `Generate an I-beam with the following specifications: height ${params.height?.value}${params.height?.unit}, flange width ${params.width?.value}${params.width?.unit}, web thickness ${params.webThickness?.value}${params.webThickness?.unit}, flange thickness ${params.flangeThickness?.value}${params.flangeThickness?.unit}, length ${params.length?.value}${params.length?.unit}, material ${params.material?.value}`;
+
+      case 2: // Rectangular Plate
+        return `Generate a rectangular steel plate with dimensions ${params.length?.value}${params.length?.unit} x ${params.width?.value}${params.width?.unit} x ${params.thickness?.value}${params.thickness?.unit}, with ${params.holeCount?.value} holes of ${params.holeDiameter?.value}${params.holeDiameter?.unit} diameter, material ${params.material?.value}`;
+
+      case 3: // L-Bracket
+        return `Generate an L-bracket with height ${params.height?.value}${params.height?.unit}, width ${params.width?.value}${params.width?.unit}, thickness ${params.thickness?.value}${params.thickness?.unit}, ${params.holeCount?.value} mounting holes of ${params.holeDiameter?.value}${params.holeDiameter?.unit} diameter, bend radius ${params.bendRadius?.value}${params.bendRadius?.unit}, material ${params.material?.value}`;
+
+      case 4: // Servo Mount
+        return `Generate a servo motor mounting bracket for ${params.servoType?.value} servo, with ${params.mountingHoles?.value} mounting holes, bracket thickness ${params.thickness?.value}${params.thickness?.unit}, mount height ${params.height?.value}${params.height?.unit}, cable management: ${params.cableManagement?.value}, material ${params.material?.value}`;
+
+      default:
+        return `Generate a ${template.name} with the default parameters`;
+    }
+  };
+
   const handleTemplateGeneration = async () => {
     if (selectedTemplate === null) return;
-    
+
     setIsGenerating(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const template = cadTemplates.find(t => t.id === selectedTemplate);
-    const drawing = sampleDrawings.find(d => d.category === template?.category) || sampleDrawings[0];
-    
-    // Convert template parameters to generated drawing parameters
-    const templateParams: Record<string, any> = {};
-    if (template?.parameters) {
-      Object.entries(template.parameters).forEach(([key, param]) => {
-        templateParams[key] = `${param.value}${param.unit || ''}`;
+    setErrorMessage('');
+    setGenerationProgress('Preparing template for generation...');
+    clearDebugSteps();
+
+    try {
+      const template = cadTemplates.find(t => t.id === selectedTemplate);
+      if (!template) {
+        throw new Error('Template not found');
+      }
+
+      // Debug Step 1: Initialize Template
+      addDebugStep('init_template', 'Initialize Template', 'in_progress', `Template: ${template.name}`);
+
+      // Convert template parameters to a descriptive prompt for Zoo Dev API
+      const prompt = generatePromptFromTemplate(template);
+
+      addDebugStep('init_template', 'Initialize Template', 'completed', `Generated prompt: "${prompt}"`);
+
+      setGenerationProgress('Sending request to Zoo Dev API...');
+
+      // Debug Step 2: API Request
+      addDebugStep('api_request', 'Send API Request', 'in_progress', 'Calling Zoo Dev text-to-CAD API with template parameters');
+
+      // Call the real Zoo Dev API
+      const response = await fetch('/api/generate-cad', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description: prompt,
+          category: template.category,
+          format: 'step',
+          units: 'mm'
+        }),
       });
+
+      addDebugStep('api_request', 'Send API Request', 'completed', `Response status: ${response.status}`);
+
+      // Debug Step 3: Process Response
+      addDebugStep('process_response', 'Process API Response', 'in_progress', 'Parsing Zoo Dev API response');
+
+      setGenerationProgress('Processing your request...');
+      const result = await response.json();
+
+      if (!result.success) {
+        addDebugStep('process_response', 'Process API Response', 'failed', undefined, result.error);
+        throw new Error(result.error || 'CAD generation failed');
+      }
+
+      addDebugStep('process_response', 'Process API Response', 'completed', `Model ID: ${result.data.id}`);
+
+      // Debug Step 4: Finalize
+      addDebugStep('finalize', 'Finalize CAD Model', 'in_progress', 'Converting to display format');
+
+      setGenerationProgress('Finalizing your CAD model...');
+
+      // Convert the API response to our component format
+      const { data } = result;
+
+      // Convert template parameters to display format
+      const templateParams: Record<string, any> = {};
+      if (template.parameters) {
+        Object.entries(template.parameters).forEach(([key, param]) => {
+          templateParams[key] = `${param.value}${param.unit || ''}`;
+        });
+      }
+
+      setGeneratedDrawing({
+        id: parseInt(data.id.replace(/\D/g, '')) || Date.now(),
+        name: `Generated ${template.name}`,
+        description: `AI-generated ${template.name} from template`,
+        preview: template.preview,
+        dxf: `data:application/octet-stream;base64,${data.model_data}`,
+        parameters: {
+          ...templateParams,
+          format: data.parameters.format,
+          units: data.parameters.units,
+          category: data.parameters.category,
+          generated_at: data.parameters.generated_at,
+          prompt: prompt
+        }
+      });
+
+      // Store conversation ID for Zoo Dev API integration
+      setConversationId(data.id);
+
+      addDebugStep('finalize', 'Finalize CAD Model', 'completed', 'CAD model ready for display');
+
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
+    } catch (error: any) {
+      console.error('Template CAD generation error:', error);
+
+      // Update debug steps with error
+      addDebugStep('finalize', 'Finalize CAD Model', 'failed', undefined, error.message);
+
+      // Show error to user
+      setErrorMessage(`Template generation failed: ${error.message}`);
+
+      // Fallback to sample data for demo purposes
+      const template = cadTemplates.find(t => t.id === selectedTemplate);
+      const drawing = sampleDrawings.find(d => d.category === template?.category) || sampleDrawings[0];
+
+      // Convert template parameters to generated drawing parameters
+      const templateParams: Record<string, any> = {};
+      if (template?.parameters) {
+        Object.entries(template.parameters).forEach(([key, param]) => {
+          templateParams[key] = `${param.value}${param.unit || ''}`;
+        });
+      }
+
+      setGeneratedDrawing({
+        ...drawing,
+        parameters: {
+          ...templateParams,
+          note: 'Using sample data - API unavailable'
+        }
+      });
+    } finally {
+      setIsGenerating(false);
+      setGenerationProgress('');
     }
-    
-    setGeneratedDrawing({
-      ...drawing,
-      parameters: templateParams
-    });
-    setIsGenerating(false);
-    setShowSuccessMessage(true);
-    setTimeout(() => setShowSuccessMessage(false), 3000);
   };
 
   const handleEditDrawing = () => {
@@ -726,10 +900,10 @@ const CADGenerator: React.FC = () => {
             {/* 3D Model Preview */}
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">3D Model Preview</h3>
-              {generatedDrawing.dxf && (generatedDrawing.dxf.includes('base64') || generatedDrawing.dxf.length > 50) ? (
+              {cadFileForPreview ? (
                 <CADPreview3D
-                  modelData={generatedDrawing.dxf}
-                  format={(generatedDrawing.parameters?.format as 'step' | 'stl' | 'obj') || 'step'}
+                  file={cadFileForPreview}
+                  showStats={true}
                 />
               ) : (
                 <div className="w-full h-96 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">

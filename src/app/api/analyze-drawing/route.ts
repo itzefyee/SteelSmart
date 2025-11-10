@@ -16,11 +16,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file type and size
-    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg'];
-    if (!allowedTypes.includes(file.type)) {
+    const allowedTypes = [
+      'application/pdf', 
+      'image/png', 
+      'image/jpeg',
+      'application/step',
+      'application/sla',
+      'model/obj',
+      'application/dxf',
+      'application/octet-stream' // For .step, .stp, .stl files that might have generic MIME type
+    ];
+    
+    // Also check file extension for CAD files
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['pdf', 'png', 'jpg', 'jpeg', 'step', 'stp', 'stl', 'obj', 'dxf'];
+    
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension || '')) {
       return NextResponse.json<APIResponse<null>>({
         success: false,
-        error: 'Invalid file type. Please upload PDF, PNG, or JPG files.'
+        error: 'Invalid file type. Please upload PDF, PNG, JPG, STEP, STL, OBJ, or DXF files.'
       }, { status: 400 });
     }
 

@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import ProductCard from '@/components/ProductCard';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import CADPreview3D from '@/components/CADPreview3D';
 import { DrawingAnalysis, FileUploadState, APIResponse } from '@/types';
 import { formatFileSize } from '@/lib/utils';
 import { sampleManufacturabilityResults, sampleSpecificationResults, sampleAnalysisReport } from '@/data/sample-data';
@@ -61,8 +62,8 @@ const CADAnalyzerFull: React.FC = () => {
       
       if (rejection.errors?.find((e) => e.code === 'file-too-large')) {
         errorMessage = `File size exceeds ${maxSizeInMB}MB limit`;
-      } else if (rejection.errors?.find((e) => e.code === 'file-invalid-type')) {
-        errorMessage = 'Invalid file type. Please upload PDF, PNG, or JPG files';
+      } else       if (rejection.errors?.find((e) => e.code === 'file-invalid-type')) {
+        errorMessage = 'Invalid file type. Please upload PDF, PNG, JPG, STEP, STL, OBJ, or DXF files';
       }
       
       setUploadState({
@@ -94,7 +95,11 @@ const CADAnalyzerFull: React.FC = () => {
     accept: {
       'application/pdf': ['.pdf'],
       'image/png': ['.png'],
-      'image/jpeg': ['.jpg', '.jpeg']
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'application/step': ['.step', '.stp'],
+      'application/sla': ['.stl'],
+      'model/obj': ['.obj'],
+      'application/dxf': ['.dxf']
     },
     maxSize: maxSizeInMB * 1024 * 1024,
     multiple: false
@@ -287,7 +292,7 @@ const CADAnalyzerFull: React.FC = () => {
                     </p>
                     <p className="text-gray-500">or click to browse</p>
                     <p className="text-sm text-gray-400 mt-2">
-                      Supports PDF, PNG, JPG up to {maxSizeInMB}MB
+                      Supports PDF, PNG, JPG, STEP, STL, OBJ, DXF up to {maxSizeInMB}MB
                     </p>
                   </div>
                 </div>
@@ -521,6 +526,19 @@ const CADAnalyzerFull: React.FC = () => {
               <div className="p-6">
                 {activeTab === 'analysis' && (
                   <div className="space-y-6">
+                    {/* 3D Model Preview - Show for CAD file formats */}
+                    {uploadState.file && ['step', 'stp', 'stl', 'obj', 'dxf'].includes(
+                      uploadState.file.name.split('.').pop()?.toLowerCase() || ''
+                    ) && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">3D Model Preview</h3>
+                        <CADPreview3D 
+                          file={uploadState.file}
+                          showStats={true}
+                        />
+                      </div>
+                    )}
+
                     {/* Analysis Summary */}
                     <div>
                       <div className="flex items-center justify-between mb-4">

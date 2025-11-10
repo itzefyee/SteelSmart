@@ -3,23 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "@bitbybit-dev/occt": "^0.20.11",
     "@google/generative-ai": "^0.24.1",
     "@kittycad/lib": "^3.1.4",
     "@types/multer": "^2.0.0",
+    "@types/three": "^0.181.0",
     "autoprefixer": "^10.4.21",
     "multer": "^2.0.2",
     "next": "15.4.5",
+    "opencascade.js": "^2.0.0-beta.b5ff984",
     "postcss": "^8.5.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-dropzone": "^14.3.8",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "three": "^0.181.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -28,6 +32,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.4.5",
+    "file-loader": "^6.2.0",
     "typescript": "^5"
   }
 }
