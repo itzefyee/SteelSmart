@@ -15,6 +15,8 @@ export default function CADPreviewDemoPage() {
       'application/sla': ['.stl'],
       'model/obj': ['.obj'],
       'application/dxf': ['.dxf'],
+      'model/gltf+json': ['.gltf'],
+      'model/gltf-binary': ['.glb'],
     },
     maxSize: 50 * 1024 * 1024, // 50MB for demo
     multiple: false,
@@ -96,7 +98,7 @@ export default function CADPreviewDemoPage() {
                       : 'Drop your CAD file or click to browse'}
                   </p>
                   <p className="text-gray-600">
-                    Supports STEP (.step, .stp), STL (.stl), OBJ (.obj), DXF (.dxf)
+                    Supports STEP (.step, .stp), STL (.stl), OBJ (.obj), DXF (.dxf), glTF (.gltf), GLB (.glb)
                   </p>
                   <p className="text-sm text-gray-500 mt-2">Maximum file size: 50MB</p>
                 </div>

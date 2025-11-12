@@ -1,11 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ml } from '@kittycad/lib';
 
+/**
+ * CAD Generation API Route
+ * 
+ * This endpoint handles text-to-CAD generation using the Zoo Dev API.
+ * 
+ * ASYNC OPERATION HANDLING:
+ * The Zoo Dev text-to-CAD API returns operations that may not complete immediately.
+ * This implementation uses server-side polling to wait for completion.
+ * 
+ * ALTERNATIVE: WEBHOOKS
+ * For production environments, consider using webhooks instead of polling:
+ * 1. Register a webhook endpoint with Zoo Dev API
+ * 2. Zoo Dev will POST to your webhook when the operation completes
+ * 3. Store operation status in database
+ * 4. Client can query your database for status updates
+ * 
+ * Benefits of webhooks:
+ * - No server resources wasted on polling
+ * - Faster response to completion
+ * - Better scalability
+ * - Reduced API call count
+ * 
+ * To implement webhooks:
+ * 1. Create /api/webhooks/zoo-dev/route.ts endpoint
+ * 2. Register webhook URL with Zoo Dev: ml.create_webhook({ url: 'https://yourdomain.com/api/webhooks/zoo-dev' })
+ * 3. Store operation_id -> user mapping in database when creating operations
+ * 4. Update operation status when webhook is called
+ * 5. Notify client via WebSocket or SSE
+ */
+
 // Types for the API
 interface CADGenerationRequest {
   description: string;
   category?: 'bracket' | 'plate' | 'beam' | 'fastener' | 'custom';
-  format?: 'step' | 'stl' | 'obj';
+  format?: 'step' | 'stl' | 'obj' | 'gltf' | 'glb';
   units?: 'mm' | 'cm' | 'm' | 'in' | 'ft';
 }
 
@@ -19,6 +49,93 @@ interface CADGenerationResponse {
     parameters?: Record<string, any>;
   };
   error?: string;
+}
+
+/**
+ * Poll a text-to-CAD operation until it completes or fails
+ * @param operationId - The ID of the operation to poll
+ * @param format - The output format (step, stl, obj)
+ * @param maxAttempts - Maximum number of polling attempts (default: 60 = 2 minutes)
+ * @param pollInterval - Interval between polls in milliseconds (default: 2000ms)
+ */
+async function pollTextToCadOperation(
+  operationId: string, 
+  format: string,
+  maxAttempts: number = 60,
+  pollInterval: number = 2000
+): Promise<any> {
+  console.log(`Starting to poll operation ${operationId}, format: ${format}`);
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      // Get the operation status using the Zoo Dev API
+      // Note: Using type assertion as the method name may vary in type definitions
+      const operation = await (ml as any).get_text_to_cad_model_for_user({
+        id: operationId
+      });
+
+      console.log(`Poll attempt ${attempt}/${maxAttempts} - Status: ${operation.status}`);
+
+      // Check if operation completed successfully
+      if (operation.status === 'completed') {
+        console.log('Operation completed successfully');
+        
+        // Extract model data from outputs
+        const outputKey = `source.${format}`;
+        console.log(`Looking for output key: ${outputKey}`);
+        console.log('Available outputs:', operation.outputs ? Object.keys(operation.outputs) : 'none');
+        
+        if (operation.outputs && operation.outputs[outputKey]) {
+          return {
+            id: operation.id,
+            status: 'completed',
+            outputs: operation.outputs
+          };
+        } else {
+          // Fallback: try to return any available output
+          console.warn(`Expected output key ${outputKey} not found, returning all outputs`);
+          return {
+            id: operation.id,
+            status: 'completed',
+            outputs: operation.outputs
+          };
+        }
+      }
+
+      // Check if operation failed
+      if (operation.status === 'failed') {
+        const errorMessage = (operation as any).error || 'Generation failed';
+        console.error(`Operation failed: ${errorMessage}`);
+        throw new Error(errorMessage);
+      }
+
+      // Operation is still in progress (queued, in_progress, uploading, etc.)
+      console.log(`Operation status: ${operation.status}, waiting ${pollInterval}ms before next poll...`);
+      
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      
+    } catch (error: any) {
+      // If it's a known failed status, throw immediately
+      if (error.message && !error.message.includes('fetch') && !error.message.includes('network')) {
+        throw error;
+      }
+      
+      // For network errors, log and continue polling
+      console.warn(`Poll attempt ${attempt} encountered error:`, error.message);
+      
+      // If we're out of attempts, throw
+      if (attempt === maxAttempts) {
+        throw new Error(`Polling failed after ${maxAttempts} attempts: ${error.message}`);
+      }
+      
+      // Wait before retry
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+  }
+
+  // If we've exhausted all attempts
+  throw new Error(`Operation ${operationId} did not complete within ${maxAttempts * pollInterval / 1000} seconds`);
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<CADGenerationResponse>> {
@@ -74,59 +191,79 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
       }
 
       // Check if this is an async operation that needs polling
+      let finalResult = result;
       if (result && 'status' in result && result.status !== 'completed') {
-        console.log('CAD generation is async, status:', result.status);
-        // For now, return the operation ID and let the client handle polling
-        // Or we could implement server-side polling here
-        return NextResponse.json({
-          success: false,
-          error: `CAD generation is in progress (status: ${result.status}). The operation may need to be polled for completion. Operation ID: ${result.id || 'unknown'}`
-        }, { status: 202 }); // 202 Accepted for async operations
+        console.log('CAD generation is async, status:', result.status, 'Operation ID:', result.id);
+        
+        // Poll the operation until it completes
+        finalResult = await pollTextToCadOperation(result.id || '', format);
+        console.log('Polling completed, final status:', finalResult.status);
       }
 
       console.log('CAD generation completed, result structure:', {
-        hasId: !!result.id,
-        hasOutputs: !!result.outputs,
-        outputsType: typeof result.outputs,
-        outputsKeys: result.outputs ? Object.keys(result.outputs) : null,
-        resultKeys: Object.keys(result),
-        resultString: JSON.stringify(result).substring(0, 500)
+        hasId: !!finalResult.id,
+        hasOutputs: !!finalResult.outputs,
+        outputsType: typeof finalResult.outputs,
+        outputsKeys: finalResult.outputs ? Object.keys(finalResult.outputs) : null,
+        resultKeys: Object.keys(finalResult),
+        resultString: JSON.stringify(finalResult).substring(0, 500)
       });
 
-      // Extract the generated model data from various possible locations
-      // Use type assertion to access properties that may exist but aren't in the type definition
-      const resultAny = result as any;
+      // Extract the generated model data using the correct output key format
       let modelData = null;
+      const outputKey = `source.${format}`;
       
-      // Try different possible locations for model data
-      if (result.outputs && typeof result.outputs === 'object') {
-        const outputValues = Object.values(result.outputs);
-        if (outputValues.length > 0) {
-          modelData = outputValues[0];
-          console.log('Found model data in outputs, size:', typeof modelData === 'string' ? modelData.length : 'unknown');
+      console.log(`Attempting to extract model data with key: ${outputKey}`);
+      
+      if (finalResult.outputs && typeof finalResult.outputs === 'object') {
+        // Try the specific format key first (e.g., "source.step")
+        if (finalResult.outputs[outputKey]) {
+          const output = finalResult.outputs[outputKey];
+          // Extract content from the output object (could be { content: "..." } or just a string)
+          modelData = (typeof output === 'object' && output !== null && 'content' in output) 
+            ? (output as any).content 
+            : (typeof output === 'string' ? output : String(output));
+          console.log(`Found model data with key ${outputKey}, type:`, typeof modelData);
+        } else {
+          // Fallback: try any available output
+          const availableKeys = Object.keys(finalResult.outputs);
+          console.log('Available output keys:', availableKeys);
+          
+          for (const key of availableKeys) {
+            const output = finalResult.outputs[key];
+            if (output) {
+              // Handle both object with content property and direct string
+              if (typeof output === 'string') {
+                modelData = output;
+              } else if (typeof output === 'object' && output !== null && 'content' in output) {
+                modelData = (output as any).content;
+              } else {
+                modelData = String(output);
+              }
+              console.log(`Found model data with fallback key ${key}`);
+              break;
+            }
+          }
         }
-      } else if (resultAny.model_data) {
-        modelData = resultAny.model_data;
-        console.log('Found model data in model_data field, size:', modelData.length);
-      } else if (resultAny.data?.outputs) {
-        const outputValues = Object.values(resultAny.data.outputs);
-        if (outputValues.length > 0) {
-          modelData = outputValues[0];
-          console.log('Found model data in data.outputs, size:', typeof modelData === 'string' ? modelData.length : 'unknown');
+      }
+      
+      // Additional fallback for older API responses
+      if (!modelData) {
+        const resultAny = finalResult as any;
+        if (resultAny.model_data) {
+          modelData = resultAny.model_data;
+          console.log('Found model data in model_data field (legacy)');
+        } else if (resultAny.data?.model_data) {
+          modelData = resultAny.data.model_data;
+          console.log('Found model data in data.model_data field (legacy)');
         }
-      } else if (resultAny.data?.model_data) {
-        modelData = resultAny.data.model_data;
-        console.log('Found model data in data.model_data field, size:', modelData.length);
-      } else if (resultAny.file || resultAny.file_data) {
-        modelData = resultAny.file || resultAny.file_data;
-        console.log('Found model data in file/file_data field');
       }
       
       if (!modelData) {
-        console.error('No model data found in result. Full result:', JSON.stringify(result, null, 2));
+        console.error('No model data found in result. Full result:', JSON.stringify(finalResult, null, 2));
         return NextResponse.json({
           success: false,
-          error: `No model data received from Zoo Dev API. Response structure: ${JSON.stringify(Object.keys(result))}. Please check the console for details.`
+          error: `No model data received from Zoo Dev API. Response structure: ${JSON.stringify(Object.keys(finalResult))}. Please check the console for details.`
         }, { status: 500 });
       }
       
@@ -138,7 +275,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
 
       console.log('CAD generation completed successfully');
 
-      const generationId = result.id || `cad_${Date.now()}`;
+      const generationId = finalResult.id || `cad_${Date.now()}`;
       
       // Add to history
       try {

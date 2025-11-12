@@ -119,7 +119,20 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      const blob = new Blob([bytes], { type: 'application/octet-stream' });
+      
+      // Determine MIME type based on format
+      const mimeTypes: Record<string, string> = {
+        'step': 'application/step',
+        'stp': 'application/step',
+        'stl': 'model/stl',
+        'obj': 'model/obj',
+        'dxf': 'application/dxf',
+        'gltf': 'model/gltf+json',
+        'glb': 'model/gltf-binary',
+      };
+      
+      const mimeType = mimeTypes[item.format?.toLowerCase() || ''] || 'application/octet-stream';
+      const blob = new Blob([bytes], { type: mimeType });
       const url = URL.createObjectURL(blob);
       
       const link = document.createElement('a');

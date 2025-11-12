@@ -63,7 +63,7 @@ const CADAnalyzerFull: React.FC = () => {
       if (rejection.errors?.find((e) => e.code === 'file-too-large')) {
         errorMessage = `File size exceeds ${maxSizeInMB}MB limit`;
       } else       if (rejection.errors?.find((e) => e.code === 'file-invalid-type')) {
-        errorMessage = 'Invalid file type. Please upload PDF, PNG, JPG, STEP, STL, OBJ, or DXF files';
+        errorMessage = 'Invalid file type. Please upload PDF, PNG, JPG, STEP, STL, OBJ, DXF, glTF, or GLB files';
       }
       
       setUploadState({
@@ -99,7 +99,9 @@ const CADAnalyzerFull: React.FC = () => {
       'application/step': ['.step', '.stp'],
       'application/sla': ['.stl'],
       'model/obj': ['.obj'],
-      'application/dxf': ['.dxf']
+      'application/dxf': ['.dxf'],
+      'model/gltf+json': ['.gltf'],
+      'model/gltf-binary': ['.glb']
     },
     maxSize: maxSizeInMB * 1024 * 1024,
     multiple: false
@@ -527,7 +529,7 @@ const CADAnalyzerFull: React.FC = () => {
                 {activeTab === 'analysis' && (
                   <div className="space-y-6">
                     {/* 3D Model Preview - Show for CAD file formats */}
-                    {uploadState.file && ['step', 'stp', 'stl', 'obj', 'dxf'].includes(
+                    {uploadState.file && ['step', 'stp', 'stl', 'obj', 'dxf', 'gltf', 'glb'].includes(
                       uploadState.file.name.split('.').pop()?.toLowerCase() || ''
                     ) && (
                       <div>

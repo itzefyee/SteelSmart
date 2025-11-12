@@ -84,29 +84,81 @@ export async function GET(
     }
     
     console.log('Found item:', foundItem.id, foundItem.conversation_id);
+    console.log('Item structure:', {
+      hasModelData: !!foundItem.model_data,
+      hasOutputs: !!foundItem.outputs,
+      outputKeys: foundItem.outputs ? Object.keys(foundItem.outputs) : null,
+      format: foundItem.format || foundItem.output_format
+    });
 
     // Extract model data from various possible locations
+    // IMPORTANT: Zoo Dev API returns outputs in format: { "source.step": {...}, "preview.gltf": {...} }
+    // We need to look for the SPECIFIC format requested, not just grab the first output!
     let modelData = null;
+    const requestedFormat = foundItem.format || foundItem.output_format || 'step';
+    const outputKey = `source.${requestedFormat}`;
+    
+    console.log(`Looking for output with key: ${outputKey}`);
     
     if (foundItem.model_data) {
+      // Direct model_data field (legacy format)
       modelData = foundItem.model_data;
+      console.log('Found model_data in direct field');
     } else if (foundItem.outputs) {
-      // Model data might be in outputs object
-      const outputValues = Object.values(foundItem.outputs);
-      if (outputValues.length > 0) {
-        modelData = outputValues[0];
+      // Check for the specific format output first (e.g., "source.step")
+      if (foundItem.outputs[outputKey]) {
+        const output = foundItem.outputs[outputKey];
+        // Extract content from output object (could be { content: "..." } or just a string)
+        modelData = typeof output === 'object' && output !== null ? (output.content || output) : output;
+        console.log(`Found model data with requested format key: ${outputKey}`);
+      } else {
+        // Log available outputs for debugging
+        const availableKeys = Object.keys(foundItem.outputs);
+        console.warn(`Requested format key ${outputKey} not found. Available output keys:`, availableKeys);
+        
+        // Fallback: try to find any "source.*" output (prefer source over preview)
+        const sourceOutputs = availableKeys.filter(key => key.startsWith('source.'));
+        if (sourceOutputs.length > 0) {
+          const fallbackKey = sourceOutputs[0];
+          const output = foundItem.outputs[fallbackKey];
+          modelData = typeof output === 'object' && output !== null ? (output.content || output) : output;
+          console.warn(`Using fallback source output: ${fallbackKey} (requested: ${outputKey})`);
+        } else {
+          // Last resort: use first available output (might be preview.gltf, etc.)
+          const outputValues = Object.values(foundItem.outputs);
+          if (outputValues.length > 0) {
+            const output = outputValues[0];
+            modelData = typeof output === 'object' && output !== null ? (output.content || output) : output;
+            console.warn(`Using first available output as last resort (requested: ${outputKey}):`, Object.keys(foundItem.outputs)[0]);
+          }
+        }
       }
     } else if (foundItem.data?.model_data) {
       modelData = foundItem.data.model_data;
+      console.log('Found model_data in data.model_data field');
     } else if (foundItem.data?.outputs) {
-      const outputValues = Object.values(foundItem.data.outputs);
-      if (outputValues.length > 0) {
-        modelData = outputValues[0];
+      // Same logic for nested outputs
+      if (foundItem.data.outputs[outputKey]) {
+        const output = foundItem.data.outputs[outputKey];
+        modelData = typeof output === 'object' && output !== null ? (output.content || output) : output;
+        console.log(`Found model data in data.outputs with key: ${outputKey}`);
+      } else {
+        const outputValues = Object.values(foundItem.data.outputs);
+        if (outputValues.length > 0) {
+          const output = outputValues[0];
+          modelData = typeof output === 'object' && output !== null ? (output.content || output) : output;
+          console.warn(`Using first output from data.outputs (requested: ${outputKey})`);
+        }
       }
     }
 
     if (!modelData) {
-      console.warn('Model data not found in item:', Object.keys(foundItem));
+      console.warn('Model data not found in item. Available keys:', Object.keys(foundItem));
+      if (foundItem.outputs) {
+        console.warn('Available output keys:', Object.keys(foundItem.outputs));
+      }
+    } else {
+      console.log(`Successfully extracted model data. Type: ${typeof modelData}, Length: ${typeof modelData === 'string' ? modelData.length : 'N/A'}`);
     }
 
     return NextResponse.json({

@@ -11,6 +11,9 @@ interface CADPreview3DProps {
   modelData?: CADModelData;
   className?: string;
   showStats?: boolean;
+  onParsingStart?: () => void;
+  onParsingComplete?: (ok: boolean) => void;
+  onPreviewLoaded?: (ok: boolean) => void;
 }
 
 const CADPreview3D: React.FC<CADPreview3DProps> = ({
@@ -18,6 +21,9 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
   modelData: initialModelData,
   className = '',
   showStats = true,
+  onParsingStart,
+  onParsingComplete,
+  onPreviewLoaded,
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -49,22 +55,28 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     } else if (initialModelData) {
       setModelData(initialModelData);
       setIsLoading(false);
+      if (onParsingComplete) onParsingComplete(true);
     }
-  }, [file, initialModelData]);
+  }, [file, initialModelData, onParsingComplete]);
 
   const parseFile = async (file: File) => {
     setIsLoading(true);
     setError('');
 
     try {
+      if (onParsingStart) onParsingStart();
+      if (onPreviewLoaded) onPreviewLoaded(false);
       const parser = getCADParser();
       const data = await parser.parseFile(file);
       setModelData(data);
       setIsLoading(false);
+      if (onParsingComplete) onParsingComplete(true);
     } catch (err: any) {
       console.error('Error parsing CAD file:', err);
       setError(`Failed to parse file: ${err.message}`);
       setIsLoading(false);
+      if (onParsingComplete) onParsingComplete(false);
+      if (onPreviewLoaded) onPreviewLoaded(false);
     }
   };
 
@@ -290,6 +302,19 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
   const modelPresets = ['#999999', '#777777', '#666666', '#555555', '#444444', '#333333'];
   const wireframePresets = ['#000000', '#222222', '#444444', '#666666', '#888888', '#ffffff'];
 
+  const fileExtension = file?.name.split('.').pop()?.toLowerCase() || 'model';
+
+  useEffect(() => {
+    if (!onPreviewLoaded) return;
+    if (isLoading) {
+      onPreviewLoaded(false);
+    } else if (error) {
+      onPreviewLoaded(false);
+    } else if (modelData) {
+      onPreviewLoaded(true);
+    }
+  }, [isLoading, error, modelData, onPreviewLoaded]);
+
   if (isLoading) {
     return (
       <div className={`w-full h-96 bg-gray-50 rounded-lg border-2 border-gray-200 flex items-center justify-center relative overflow-hidden ${className}`}>
@@ -306,6 +331,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
   }
 
   if (error) {
+    if (onPreviewLoaded) onPreviewLoaded(false);
     return (
       <div className={`w-full h-96 bg-gray-50 rounded-lg border-2 border-red-200 flex items-center justify-center ${className}`}>
         <div className="text-center p-4">
@@ -319,10 +345,8 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     );
   }
 
-  const fileExtension = file?.name.split('.').pop()?.toLowerCase() || 'model';
-
   return (
-    <div
+    <div 
       ref={containerRef}
       className={`w-full h-96 bg-gradient-to-br from-slate-50 to-blue-50 rounded-lg border-2 border-gray-200 relative overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50 h-screen w-screen rounded-none' : ''} ${className}`}
     >
@@ -533,7 +557,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
         <div className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 ${
           isFullscreen ? 'w-11/12 max-w-6xl' : 'w-11/12 max-w-3xl'
         }`}>
-          <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
+          <div className="bg-white backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
             <button
               onClick={() => setShowModelInfo(!showModelInfo)}
               className="w-full px-4 py-2 flex items-center justify-center space-x-2 hover:bg-gray-50 transition-colors"
@@ -561,13 +585,14 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
                 opacity: showModelInfo ? 1 : 0 
               }}
             >
-              <div className={`border-t border-gray-200 ${isFullscreen ? 'p-4' : 'p-3'}`}>
-                <div className={`grid gap-2 ${
+              <div className={`border-t border-gray-200`}>
+                <div className={`${isFullscreen ? 'p-3' : 'p-2'} bg-gray-50/80 rounded`}>
+                  <div className={`grid gap-0 ${
                   isFullscreen 
                     ? 'grid-cols-3 sm:grid-cols-4 md:grid-cols-6' 
                     : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-6'
                 }`}>
-                  <div className="text-center bg-gray-50/80 rounded p-2">
+                  <div className="text-center p-2">
                     <p className={`text-gray-600 truncate ${isFullscreen ? 'text-sm' : 'text-xs'}`}>
                       Vertices
                     </p>
@@ -575,7 +600,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
                       {modelData.vertices_count.toLocaleString()}
                     </p>
                   </div>
-                  <div className="text-center bg-gray-50/80 rounded p-2">
+                  <div className="text-center p-2">
                     <p className={`text-gray-600 truncate ${isFullscreen ? 'text-sm' : 'text-xs'}`}>
                       Faces
                     </p>
@@ -583,7 +608,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
                       {modelData.faces.toLocaleString()}
                     </p>
                   </div>
-                  <div className="text-center bg-gray-50/80 rounded p-2">
+                  <div className="text-center p-2">
                     <p className={`text-gray-600 truncate ${isFullscreen ? 'text-sm' : 'text-xs'}`}>
                       Edges
                     </p>
@@ -591,7 +616,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
                       {modelData.edges.toLocaleString()}
                     </p>
                   </div>
-                  <div className="text-center bg-gray-50/80 rounded p-2">
+                  <div className="text-center p-2">
                     <p className={`text-gray-600 truncate ${isFullscreen ? 'text-sm' : 'text-xs'}`}>
                       Parts
                     </p>
@@ -600,7 +625,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
                     </p>
                   </div>
                   {modelData.volume !== undefined && (
-                    <div className="text-center bg-gray-50/80 rounded p-2">
+                    <div className="text-center p-2">
                       <p className={`text-gray-600 truncate ${isFullscreen ? 'text-sm' : 'text-xs'}`}>
                         Volume (mm³)
                       </p>
@@ -610,7 +635,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
                     </div>
                   )}
                   {modelData.surfaceArea !== undefined && (
-                    <div className="text-center bg-gray-50/80 rounded p-2">
+                    <div className="text-center p-2">
                       <p className={`text-gray-600 truncate ${isFullscreen ? 'text-sm' : 'text-xs'}`}>
                         Surface (mm²)
                       </p>
@@ -619,6 +644,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
                       </p>
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
             </div>

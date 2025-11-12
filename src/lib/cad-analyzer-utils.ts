@@ -195,7 +195,7 @@ export function extractSpecs(modelData: CADModelData, material: string = 'Steel'
  */
 export function is3DCADFile(filename: string): boolean {
   const extension = filename.split('.').pop()?.toLowerCase();
-  return ['step', 'stp', 'stl', 'obj', 'dxf'].includes(extension || '');
+  return ['step', 'stp', 'stl', 'obj', 'dxf', 'gltf', 'glb'].includes(extension || '');
 }
 
 /**

@@ -79,6 +79,8 @@ const CADGenerator: React.FC = () => {
         'stl': 'model/stl',
         'obj': 'model/obj',
         'dxf': 'application/dxf',
+        'gltf': 'model/gltf+json',
+        'glb': 'model/gltf-binary',
       };
 
       const mimeType = mimeTypes[format.toLowerCase()] || 'application/octet-stream';
@@ -477,7 +479,7 @@ const CADGenerator: React.FC = () => {
     setTimeout(() => setShowSuccessMessage(false), 3000);
   };
 
-  const handleDownload = async (format: 'step' | 'stl' | 'obj' | 'dxf' | 'pdf') => {
+  const handleDownload = async (format: 'step' | 'stl' | 'obj' | 'dxf' | 'pdf' | 'gltf' | 'glb') => {
     if (!generatedDrawing) return;
     
     try {
@@ -529,7 +531,9 @@ const CADGenerator: React.FC = () => {
         'stl': 'application/octet-stream',
         'obj': 'text/plain',
         'dxf': 'application/dxf',
-        'pdf': 'application/pdf'
+        'pdf': 'application/pdf',
+        'gltf': 'model/gltf+json',
+        'glb': 'model/gltf-binary'
       };
       
       const mimeType = mimeTypes[format] || 'application/octet-stream';
@@ -888,6 +892,18 @@ const CADGenerator: React.FC = () => {
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
                         Download PDF (.pdf)
+                      </button>
+                      <button
+                        onClick={() => handleDownload('gltf')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Download glTF (.gltf)
+                      </button>
+                      <button
+                        onClick={() => handleDownload('glb')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Download GLB (.glb)
                       </button>
                     </div>
                   </div>

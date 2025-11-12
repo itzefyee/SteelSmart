@@ -58,34 +58,101 @@ export class CADParser {
   async parseSTEP(fileContent: ArrayBuffer): Promise<CADModelData> {
     if (!this.oc) throw new Error('OpenCascade not initialized');
 
+    const filename = 'model.step';
+    let reader: any = null;
+    let shape: any = null;
+
     try {
       // Write file to virtual filesystem
-      const filename = 'model.step';
+      console.log(`Writing STEP file to virtual filesystem: ${fileContent.byteLength} bytes`);
       const fileData = new Uint8Array(fileContent);
       this.oc.FS.writeFile(filename, fileData);
+      console.log('STEP file written successfully');
 
       // Read STEP file
-      const reader = new this.oc.STEPControl_Reader_1();
+      console.log('Creating STEP reader...');
+      reader = new this.oc.STEPControl_Reader_1();
+      console.log('Reading STEP file...');
       const status = reader.ReadFile(filename);
+      
+      console.log('STEP ReadFile status:', status);
+      console.log('Expected status (IFSelect_RetDone):', this.oc.IFSelect_ReturnStatus.IFSelect_RetDone);
 
       if (status !== this.oc.IFSelect_ReturnStatus.IFSelect_RetDone) {
-        throw new Error('Failed to read STEP file');
+        // Get more details about the failure
+        const statusNames = Object.keys(this.oc.IFSelect_ReturnStatus);
+        const statusName = statusNames.find((key: string) => 
+          this.oc.IFSelect_ReturnStatus[key] === status
+        ) || 'Unknown';
+        
+        console.error('STEP ReadFile failed:', {
+          status,
+          statusName,
+          fileSize: fileContent.byteLength
+        });
+        
+        // Check if file was written correctly
+        const writtenData = this.oc.FS.readFile(filename);
+        console.log('File verification - written size:', writtenData.length);
+        console.log('File verification - first 200 bytes:', 
+          new TextDecoder('utf-8', { fatal: false }).decode(writtenData.slice(0, 200))
+        );
+        
+        throw new Error(`Failed to read STEP file. Status: ${statusName} (${status}). The file may be corrupted or incomplete.`);
       }
 
+      console.log('STEP file read successfully, transferring roots...');
       reader.TransferRoots(new this.oc.Message_ProgressRange_1());
-      const shape = reader.OneShape();
+      
+      // Check number of roots transferred
+      const nbRoots = reader.NbRootsForTransfer();
+      console.log(`Number of roots for transfer: ${nbRoots}`);
+      
+      if (nbRoots === 0) {
+        throw new Error('No geometric data found in STEP file. The file may be empty or contain only metadata.');
+      }
 
+      console.log('Getting shape from STEP reader...');
+      shape = reader.OneShape();
+      
+      if (!shape || shape.IsNull()) {
+        throw new Error('STEP file contains no valid geometric shape. The file may be incomplete or contain only non-geometric data.');
+      }
+
+      console.log('Shape extracted successfully, extracting geometry...');
       // Extract geometry data
       const modelData = this.extractGeometry(shape);
+      console.log('Geometry extraction completed:', {
+        vertices: modelData.vertices_count,
+        faces: modelData.faces,
+        edges: modelData.edges
+      });
 
       // Cleanup
       this.oc.FS.unlink(filename);
-      shape.delete();
-      reader.delete();
+      if (shape) shape.delete();
+      if (reader) reader.delete();
 
       return modelData;
     } catch (error: any) {
       console.error('Error parsing STEP file:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        fileSize: fileContent.byteLength
+      });
+      
+      // Cleanup on error
+      try {
+        if (this.oc) {
+          try { this.oc.FS.unlink(filename); } catch {}
+          if (shape) try { shape.delete(); } catch {}
+          if (reader) try { reader.delete(); } catch {}
+        }
+      } catch (cleanupError) {
+        console.warn('Error during cleanup:', cleanupError);
+      }
+      
       throw new Error(`STEP parsing failed: ${error.message}`);
     }
   }
@@ -572,13 +639,296 @@ export class CADParser {
     }
   }
 
+  async parseGLTF(fileContent: ArrayBuffer): Promise<CADModelData> {
+    // glTF parsing using Three.js (OpenCascade doesn't support glTF natively)
+    // Ensure we're in browser environment
+    if (typeof window === 'undefined') {
+      throw new Error('glTF parsing requires browser environment');
+    }
+
+    try {
+      // Dynamically import Three.js GLTFLoader
+      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+      const loader = new GLTFLoader();
+
+      // Convert ArrayBuffer to blob URL for loading
+      const blob = new Blob([fileContent], { type: 'model/gltf+json' });
+      const url = URL.createObjectURL(blob);
+
+      console.log('Loading glTF file...');
+      
+      // Load the glTF model
+      const gltf = await new Promise<any>((resolve, reject) => {
+        loader.load(
+          url,
+          (gltf) => resolve(gltf),
+          undefined,
+          (error) => reject(error)
+        );
+      });
+
+      // Clean up blob URL
+      URL.revokeObjectURL(url);
+
+      console.log('glTF loaded successfully, extracting geometry...');
+
+      // Extract geometry from all meshes in the scene
+      const vertices: number[] = [];
+      const normals: number[] = [];
+      const indices: number[] = [];
+      const parts: CADPart[] = [];
+
+      let minX = Infinity, minY = Infinity, minZ = Infinity;
+      let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+      let vertexOffset = 0;
+      let partIndex = 0;
+
+      // Traverse the scene to find all meshes
+      gltf.scene.traverse((object: any) => {
+        if (object.isMesh && object.geometry) {
+          const geometry = object.geometry;
+          const meshName = object.name || `Mesh_${partIndex}`;
+
+          // Get position attribute
+          const positionAttribute = geometry.getAttribute('position');
+          const normalAttribute = geometry.getAttribute('normal');
+          const indexAttribute = geometry.index;
+
+          if (!positionAttribute) {
+            console.warn(`Mesh ${meshName} has no position attribute, skipping`);
+            return;
+          }
+
+          // Extract vertices
+          const meshVertices: number[] = [];
+          const meshNormals: number[] = [];
+          const meshIndices: number[] = [];
+
+          for (let i = 0; i < positionAttribute.count; i++) {
+            const x = positionAttribute.getX(i);
+            const y = positionAttribute.getY(i);
+            const z = positionAttribute.getZ(i);
+
+            meshVertices.push(x, y, z);
+            vertices.push(x, y, z);
+
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            minZ = Math.min(minZ, z);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+            maxZ = Math.max(maxZ, z);
+
+            // Extract normals if available
+            if (normalAttribute) {
+              const nx = normalAttribute.getX(i);
+              const ny = normalAttribute.getY(i);
+              const nz = normalAttribute.getZ(i);
+              meshNormals.push(nx, ny, nz);
+              normals.push(nx, ny, nz);
+            } else {
+              meshNormals.push(0, 0, 1);
+              normals.push(0, 0, 1);
+            }
+          }
+
+          // Extract indices
+          if (indexAttribute) {
+            for (let i = 0; i < indexAttribute.count; i++) {
+              const index = indexAttribute.getX(i);
+              meshIndices.push(vertexOffset + index);
+              indices.push(vertexOffset + index);
+            }
+          } else {
+            // No indices, create them sequentially
+            for (let i = 0; i < positionAttribute.count; i++) {
+              meshIndices.push(vertexOffset + i);
+              indices.push(vertexOffset + i);
+            }
+          }
+
+          // Calculate bounding box for this part
+          const partMinX = Math.min(...meshVertices.filter((_, i) => i % 3 === 0));
+          const partMinY = Math.min(...meshVertices.filter((_, i) => i % 3 === 1));
+          const partMinZ = Math.min(...meshVertices.filter((_, i) => i % 3 === 2));
+          const partMaxX = Math.max(...meshVertices.filter((_, i) => i % 3 === 0));
+          const partMaxY = Math.max(...meshVertices.filter((_, i) => i % 3 === 1));
+          const partMaxZ = Math.max(...meshVertices.filter((_, i) => i % 3 === 2));
+
+          // Calculate approximate volume (bounding box volume)
+          const partVolume = (partMaxX - partMinX) * (partMaxY - partMinY) * (partMaxZ - partMinZ);
+
+          parts.push({
+            id: `gltf-part-${partIndex}`,
+            name: meshName,
+            type: 'solid',
+            volume: partVolume,
+            boundingBox: {
+              min: { x: partMinX, y: partMinY, z: partMinZ },
+              max: { x: partMaxX, y: partMaxY, z: partMaxZ },
+            },
+          });
+
+          vertexOffset += positionAttribute.count;
+          partIndex++;
+        }
+      });
+
+      // Generate normals if not present
+      if (normals.length === 0 || normals.every(n => n === 0)) {
+        normals.length = vertices.length;
+        normals.fill(0);
+
+        // Calculate face normals
+        for (let i = 0; i < indices.length; i += 3) {
+          const i1 = indices[i] * 3;
+          const i2 = indices[i + 1] * 3;
+          const i3 = indices[i + 2] * 3;
+
+          const v1x = vertices[i1], v1y = vertices[i1 + 1], v1z = vertices[i1 + 2];
+          const v2x = vertices[i2], v2y = vertices[i2 + 1], v2z = vertices[i2 + 2];
+          const v3x = vertices[i3], v3y = vertices[i3 + 1], v3z = vertices[i3 + 2];
+
+          const ux = v2x - v1x, uy = v2y - v1y, uz = v2z - v1z;
+          const vx = v3x - v1x, vy = v3y - v1y, vz = v3z - v1z;
+
+          const nx = uy * vz - uz * vy;
+          const ny = uz * vx - ux * vz;
+          const nz = ux * vy - uy * vx;
+
+          normals[i1] += nx; normals[i1 + 1] += ny; normals[i1 + 2] += nz;
+          normals[i2] += nx; normals[i2 + 1] += ny; normals[i2 + 2] += nz;
+          normals[i3] += nx; normals[i3 + 1] += ny; normals[i3 + 2] += nz;
+        }
+
+        // Normalize normals
+        for (let i = 0; i < normals.length; i += 3) {
+          const length = Math.sqrt(normals[i] ** 2 + normals[i + 1] ** 2 + normals[i + 2] ** 2);
+          if (length > 0) {
+            normals[i] /= length;
+            normals[i + 1] /= length;
+            normals[i + 2] /= length;
+          }
+        }
+      }
+
+      // Calculate total volume (sum of part volumes)
+      const totalVolume = parts.reduce((sum, part) => sum + (part.volume || 0), 0);
+
+      // Calculate approximate surface area (sum of bounding box surface areas)
+      const totalSurfaceArea = parts.reduce((sum, part) => {
+        const bbox = part.boundingBox;
+        const width = bbox.max.x - bbox.min.x;
+        const height = bbox.max.y - bbox.min.y;
+        const depth = bbox.max.z - bbox.min.z;
+        return sum + 2 * (width * height + width * depth + height * depth);
+      }, 0);
+
+      const faceCount = indices.length / 3;
+
+      console.log('glTF parsing completed:', {
+        vertices: vertices.length / 3,
+        faces: faceCount,
+        parts: parts.length
+      });
+
+      return {
+        vertices: new Float32Array(vertices),
+        normals: new Float32Array(normals),
+        indices: new Uint32Array(indices),
+        faces: faceCount,
+        edges: 0, // glTF doesn't explicitly define edges
+        vertices_count: vertices.length / 3,
+        boundingBox: {
+          min: { x: minX, y: minY, z: minZ },
+          max: { x: maxX, y: maxY, z: maxZ },
+        },
+        volume: totalVolume,
+        surfaceArea: totalSurfaceArea,
+        parts,
+      };
+    } catch (error: any) {
+      console.error('Error parsing glTF file:', error);
+      throw new Error(`glTF parsing failed: ${error.message}`);
+    }
+  }
+
+  private detectFileFormat(arrayBuffer: ArrayBuffer, declaredExtension?: string): string {
+    // Convert first 1KB to text to check for magic strings/headers
+    const bytes = new Uint8Array(arrayBuffer.slice(0, 1024));
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+    
+    // STEP files start with ISO-10303-21 header
+    if (text.includes('ISO-10303-21') || text.includes('HEADER;')) {
+      return 'step';
+    }
+    
+    // glTF JSON files start with { "asset": { "version": ... } }
+    if (text.trim().startsWith('{') && (text.includes('"asset"') || text.includes('"accessors"') || text.includes('"buffers"'))) {
+      return 'gltf';
+    }
+    
+    // glTF binary files (GLB) start with "glTF" magic string
+    if (arrayBuffer.byteLength >= 4) {
+      const view = new DataView(arrayBuffer);
+      const magic = view.getUint32(0, true);
+      if (magic === 0x46546C67) { // "glTF" in little-endian
+        return 'gltf';
+      }
+    }
+    
+    // STL ASCII starts with "solid"
+    if (text.trim().startsWith('solid ')) {
+      return 'stl';
+    }
+    
+    // STL binary has specific header format (80 bytes header + 4 bytes triangle count)
+    if (arrayBuffer.byteLength > 84) {
+      const view = new DataView(arrayBuffer);
+      const triangleCount = view.getUint32(80, true);
+      const expectedSize = 80 + 4 + (triangleCount * 50);
+      if (Math.abs(arrayBuffer.byteLength - expectedSize) < 100) {
+        return 'stl';
+      }
+    }
+    
+    // OBJ files contain "v ", "vn ", "f " etc.
+    if (text.includes('\nv ') || text.includes('\nvn ') || text.includes('\nf ')) {
+      return 'obj';
+    }
+    
+    // DXF files start with section markers
+    if (text.includes('0\nSECTION') || text.includes('999\nDXF')) {
+      return 'dxf';
+    }
+    
+    // Fallback to declared extension if no format detected
+    console.warn(`Could not detect file format from content. First 100 chars: ${text.substring(0, 100)}`);
+    return declaredExtension || 'unknown';
+  }
+
   async parseFile(file: File): Promise<CADModelData> {
     await this.initialize();
 
-    const extension = file.name.split('.').pop()?.toLowerCase();
+    const declaredExtension = file.name.split('.').pop()?.toLowerCase();
     const arrayBuffer = await file.arrayBuffer();
+    
+    // Validate file has content
+    if (arrayBuffer.byteLength === 0) {
+      throw new Error('File is empty');
+    }
+    
+    // Detect actual format from content
+    const detectedFormat = this.detectFileFormat(arrayBuffer, declaredExtension);
+    
+    console.log(`File: ${file.name}, Declared: ${declaredExtension}, Detected: ${detectedFormat}, Size: ${arrayBuffer.byteLength} bytes`);
+    
+    // Log first few bytes for debugging
+    const preview = new Uint8Array(arrayBuffer.slice(0, 100));
+    const previewText = new TextDecoder('utf-8', { fatal: false }).decode(preview);
+    console.log('File content preview:', previewText.substring(0, 200));
 
-    switch (extension) {
+    switch (detectedFormat) {
       case 'step':
       case 'stp':
         return this.parseSTEP(arrayBuffer);
@@ -588,8 +938,11 @@ export class CADParser {
         return this.parseOBJ(arrayBuffer);
       case 'dxf':
         return this.parseDXF(arrayBuffer);
+      case 'gltf':
+      case 'glb':
+        return this.parseGLTF(arrayBuffer);
       default:
-        throw new Error(`Unsupported file format: ${extension}`);
+        throw new Error(`Unsupported or unrecognized file format. Declared: ${declaredExtension}, Detected: ${detectedFormat}. File may be corrupted or in an unsupported format.`);
     }
   }
 

@@ -27,7 +27,7 @@ const CADAnalyzer: React.FC = () => {
       if (rejection.errors?.find((e) => e.code === 'file-too-large')) {
         errorMessage = `File size exceeds ${maxSizeInMB}MB limit`;
       } else       if (rejection.errors?.find((e) => e.code === 'file-invalid-type')) {
-        errorMessage = 'Invalid file type. Please upload PDF, PNG, JPG, STEP, STL, OBJ, or DXF files';
+        errorMessage = 'Invalid file type. Please upload PDF, PNG, JPG, STEP, STL, OBJ, DXF, glTF, or GLB files';
       }
       
       setUploadState({
@@ -62,7 +62,9 @@ const CADAnalyzer: React.FC = () => {
       'application/step': ['.step', '.stp'],
       'application/sla': ['.stl'],
       'model/obj': ['.obj'],
-      'application/dxf': ['.dxf']
+      'application/dxf': ['.dxf'],
+      'model/gltf+json': ['.gltf'],
+      'model/gltf-binary': ['.glb']
     },
     maxSize: maxSizeInMB * 1024 * 1024,
     multiple: false
