@@ -1,6 +1,150 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // OpenCascade.js doesn't provide TypeScript types, so we need to use 'any' for its APIs
 
+import { ManufacturingAnalyzer } from './cad-manufacturing-analyzer';
+
+export interface HoleInfo {
+  center: { x: number; y: number; z: number };
+  diameter: number;
+  radius: number;
+  axis: { x: number; y: number; z: number };
+  isStandardSize: boolean;
+}
+
+export interface HoleAnalysis {
+  holes: HoleInfo[];
+  count: number;
+  edgeDistances: EdgeDistanceInfo[];
+  spacingViolations: SpacingViolation[];
+  nonStandardSizes: NonStandardSize[];
+}
+
+export interface EdgeDistanceInfo {
+  holeIndex: number;
+  holeDiameter: number;
+  minEdgeDistance: number;
+  distances: {
+    toXMin: number;
+    toXMax: number;
+    toYMin: number;
+    toYMax: number;
+    toZMin: number;
+    toZMax: number;
+  };
+  compliance: {
+    rolled: boolean;
+    sheared: boolean;
+    requiredRolled: number;
+    requiredSheared: number;
+    margin: number;
+    standard: string;
+  };
+  closestEdge: string;
+}
+
+export interface SpacingViolation {
+  hole1: number;
+  hole2: number;
+  actual: number;
+  minimum: number;
+  preferred: number;
+  violation: string;
+  standard: string;
+}
+
+export interface NonStandardSize {
+  holeIndex: number;
+  actual: number;
+  nearest: number;
+  requiresSpecialTooling: boolean;
+}
+
+export interface ThicknessAnalysis {
+  estimatedThickness: number;
+  minDimension: number;
+  samples: number[];
+  isStandardGauge: boolean;
+  minWeldSize: number;
+  maxWeldSize: number;
+  requiresPreheat: boolean;
+}
+
+export interface EdgeInfo {
+  type: 'straight' | 'circular';
+  length?: number;
+  direction?: { x: number; y: number; z: number };
+  radius?: number;
+  isSharpCorner?: boolean;
+  isFillet?: boolean;
+}
+
+export interface SharpCorner {
+  radius: number;
+  location: { x: number; y: number; z: number };
+  warning: string;
+}
+
+export interface EdgeAnalysis {
+  edges: EdgeInfo[];
+  totalEdges: number;
+  sharpCorners: SharpCorner[];
+  warnings: string[];
+}
+
+export interface WeldJoint {
+  type: string;
+  angle: number;
+  accessible: boolean;
+  minIncludedAngle: number;
+  meetsAWSRequirement: boolean;
+  clearanceRequired: number;
+  sharedEdgeLength: number;
+}
+
+export interface WeldRecommendation {
+  jointIndex: number;
+  issue: string;
+  recommendation: string;
+  standard: string;
+}
+
+export interface WeldJointAnalysis {
+  joints: WeldJoint[];
+  totalJoints: number;
+  accessibilityIssues: number;
+  recommendations: WeldRecommendation[];
+}
+
+export interface BendInfo {
+  index: number;
+  radius: number;
+  minRequired: number;
+  compliant: boolean;
+  material: string;
+  thickness: number;
+  margin: number;
+  warning: string | null;
+}
+
+export interface BendAnalysis {
+  bends: BendInfo[];
+  totalBends: number;
+  violations: number;
+  materialGrade: string;
+  minBendRadius: number;
+}
+
+export interface BoundingBoxWithTolerance {
+  length: number;
+  width: number;
+  height: number;
+  bounds: {
+    min: { x: number; y: number; z: number };
+    max: { x: number; y: number; z: number };
+  };
+  tolerance: number;
+}
+
 export interface CADModelData {
   vertices: Float32Array;
   normals: Float32Array;
@@ -15,6 +159,13 @@ export interface CADModelData {
   volume?: number;
   surfaceArea?: number;
   parts: CADPart[];
+  // Manufacturing analysis data
+  boundingBoxWithTolerance?: BoundingBoxWithTolerance;
+  holeAnalysis?: HoleAnalysis;
+  thicknessAnalysis?: ThicknessAnalysis;
+  edgeAnalysis?: EdgeAnalysis;
+  weldJointAnalysis?: WeldJointAnalysis;
+  bendAnalysis?: BendAnalysis;
 }
 
 export interface CADPart {
@@ -610,6 +761,23 @@ export class CADParser {
         },
       });
 
+      // Perform manufacturing analysis
+      console.log('Performing manufacturing analysis...');
+      const manufacturingAnalyzer = new ManufacturingAnalyzer(this.oc);
+      let manufacturingData;
+
+      try {
+        manufacturingData = manufacturingAnalyzer.analyzeManufacturing(shape, 'A36');
+        console.log('Manufacturing analysis completed:', {
+          holes: manufacturingData.holeAnalysis.count,
+          edges: manufacturingData.edgeAnalysis.totalEdges,
+          thickness: manufacturingData.thicknessAnalysis.estimatedThickness,
+        });
+      } catch (error: any) {
+        console.warn('Manufacturing analysis failed:', error.message);
+        manufacturingData = null;
+      }
+
       // Cleanup
       triangulation.delete();
       faceExp.delete();
@@ -632,6 +800,13 @@ export class CADParser {
         volume,
         surfaceArea,
         parts,
+        // Add manufacturing analysis data
+        boundingBoxWithTolerance: manufacturingData?.boundingBoxWithTolerance,
+        holeAnalysis: manufacturingData?.holeAnalysis,
+        thicknessAnalysis: manufacturingData?.thicknessAnalysis,
+        edgeAnalysis: manufacturingData?.edgeAnalysis,
+        weldJointAnalysis: manufacturingData?.weldJointAnalysis,
+        bendAnalysis: manufacturingData?.bendAnalysis,
       };
     } catch (error: any) {
       console.error('Error extracting geometry:', error);
