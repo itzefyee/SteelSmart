@@ -88,28 +88,39 @@ export class ManufacturingAnalyzer {
       const face = this.oc.TopoDS.Face_1(faceExplorer.Current());
       const surface = this.oc.BRep_Tool.Surface_2(face);
 
-      // Check if surface is cylindrical
-      if (surface.DynamicType().Name() === 'Geom_CylindricalSurface') {
-        const cylinder = surface;
-        const axis = cylinder.Axis();
-        const radius = cylinder.Radius();
-        const location = axis.Location();
+      // Check if surface is cylindrical by attempting to downcast
+      try {
+        // Try to get the surface type name
+        const typeName = surface.get_type_name ? surface.get_type_name() : null;
 
-        holes.push({
-          center: {
-            x: location.X(),
-            y: location.Y(),
-            z: location.Z(),
-          },
-          diameter: radius * 2,
-          radius: radius,
-          axis: {
-            x: axis.Direction().X(),
-            y: axis.Direction().Y(),
-            z: axis.Direction().Z(),
-          },
-          isStandardSize: this.checkStandardDrillSize(radius * 2),
-        });
+        // Check if it's cylindrical (handles both naming conventions)
+        const isCylindrical =
+          typeName === 'Geom_CylindricalSurface' ||
+          (typeof surface.Axis === 'function' && typeof surface.Radius === 'function');
+
+        if (isCylindrical) {
+          const axis = surface.Axis();
+          const radius = surface.Radius();
+          const location = axis.Location();
+
+          holes.push({
+            center: {
+              x: location.X(),
+              y: location.Y(),
+              z: location.Z(),
+            },
+            diameter: radius * 2,
+            radius: radius,
+            axis: {
+              x: axis.Direction().X(),
+              y: axis.Direction().Y(),
+              z: axis.Direction().Z(),
+            },
+            isStandardSize: this.checkStandardDrillSize(radius * 2),
+          });
+        }
+      } catch (error) {
+        // Not a cylindrical surface or error accessing properties, skip
       }
 
       faceExplorer.Next();
