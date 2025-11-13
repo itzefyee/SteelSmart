@@ -433,11 +433,32 @@ export class ManufacturingAnalyzer {
    * Calculate edge length
    */
   private calculateEdgeLength(edge: any): number {
-    const props = new this.oc.GProp_GProps_1();
-    this.oc.BRepGProp.LinearProperties(edge, props);
-    const length = props.Mass(); // In OpenCascade, Mass() returns length for 1D entities
-    props.delete();
-    return length;
+    try {
+      const props = new this.oc.GProp_GProps_1();
+      // BRepGProp.LinearProperties requires 4 arguments: shape, props, skipShared, useTriangulation
+      this.oc.BRepGProp.LinearProperties(edge, props, false, false);
+      const length = props.Mass(); // In OpenCascade, Mass() returns length for 1D entities
+      props.delete();
+      return length;
+    } catch (error) {
+      // Fallback: try to calculate length using curve parameters
+      try {
+        const curveHandle = this.oc.BRep_Tool.Curve_2(edge, { current: 0 }, { current: 0 });
+        if (!curveHandle.IsNull()) {
+          const adaptor = new this.oc.BRepAdaptor_Curve_2(edge);
+          const length = this.oc.GCPnts_AbscissaPoint.Length_2(
+            adaptor,
+            adaptor.FirstParameter(),
+            adaptor.LastParameter()
+          );
+          adaptor.delete();
+          return length;
+        }
+      } catch (fallbackError) {
+        console.warn('Unable to calculate edge length:', fallbackError);
+      }
+      return 0; // Return 0 if we can't calculate the length
+    }
   }
 
   /**
