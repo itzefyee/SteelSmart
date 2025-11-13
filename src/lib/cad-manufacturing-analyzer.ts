@@ -354,48 +354,60 @@ export class ManufacturingAnalyzer {
       if (!curveHandle.IsNull()) {
         const curve = curveHandle.get();
 
-        // Check if edge is straight or curved
-        const edgeType = curve.DynamicType().Name();
+        try {
+          // Check if edge is straight or curved using robust type checking
+          const typeName = curve.get_type_name ? curve.get_type_name() : null;
 
-        if (edgeType === 'Geom_Line') {
-          // Straight edge
-          const line = curve;
-          const direction = line.Direction();
+          // Check for line type (straight edge)
+          const isLine =
+            typeName === 'Geom_Line' ||
+            (typeof curve.Direction === 'function' && typeof curve.Location === 'function' && !curve.Radius);
 
-          edges.push({
-            type: 'straight',
-            length: this.calculateEdgeLength(edge),
-            direction: {
-              x: direction.X(),
-              y: direction.Y(),
-              z: direction.Z(),
-            },
-          });
-        } else if (edgeType === 'Geom_Circle') {
-          // Circular edge (fillet or round)
-          const circle = curve;
-          const radius = circle.Radius();
+          // Check for circle type (curved edge/fillet)
+          const isCircle =
+            typeName === 'Geom_Circle' ||
+            (typeof curve.Radius === 'function' && typeof curve.Location === 'function');
 
-          edges.push({
-            type: 'circular',
-            radius: radius,
-            length: this.calculateEdgeLength(edge),
-            isSharpCorner: radius < 0.125, // < 1/8" is considered sharp
-            isFillet: radius >= 0.125,
-          });
+          if (isLine) {
+            // Straight edge
+            const direction = curve.Direction();
 
-          if (radius < 0.125) {
-            sharpCorners.push({
-              radius: radius,
-              location: {
-                x: circle.Location().X(),
-                y: circle.Location().Y(),
-                z: circle.Location().Z(),
+            edges.push({
+              type: 'straight',
+              length: this.calculateEdgeLength(edge),
+              direction: {
+                x: direction.X(),
+                y: direction.Y(),
+                z: direction.Z(),
               },
-              warning:
-                'Sharp internal corner detected. Consider fillet radius ≥ 1/8"',
             });
+          } else if (isCircle) {
+            // Circular edge (fillet or round)
+            const radius = curve.Radius();
+
+            edges.push({
+              type: 'circular',
+              radius: radius,
+              length: this.calculateEdgeLength(edge),
+              isSharpCorner: radius < 0.125, // < 1/8" is considered sharp
+              isFillet: radius >= 0.125,
+            });
+
+            if (radius < 0.125) {
+              sharpCorners.push({
+                radius: radius,
+                location: {
+                  x: curve.Location().X(),
+                  y: curve.Location().Y(),
+                  z: curve.Location().Z(),
+                },
+                warning:
+                  'Sharp internal corner detected. Consider fillet radius ≥ 1/8"',
+              });
+            }
           }
+        } catch (error) {
+          // Unable to determine edge type, skip
         }
       }
 
