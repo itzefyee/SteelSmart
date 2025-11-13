@@ -615,33 +615,294 @@ const CADAnalyzerFull: React.FC = () => {
     setActiveTab('verification');
   };
 
+  const generateComprehensiveReport = () => {
+    const timestamp = new Date().toLocaleString();
+    const fileName = uploadState.file?.name || 'Unknown File';
+
+    let report = '';
+
+    // Header
+    report += '═══════════════════════════════════════════════════════════════\n';
+    report += '              CAD MODEL ANALYSIS REPORT\n';
+    report += '═══════════════════════════════════════════════════════════════\n\n';
+    report += `File Name: ${fileName}\n`;
+    report += `Analysis Date: ${timestamp}\n`;
+    report += `Analysis ID: ${analysis?.analysisId || 'N/A'}\n\n`;
+
+    // 1. Executive Summary
+    report += '───────────────────────────────────────────────────────────────\n';
+    report += '1. EXECUTIVE SUMMARY\n';
+    report += '───────────────────────────────────────────────────────────────\n\n';
+
+    if (analysis) {
+      report += `Confidence Level: ${Math.round(analysis.confidence * 100)}%\n`;
+      report += `Component Type: ${analysis.extractedSpecs.componentType || 'Not specified'}\n`;
+      report += `Analysis: ${analysis.reasoning}\n\n`;
+    }
+
+    // Overall status
+    const totalChecks = manufacturabilityResults.length + specificationResults.length;
+    const validChecks = [
+      ...manufacturabilityResults.filter(r => r.status === 'Valid'),
+      ...specificationResults.filter(r => r.status === 'Valid')
+    ].length;
+    const warningChecks = [
+      ...manufacturabilityResults.filter(r => r.status === 'Warning'),
+      ...specificationResults.filter(r => r.status === 'Warning' || r.status === 'Missing')
+    ].length;
+    const invalidChecks = [
+      ...manufacturabilityResults.filter(r => r.status === 'Invalid'),
+      ...specificationResults.filter(r => r.status === 'Invalid')
+    ].length;
+
+    report += `Overall Status: ${invalidChecks === 0 ? (warningChecks === 0 ? 'PASS' : 'PASS WITH WARNINGS') : 'FAIL'}\n`;
+    report += `Total Checks: ${totalChecks}\n`;
+    report += `  ✓ Valid: ${validChecks}\n`;
+    report += `  ⚠ Warnings: ${warningChecks}\n`;
+    report += `  ✗ Issues: ${invalidChecks}\n\n`;
+
+    // 2. Technical Specifications
+    report += '───────────────────────────────────────────────────────────────\n';
+    report += '2. TECHNICAL SPECIFICATIONS\n';
+    report += '───────────────────────────────────────────────────────────────\n\n';
+
+    if (analysis?.extractedSpecs) {
+      const specs = analysis.extractedSpecs;
+      if (specs.dimensions) report += `Dimensions: ${specs.dimensions}\n`;
+      if (specs.material) report += `Material: ${specs.material}\n`;
+      if (specs.tolerance) report += `Tolerance: ${specs.tolerance}\n`;
+      if (specs.loadRequirements) report += `Load Requirements: ${specs.loadRequirements}\n`;
+      report += '\n';
+    }
+
+    if (cadModelData?.boundingBox) {
+      const bbox = cadModelData.boundingBox;
+      report += `Bounding Box:\n`;
+      report += `  Length: ${bbox.length.toFixed(3)}" (${(bbox.length * 25.4).toFixed(1)}mm)\n`;
+      report += `  Width: ${bbox.width.toFixed(3)}" (${(bbox.width * 25.4).toFixed(1)}mm)\n`;
+      report += `  Height: ${bbox.height.toFixed(3)}" (${(bbox.height * 25.4).toFixed(1)}mm)\n`;
+      report += `  Volume: ${bbox.volume.toFixed(2)} cubic inches\n\n`;
+    }
+
+    if (cadModelData) {
+      report += `Geometry Complexity:\n`;
+      if (cadModelData.faceCount) report += `  Faces: ${cadModelData.faceCount}\n`;
+      if (cadModelData.edgeCount) report += `  Edges: ${cadModelData.edgeCount}\n`;
+      if (cadModelData.vertexCount) report += `  Vertices: ${cadModelData.vertexCount}\n`;
+      report += '\n';
+    }
+
+    // 3. Manufacturing Analysis
+    if (manufacturabilityResults.length > 0) {
+      report += '───────────────────────────────────────────────────────────────\n';
+      report += '3. MANUFACTURABILITY VALIDATION\n';
+      report += '───────────────────────────────────────────────────────────────\n\n';
+
+      manufacturabilityResults.forEach((result, index) => {
+        const icon = result.status === 'Valid' ? '✓' : result.status === 'Warning' ? '⚠' : '✗';
+        report += `${index + 1}. ${icon} ${result.check}\n`;
+        report += `   Status: ${result.status}\n`;
+        report += `   Current: ${result.value}\n`;
+        report += `   Required: ${result.requirement}\n`;
+        report += `   ${result.message}\n`;
+        if (result.suggestion) {
+          report += `   Suggestion: ${result.suggestion}\n`;
+        }
+        report += '\n';
+      });
+    }
+
+    // 4. Specification Verification
+    if (specificationResults.length > 0) {
+      report += '───────────────────────────────────────────────────────────────\n';
+      report += '4. SPECIFICATION VERIFICATION\n';
+      report += '───────────────────────────────────────────────────────────────\n\n';
+
+      specificationResults.forEach((result, index) => {
+        const icon = result.verified ? '✓' : '✗';
+        report += `${index + 1}. ${icon} ${result.specification}\n`;
+        report += `   Status: ${result.status}\n`;
+        report += `   Standard: ${result.standard}\n`;
+        report += `   Value: ${result.value}\n`;
+        report += `   Notes: ${result.notes}\n\n`;
+      });
+    }
+
+    // 5. Detailed Features
+    report += '───────────────────────────────────────────────────────────────\n';
+    report += '5. DETAILED FEATURE ANALYSIS\n';
+    report += '───────────────────────────────────────────────────────────────\n\n';
+
+    if (cadModelData?.holeAnalysis && cadModelData.holeAnalysis.count > 0) {
+      const holes = cadModelData.holeAnalysis;
+      report += `Hole Analysis (${holes.count} holes detected):\n`;
+      holes.holes.forEach((hole, idx) => {
+        report += `  Hole #${idx + 1}:\n`;
+        report += `    Diameter: ${hole.diameter.toFixed(4)}"\n`;
+        report += `    Standard Size: ${hole.isStandardSize ? 'Yes' : 'No'}\n`;
+        report += `    Center: (${hole.center.x.toFixed(2)}, ${hole.center.y.toFixed(2)}, ${hole.center.z.toFixed(2)})\n`;
+      });
+      if (holes.nonStandardSizes.length > 0) {
+        report += `  Non-Standard Sizes: ${holes.nonStandardSizes.length}\n`;
+      }
+      if (holes.spacingViolations.length > 0) {
+        report += `  Spacing Violations: ${holes.spacingViolations.length}\n`;
+      }
+      report += '\n';
+    }
+
+    if (cadModelData?.thicknessAnalysis) {
+      const thickness = cadModelData.thicknessAnalysis;
+      report += `Material Thickness Analysis:\n`;
+      report += `  Estimated Thickness: ${thickness.estimatedThickness.toFixed(3)}"\n`;
+      report += `  Standard Gauge: ${thickness.isStandardGauge ? 'Yes' : 'No'}\n`;
+      report += `  Min Weld Size (AISC 360 J2.4): ${thickness.minWeldSize.toFixed(3)}"\n`;
+      report += `  Max Weld Size: ${thickness.maxWeldSize.toFixed(3)}"\n`;
+      report += `  Preheat Required (AWS D1.1): ${thickness.requiresPreheat ? 'Yes' : 'No'}\n\n`;
+    }
+
+    if (cadModelData?.edgeAnalysis) {
+      const edges = cadModelData.edgeAnalysis;
+      report += `Edge Analysis:\n`;
+      report += `  Total Edges: ${edges.totalEdges}\n`;
+      if (edges.sharpCorners.length > 0) {
+        report += `  Sharp Corners Detected: ${edges.sharpCorners.length}\n`;
+        edges.sharpCorners.forEach((corner, idx) => {
+          report += `    Corner #${idx + 1}: Radius ${corner.radius.toFixed(4)}" - ${corner.warning}\n`;
+        });
+      }
+      report += '\n';
+    }
+
+    if (cadModelData?.weldJointAnalysis && cadModelData.weldJointAnalysis.totalJoints > 0) {
+      const welds = cadModelData.weldJointAnalysis;
+      report += `Weld Joint Analysis:\n`;
+      report += `  Total Joints: ${welds.totalJoints}\n`;
+      report += `  Accessibility Issues: ${welds.accessibilityIssues}\n`;
+      const compliantJoints = welds.joints.filter(j => j.meetsAWSRequirement).length;
+      report += `  AWS D1.1 Compliant: ${compliantJoints}/${welds.totalJoints}\n\n`;
+    }
+
+    if (cadModelData?.bendAnalysis && cadModelData.bendAnalysis.totalBends > 0) {
+      const bends = cadModelData.bendAnalysis;
+      report += `Bend Analysis:\n`;
+      report += `  Total Bends: ${bends.totalBends}\n`;
+      report += `  Material Grade: ${bends.materialGrade}\n`;
+      report += `  Min Bend Radius: ${bends.minBendRadius.toFixed(3)}"\n`;
+      report += `  Violations: ${bends.violations}\n\n`;
+    }
+
+    // 6. Recommendations
+    report += '───────────────────────────────────────────────────────────────\n';
+    report += '6. RECOMMENDATIONS\n';
+    report += '───────────────────────────────────────────────────────────────\n\n';
+
+    const suggestions = [
+      ...manufacturabilityResults.filter(r => r.suggestion).map(r => r.suggestion),
+      ...specificationResults.filter(r => r.status === 'Invalid' || r.status === 'Warning').map(r => r.notes)
+    ];
+
+    if (suggestions.length > 0) {
+      suggestions.forEach((suggestion, index) => {
+        report += `${index + 1}. ${suggestion}\n`;
+      });
+    } else {
+      report += 'No critical recommendations. Component meets all requirements.\n';
+    }
+
+    report += '\n';
+
+    // 7. Compliance Summary
+    report += '───────────────────────────────────────────────────────────────\n';
+    report += '7. COMPLIANCE SUMMARY\n';
+    report += '───────────────────────────────────────────────────────────────\n\n';
+
+    report += 'Standards Referenced:\n';
+    report += '  - AISC 303: Dimensional Tolerances\n';
+    report += '  - AISC 360: Structural Steel Specifications\n';
+    report += '  - AWS D1.1: Structural Welding Code\n';
+    report += '  - ASTM: Material Standards\n\n';
+
+    if (invalidChecks === 0) {
+      report += 'CONCLUSION: Component is COMPLIANT with all checked standards.\n';
+    } else {
+      report += `CONCLUSION: Component has ${invalidChecks} CRITICAL ISSUE(S) that must be addressed.\n`;
+    }
+
+    report += '\n';
+    report += '═══════════════════════════════════════════════════════════════\n';
+    report += '                    END OF REPORT\n';
+    report += '═══════════════════════════════════════════════════════════════\n';
+
+    return report;
+  };
+
   const generateReport = async () => {
-    if (!analysis) return;
-    
+    if (!analysis && !cadModelData) return;
+
     setIsGeneratingReport(true);
-    
+
     // Simulate report generation
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
+
     setReportGenerated(true);
     setIsGeneratingReport(false);
     setShowReportModal(true);
   };
 
   const downloadReport = (format: 'pdf' | 'txt') => {
-    // Simulate download
-    const content = format === 'pdf' ? 'PDF Report Content' : 'Text Report Content';
-    const blob = new Blob([content], { 
-      type: format === 'pdf' ? 'application/pdf' : 'text/plain' 
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `analysis_report_${Date.now()}.${format}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const reportContent = generateComprehensiveReport();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const fileName = uploadState.file?.name.split('.')[0] || 'analysis';
+
+    if (format === 'txt') {
+      // Download as text file
+      const blob = new Blob([reportContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${fileName}_report_${timestamp}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else {
+      // Download as PDF (using HTML and print)
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>CAD Analysis Report - ${fileName}</title>
+            <style>
+              body {
+                font-family: 'Courier New', monospace;
+                padding: 20mm;
+                line-height: 1.6;
+                font-size: 11pt;
+              }
+              pre {
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                margin: 0;
+              }
+              @media print {
+                body { margin: 0; padding: 15mm; }
+              }
+            </style>
+          </head>
+          <body>
+            <pre>${reportContent}</pre>
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      }
+    }
   };
 
   return (
@@ -1381,41 +1642,102 @@ const CADAnalyzerFull: React.FC = () => {
                           <h4 className="font-medium text-gray-900 mb-3">Report Summary</h4>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
-                              <span className="font-medium text-gray-700">Drawing:</span>
-                              <p className="text-gray-900">{sampleAnalysisReport.drawingName}</p>
+                              <span className="font-medium text-gray-700">File Name:</span>
+                              <p className="text-gray-900">{uploadState.file?.name || 'Unknown'}</p>
                             </div>
                             <div>
-                              <span className="font-medium text-gray-700">Status:</span>
-                              <p className="text-gray-900">{sampleAnalysisReport.overallStatus}</p>
+                              <span className="font-medium text-gray-700">Overall Status:</span>
+                              <p className={`font-semibold ${
+                                manufacturabilityResults.filter(r => r.status === 'Invalid').length === 0 &&
+                                specificationResults.filter(r => r.status === 'Invalid').length === 0
+                                  ? 'text-green-600'
+                                  : 'text-red-600'
+                              }`}>
+                                {manufacturabilityResults.filter(r => r.status === 'Invalid').length === 0 &&
+                                specificationResults.filter(r => r.status === 'Invalid').length === 0
+                                  ? 'PASS'
+                                  : 'FAIL'}
+                              </p>
                             </div>
                             <div>
-                              <span className="font-medium text-gray-700">Manufacturability:</span>
-                              <p className="text-gray-900">{sampleAnalysisReport.manufacturability}%</p>
+                              <span className="font-medium text-gray-700">Confidence:</span>
+                              <p className="text-gray-900">{analysis ? `${Math.round(analysis.confidence * 100)}%` : 'N/A'}</p>
                             </div>
                             <div>
-                              <span className="font-medium text-gray-700">Cost Estimate:</span>
-                              <p className="text-gray-900">{sampleAnalysisReport.costEstimate}</p>
+                              <span className="font-medium text-gray-700">Total Checks:</span>
+                              <p className="text-gray-900">
+                                {manufacturabilityResults.length + specificationResults.length}
+                              </p>
                             </div>
+                            {cadModelData?.boundingBox && (
+                              <>
+                                <div>
+                                  <span className="font-medium text-gray-700">Dimensions:</span>
+                                  <p className="text-gray-900 text-xs">
+                                    {(cadModelData.boundingBox.length * 25.4).toFixed(1)}mm × {(cadModelData.boundingBox.width * 25.4).toFixed(1)}mm × {(cadModelData.boundingBox.height * 25.4).toFixed(1)}mm
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-700">Features:</span>
+                                  <p className="text-gray-900 text-xs">
+                                    {cadModelData.holeAnalysis?.count || 0} holes, {cadModelData.weldJointAnalysis?.totalJoints || 0} welds
+                                  </p>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
-                        
-                        <div className="bg-blue-50 p-4 rounded-lg">
-                          <h4 className="font-medium text-gray-900 mb-2">Recommendations</h4>
+
+                        {/* Preview of report content */}
+                        <div className="bg-white border rounded-lg p-4 max-h-96 overflow-y-auto">
+                          <h4 className="font-medium text-gray-900 mb-2">Report Preview</h4>
+                          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">
+                            {generateComprehensiveReport().substring(0, 1500)}...
+                            {'\n\n[Download full report for complete details]'}
+                          </pre>
+                        </div>
+
+                        <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                          <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                            <svg className="w-5 h-5 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Key Findings
+                          </h4>
                           <ul className="text-sm text-gray-700 space-y-1">
-                            {sampleAnalysisReport.recommendations.map((rec, index) => (
+                            {[
+                              ...manufacturabilityResults
+                                .filter(r => r.status === 'Invalid' || r.status === 'Warning')
+                                .slice(0, 3)
+                                .map(r => r.message),
+                              ...specificationResults
+                                .filter(r => r.status === 'Invalid' || r.status === 'Warning')
+                                .slice(0, 2)
+                                .map(r => r.notes)
+                            ].map((finding, index) => (
                               <li key={index} className="flex items-start">
-                                <span className="text-blue-600 mr-2">•</span>
-                                {rec}
+                                <span className="text-amber-600 mr-2">•</span>
+                                {finding}
                               </li>
                             ))}
+                            {manufacturabilityResults.filter(r => r.status === 'Invalid' || r.status === 'Warning').length === 0 &&
+                            specificationResults.filter(r => r.status === 'Invalid' || r.status === 'Warning').length === 0 && (
+                              <li className="text-green-700">All checks passed. Component meets all requirements.</li>
+                            )}
                           </ul>
                         </div>
-                        
+
                         <div className="flex space-x-3">
                           <Button onClick={() => downloadReport('pdf')} className="flex-1">
+                            <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
                             Download PDF
                           </Button>
                           <Button onClick={() => downloadReport('txt')} variant="outline" className="flex-1">
+                            <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
                             Download Text
                           </Button>
                         </div>
