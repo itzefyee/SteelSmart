@@ -33,6 +33,8 @@ const CADAnalyzerFull: React.FC = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
   const [isAnalyzingManufacturing, setIsAnalyzingManufacturing] = useState(false);
+  const [analysisStage, setAnalysisStage] = useState<string | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
 
   // Check for stored analysis results on component mount
   useEffect(() => {
@@ -185,6 +187,95 @@ const CADAnalyzerFull: React.FC = () => {
     // Show success indicator
     setSampleLoadSuccess(displayName);
     setTimeout(() => setSampleLoadSuccess(null), 3000); // Hide after 3 seconds
+  };
+
+  // Run manufacturing analysis with stage-by-stage progress
+  const runManufacturingAnalysis = async () => {
+    if (!cadModelData) return;
+
+    setIsAnalyzingManufacturing(true);
+    setAnalysisProgress(0);
+
+    try {
+      // Stage 1: Initialize
+      setAnalysisStage('Initializing analysis...');
+      setAnalysisProgress(10);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 2: Parse geometry
+      setAnalysisStage('Parsing 3D geometry...');
+      setAnalysisProgress(20);
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      // Stage 3: Run manufacturing analysis
+      setAnalysisStage('Analyzing manufacturing features...');
+      setAnalysisProgress(35);
+
+      const parser = getCADParser();
+      const analyzedData = await parser.analyzeManufacturing(cadModelData, 'A36');
+
+      // Stage 4: Detect holes
+      setAnalysisStage('Detecting holes and fastener locations...');
+      setAnalysisProgress(50);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 5: Measure thickness
+      setAnalysisStage('Measuring material thickness...');
+      setAnalysisProgress(60);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 6: Analyze edges
+      setAnalysisStage('Analyzing edges and corners...');
+      setAnalysisProgress(70);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 7: Check welds
+      setAnalysisStage('Evaluating weld joints...');
+      setAnalysisProgress(80);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 8: Validate bends
+      setAnalysisStage('Validating bend radii...');
+      setAnalysisProgress(90);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 9: Complete
+      setAnalysisStage('Finalizing analysis...');
+      setAnalysisProgress(100);
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Update state with analyzed data
+      setCADModelData(analyzedData);
+
+      // Generate results for both tabs
+      const mfgResults = convertManufacturingDataToUI(analyzedData);
+      const specResults = convertSpecificationDataToUI(analyzedData);
+
+      setManufacturabilityResults(mfgResults);
+      setSpecificationResults(specResults);
+
+      setAnalysisStage('Analysis complete!');
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+    } catch (error) {
+      console.error('Error during manufacturing analysis:', error);
+      setAnalysisStage('Analysis failed');
+
+      // Set error messages
+      setManufacturabilityResults([
+        {
+          check: 'Manufacturing Analysis Error',
+          value: 'Failed',
+          requirement: 'N/A',
+          status: 'Invalid',
+          message: 'Unable to complete manufacturing analysis. Ensure file is a STEP format.',
+        },
+      ]);
+    } finally {
+      setIsAnalyzingManufacturing(false);
+      setAnalysisStage(null);
+      setAnalysisProgress(0);
+    }
   };
 
   // Convert manufacturing analysis data to UI format
@@ -362,47 +453,10 @@ const CADAnalyzerFull: React.FC = () => {
     return results;
   };
 
-  const validateManufacturability = async () => {
-    if (!cadModelData) return;
-
-    setIsValidating(true);
-
-    try {
-      let modelData = cadModelData;
-
-      // Check if manufacturing analysis has been run
-      if (modelData.holeAnalysis === undefined) {
-        console.log('Manufacturing analysis not yet run - triggering on-demand analysis...');
-        setIsAnalyzingManufacturing(true);
-
-        // Run manufacturing analysis
-        const parser = getCADParser();
-        modelData = await parser.analyzeManufacturing(modelData, 'A36');
-
-        // Update state with analyzed data
-        setCADModelData(modelData);
-        setIsAnalyzingManufacturing(false);
-      }
-
-      // Convert to UI format
-      const results = convertManufacturingDataToUI(modelData);
-      setManufacturabilityResults(results);
-      setActiveTab('validation');
-    } catch (error) {
-      console.error('Error during manufacturability validation:', error);
-      setManufacturabilityResults([
-        {
-          check: 'Manufacturing Analysis Error',
-          value: 'Failed',
-          requirement: 'N/A',
-          status: 'Invalid',
-          message: 'Unable to complete manufacturing analysis. Ensure file is a STEP format.',
-        },
-      ]);
-    } finally {
-      setIsValidating(false);
-      setIsAnalyzingManufacturing(false);
-    }
+  const validateManufacturability = () => {
+    // Simply switch to validation tab
+    // Analysis must be run explicitly via the button
+    setActiveTab('validation');
   };
 
   // Convert compliance data to UI format
@@ -537,48 +591,10 @@ const CADAnalyzerFull: React.FC = () => {
     return results;
   };
 
-  const verifySpecifications = async () => {
-    if (!cadModelData) return;
-
-    setIsVerifying(true);
-
-    try {
-      let modelData = cadModelData;
-
-      // Check if manufacturing analysis has been run
-      if (modelData.holeAnalysis === undefined) {
-        console.log('Manufacturing analysis not yet run - triggering on-demand analysis...');
-        setIsAnalyzingManufacturing(true);
-
-        // Run manufacturing analysis
-        const parser = getCADParser();
-        modelData = await parser.analyzeManufacturing(modelData, 'A36');
-
-        // Update state with analyzed data
-        setCADModelData(modelData);
-        setIsAnalyzingManufacturing(false);
-      }
-
-      // Convert to UI format
-      const results = convertSpecificationDataToUI(modelData);
-      setSpecificationResults(results);
-      setActiveTab('verification');
-    } catch (error) {
-      console.error('Error during specification verification:', error);
-      setSpecificationResults([
-        {
-          specification: 'Specification Verification Error',
-          verified: false,
-          value: 'Failed',
-          standard: 'N/A',
-          status: 'Missing',
-          notes: 'Unable to complete specification verification. Ensure file is a STEP format.',
-        },
-      ]);
-    } finally {
-      setIsVerifying(false);
-      setIsAnalyzingManufacturing(false);
-    }
+  const verifySpecifications = () => {
+    // Simply switch to verification tab
+    // Analysis must be run explicitly via the button
+    setActiveTab('verification');
   };
 
   const generateReport = async () => {
@@ -854,56 +870,30 @@ const CADAnalyzerFull: React.FC = () => {
                     Analysis Results
                   </button>
                   <button
-                    onClick={() => {
-                      // Trigger validation if not already done
-                      if (manufacturabilityResults.length === 0 && cadModelData && !isValidating) {
-                        validateManufacturability();
-                      } else {
-                        setActiveTab('validation');
-                      }
-                    }}
+                    onClick={() => setActiveTab('validation')}
                     className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'validation'
                         ? 'border-primary text-primary'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
-                    disabled={isValidating || isAnalyzingManufacturing}
                   >
                     Manufacturability
-                    {isValidating && (
-                      <span className="ml-2 inline-flex items-center">
-                        <LoadingSpinner size="sm" />
-                      </span>
-                    )}
-                    {manufacturabilityResults.length > 0 && !isValidating && (
+                    {manufacturabilityResults.length > 0 && (
                       <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         {manufacturabilityResults.length}
                       </span>
                     )}
                   </button>
                   <button
-                    onClick={() => {
-                      // Trigger verification if not already done
-                      if (specificationResults.length === 0 && cadModelData && !isVerifying) {
-                        verifySpecifications();
-                      } else {
-                        setActiveTab('verification');
-                      }
-                    }}
+                    onClick={() => setActiveTab('verification')}
                     className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'verification'
                         ? 'border-primary text-primary'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
-                    disabled={isVerifying || isAnalyzingManufacturing}
                   >
                     Specifications
-                    {isVerifying && (
-                      <span className="ml-2 inline-flex items-center">
-                        <LoadingSpinner size="sm" />
-                      </span>
-                    )}
-                    {specificationResults.length > 0 && !isVerifying && (
+                    {specificationResults.length > 0 && (
                       <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                         {specificationResults.length}
                       </span>
@@ -950,6 +940,124 @@ const CADAnalyzerFull: React.FC = () => {
                             });
                           }}
                         />
+                      </div>
+                    )}
+
+                    {/* Manufacturing Analysis Control - For CAD files */}
+                    {uploadState.file && ['step', 'stp', 'stl', 'obj', 'dxf', 'gltf', 'glb'].includes(
+                      uploadState.file.name.split('.').pop()?.toLowerCase() || ''
+                    ) && cadModelData && (
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                              Manufacturing Analysis
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              {manufacturabilityResults.length > 0
+                                ? 'Analysis complete! View results in Manufacturability and Specifications tabs.'
+                                : 'Run detailed manufacturing analysis to check dimensions, holes, welds, and compliance.'}
+                            </p>
+                          </div>
+                          {manufacturabilityResults.length > 0 && (
+                            <div className="flex items-center space-x-2 bg-green-100 px-3 py-1 rounded-full">
+                              <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              <span className="text-sm font-medium text-green-800">Complete</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {isAnalyzingManufacturing ? (
+                          <div className="space-y-4">
+                            {/* Progress Bar */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium text-gray-700">{analysisStage}</span>
+                                <span className="text-gray-600">{analysisProgress}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                                <div
+                                  className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-300 ease-out"
+                                  style={{ width: `${analysisProgress}%` }}
+                                >
+                                  <div className="w-full h-full bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Stage Indicators */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                              {[
+                                { name: 'Geometry', progress: 20 },
+                                { name: 'Holes', progress: 50 },
+                                { name: 'Thickness', progress: 60 },
+                                { name: 'Edges', progress: 70 },
+                                { name: 'Welds', progress: 80 },
+                                { name: 'Bends', progress: 90 },
+                                { name: 'Validate', progress: 100 }
+                              ].map((stage) => (
+                                <div
+                                  key={stage.name}
+                                  className={`flex items-center space-x-2 px-2 py-1 rounded ${
+                                    analysisProgress >= stage.progress
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : 'bg-gray-100 text-gray-400'
+                                  }`}
+                                >
+                                  {analysisProgress >= stage.progress ? (
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  ) : (
+                                    <div className="w-3 h-3 border-2 border-current rounded-full"></div>
+                                  )}
+                                  <span className="font-medium">{stage.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : manufacturabilityResults.length > 0 ? (
+                          <div className="flex items-center space-x-3">
+                            <Button
+                              onClick={runManufacturingAnalysis}
+                              variant="outline"
+                              size="sm"
+                            >
+                              Re-run Analysis
+                            </Button>
+                            <Button
+                              onClick={() => setActiveTab('validation')}
+                              size="sm"
+                            >
+                              View Manufacturability Results
+                            </Button>
+                            <Button
+                              onClick={() => setActiveTab('verification')}
+                              size="sm"
+                              variant="outline"
+                            >
+                              View Specifications
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-3">
+                            <Button
+                              onClick={runManufacturingAnalysis}
+                              size="lg"
+                              className="flex items-center space-x-2"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                              </svg>
+                              <span>Run Manufacturing Analysis</span>
+                            </Button>
+                            <div className="text-sm text-gray-600">
+                              <span className="font-medium">Checks:</span> Dimensions, Holes, Edges, Welds, Bends, Compliance
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1072,29 +1180,8 @@ const CADAnalyzerFull: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-gray-900">Manufacturability Validation</h3>
-                      {manufacturabilityResults.length === 0 && (
-                        <Button
-                          onClick={validateManufacturability}
-                          disabled={isValidating || isAnalyzingManufacturing}
-                          size="sm"
-                        >
-                          {isAnalyzingManufacturing ? (
-                            <>
-                              <LoadingSpinner size="sm" />
-                              <span className="ml-2">Analyzing...</span>
-                            </>
-                          ) : isValidating ? (
-                            <>
-                              <LoadingSpinner size="sm" />
-                              <span className="ml-2">Validating...</span>
-                            </>
-                          ) : (
-                            'Run Validation'
-                          )}
-                        </Button>
-                      )}
                     </div>
-                    
+
                     {manufacturabilityResults.length > 0 ? (
                       <div className="space-y-4">
                         {manufacturabilityResults.map((result, index) => (
@@ -1138,12 +1225,32 @@ const CADAnalyzerFull: React.FC = () => {
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p>No manufacturability validation results yet.</p>
-                        <p className="text-sm mt-1">Click "Validate Manufacturability" to check manufacturing feasibility.</p>
+                      <div className="text-center py-12 text-gray-500">
+                        <div className="bg-blue-50 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                          </svg>
+                        </div>
+                        <p className="text-lg font-medium text-gray-900 mb-2">Manufacturing Analysis Not Run</p>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Run the manufacturing analysis to check dimensions, tolerances,<br />
+                          hole spacing, edge distances, and manufacturing feasibility.
+                        </p>
+                        <Button onClick={runManufacturingAnalysis} disabled={isAnalyzingManufacturing}>
+                          {isAnalyzingManufacturing ? (
+                            <>
+                              <LoadingSpinner size="sm" />
+                              <span className="ml-2">Analyzing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                              </svg>
+                              Run Manufacturing Analysis
+                            </>
+                          )}
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -1153,29 +1260,8 @@ const CADAnalyzerFull: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-gray-900">Specification Verification</h3>
-                      {specificationResults.length === 0 && (
-                        <Button
-                          onClick={verifySpecifications}
-                          disabled={isVerifying || isAnalyzingManufacturing}
-                          size="sm"
-                        >
-                          {isAnalyzingManufacturing ? (
-                            <>
-                              <LoadingSpinner size="sm" />
-                              <span className="ml-2">Analyzing...</span>
-                            </>
-                          ) : isVerifying ? (
-                            <>
-                              <LoadingSpinner size="sm" />
-                              <span className="ml-2">Verifying...</span>
-                            </>
-                          ) : (
-                            'Run Verification'
-                          )}
-                        </Button>
-                      )}
                     </div>
-                    
+
                     {specificationResults.length > 0 ? (
                       <div className="space-y-4">
                         {specificationResults.map((result, index) => (
@@ -1229,12 +1315,32 @@ const CADAnalyzerFull: React.FC = () => {
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p>No specification verification results yet.</p>
-                        <p className="text-sm mt-1">Click "Verify Specifications" to check drawing specifications against standards.</p>
+                      <div className="text-center py-12 text-gray-500">
+                        <div className="bg-purple-50 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                          <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <p className="text-lg font-medium text-gray-900 mb-2">Specification Verification Not Run</p>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Run the manufacturing analysis to verify specifications against<br />
+                          AISC 360, AWS D1.1, and ASTM standards.
+                        </p>
+                        <Button onClick={runManufacturingAnalysis} disabled={isAnalyzingManufacturing}>
+                          {isAnalyzingManufacturing ? (
+                            <>
+                              <LoadingSpinner size="sm" />
+                              <span className="ml-2">Analyzing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                              </svg>
+                              Run Manufacturing Analysis
+                            </>
+                          )}
+                        </Button>
                       </div>
                     )}
                   </div>
