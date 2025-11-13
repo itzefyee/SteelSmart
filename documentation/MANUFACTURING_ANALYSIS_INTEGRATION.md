@@ -285,10 +285,14 @@ interface BendAnalysis {
 
 ## Performance Considerations
 
-- Manufacturing analysis adds ~500ms-2s to parse time depending on model complexity
+- **Deferred Analysis**: Manufacturing analysis is now performed on-demand (not during initial parse)
+- Analysis is triggered automatically when user clicks "Manufacturability" or "Specifications" tabs
+- First-time analysis adds ~500ms-2s depending on model complexity
+- Results are cached - subsequent tab visits use cached data
 - Analysis is performed asynchronously with error handling
 - If analysis fails, model parsing continues (manufacturing data will be undefined)
 - Large models (>10,000 faces) may take longer to analyze
+- STEP files are cached in memory to enable on-demand re-parsing
 
 ## Error Handling
 

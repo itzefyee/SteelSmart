@@ -10,7 +10,7 @@ import CADPreview3D from '@/components/CADPreview3D';
 import { DrawingAnalysis, FileUploadState, APIResponse } from '@/types';
 import { formatFileSize } from '@/lib/utils';
 import { sampleAnalysisReport } from '@/data/sample-data';
-import { CADModelData } from '@/lib/cad-parser';
+import { CADModelData, getCADParser } from '@/lib/cad-parser';
 import { ComplianceChecker, convertCADModelToGeometry } from '@/lib/compliance-checker';
 
 const CADAnalyzerFull: React.FC = () => {
@@ -32,6 +32,7 @@ const CADAnalyzerFull: React.FC = () => {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
+  const [isAnalyzingManufacturing, setIsAnalyzingManufacturing] = useState(false);
 
   // Check for stored analysis results on component mount
   useEffect(() => {
@@ -366,13 +367,42 @@ const CADAnalyzerFull: React.FC = () => {
 
     setIsValidating(true);
 
-    // Simulate validation process
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      let modelData = cadModelData;
 
-    const results = convertManufacturingDataToUI(cadModelData);
-    setManufacturabilityResults(results);
-    setIsValidating(false);
-    setActiveTab('validation');
+      // Check if manufacturing analysis has been run
+      if (modelData.holeAnalysis === undefined) {
+        console.log('Manufacturing analysis not yet run - triggering on-demand analysis...');
+        setIsAnalyzingManufacturing(true);
+
+        // Run manufacturing analysis
+        const parser = getCADParser();
+        modelData = await parser.analyzeManufacturing(modelData, 'A36');
+
+        // Update state with analyzed data
+        setCADModelData(modelData);
+        setIsAnalyzingManufacturing(false);
+      }
+
+      // Convert to UI format
+      const results = convertManufacturingDataToUI(modelData);
+      setManufacturabilityResults(results);
+      setActiveTab('validation');
+    } catch (error) {
+      console.error('Error during manufacturability validation:', error);
+      setManufacturabilityResults([
+        {
+          check: 'Manufacturing Analysis Error',
+          value: 'Failed',
+          requirement: 'N/A',
+          status: 'Invalid',
+          message: 'Unable to complete manufacturing analysis. Ensure file is a STEP format.',
+        },
+      ]);
+    } finally {
+      setIsValidating(false);
+      setIsAnalyzingManufacturing(false);
+    }
   };
 
   // Convert compliance data to UI format
@@ -512,13 +542,43 @@ const CADAnalyzerFull: React.FC = () => {
 
     setIsVerifying(true);
 
-    // Simulate verification process
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      let modelData = cadModelData;
 
-    const results = convertSpecificationDataToUI(cadModelData);
-    setSpecificationResults(results);
-    setIsVerifying(false);
-    setActiveTab('verification');
+      // Check if manufacturing analysis has been run
+      if (modelData.holeAnalysis === undefined) {
+        console.log('Manufacturing analysis not yet run - triggering on-demand analysis...');
+        setIsAnalyzingManufacturing(true);
+
+        // Run manufacturing analysis
+        const parser = getCADParser();
+        modelData = await parser.analyzeManufacturing(modelData, 'A36');
+
+        // Update state with analyzed data
+        setCADModelData(modelData);
+        setIsAnalyzingManufacturing(false);
+      }
+
+      // Convert to UI format
+      const results = convertSpecificationDataToUI(modelData);
+      setSpecificationResults(results);
+      setActiveTab('verification');
+    } catch (error) {
+      console.error('Error during specification verification:', error);
+      setSpecificationResults([
+        {
+          specification: 'Specification Verification Error',
+          verified: false,
+          value: 'Failed',
+          standard: 'N/A',
+          status: 'Missing',
+          notes: 'Unable to complete specification verification. Ensure file is a STEP format.',
+        },
+      ]);
+    } finally {
+      setIsVerifying(false);
+      setIsAnalyzingManufacturing(false);
+    }
   };
 
   const generateReport = async () => {
@@ -794,30 +854,56 @@ const CADAnalyzerFull: React.FC = () => {
                     Analysis Results
                   </button>
                   <button
-                    onClick={() => setActiveTab('validation')}
+                    onClick={() => {
+                      // Trigger validation if not already done
+                      if (manufacturabilityResults.length === 0 && cadModelData && !isValidating) {
+                        validateManufacturability();
+                      } else {
+                        setActiveTab('validation');
+                      }
+                    }}
                     className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'validation'
                         ? 'border-primary text-primary'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
+                    disabled={isValidating || isAnalyzingManufacturing}
                   >
                     Manufacturability
-                    {manufacturabilityResults.length > 0 && (
+                    {isValidating && (
+                      <span className="ml-2 inline-flex items-center">
+                        <LoadingSpinner size="sm" />
+                      </span>
+                    )}
+                    {manufacturabilityResults.length > 0 && !isValidating && (
                       <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         {manufacturabilityResults.length}
                       </span>
                     )}
                   </button>
                   <button
-                    onClick={() => setActiveTab('verification')}
+                    onClick={() => {
+                      // Trigger verification if not already done
+                      if (specificationResults.length === 0 && cadModelData && !isVerifying) {
+                        verifySpecifications();
+                      } else {
+                        setActiveTab('verification');
+                      }
+                    }}
                     className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'verification'
                         ? 'border-primary text-primary'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
+                    disabled={isVerifying || isAnalyzingManufacturing}
                   >
                     Specifications
-                    {specificationResults.length > 0 && (
+                    {isVerifying && (
+                      <span className="ml-2 inline-flex items-center">
+                        <LoadingSpinner size="sm" />
+                      </span>
+                    )}
+                    {specificationResults.length > 0 && !isVerifying && (
                       <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                         {specificationResults.length}
                       </span>
@@ -987,8 +1073,24 @@ const CADAnalyzerFull: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-gray-900">Manufacturability Validation</h3>
                       {manufacturabilityResults.length === 0 && (
-                        <Button onClick={validateManufacturability} disabled={isValidating} size="sm">
-                          {isValidating ? <LoadingSpinner size="sm" /> : 'Run Validation'}
+                        <Button
+                          onClick={validateManufacturability}
+                          disabled={isValidating || isAnalyzingManufacturing}
+                          size="sm"
+                        >
+                          {isAnalyzingManufacturing ? (
+                            <>
+                              <LoadingSpinner size="sm" />
+                              <span className="ml-2">Analyzing...</span>
+                            </>
+                          ) : isValidating ? (
+                            <>
+                              <LoadingSpinner size="sm" />
+                              <span className="ml-2">Validating...</span>
+                            </>
+                          ) : (
+                            'Run Validation'
+                          )}
                         </Button>
                       )}
                     </div>
@@ -1052,8 +1154,24 @@ const CADAnalyzerFull: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-gray-900">Specification Verification</h3>
                       {specificationResults.length === 0 && (
-                        <Button onClick={verifySpecifications} disabled={isVerifying} size="sm">
-                          {isVerifying ? <LoadingSpinner size="sm" /> : 'Run Verification'}
+                        <Button
+                          onClick={verifySpecifications}
+                          disabled={isVerifying || isAnalyzingManufacturing}
+                          size="sm"
+                        >
+                          {isAnalyzingManufacturing ? (
+                            <>
+                              <LoadingSpinner size="sm" />
+                              <span className="ml-2">Analyzing...</span>
+                            </>
+                          ) : isVerifying ? (
+                            <>
+                              <LoadingSpinner size="sm" />
+                              <span className="ml-2">Verifying...</span>
+                            </>
+                          ) : (
+                            'Run Verification'
+                          )}
                         </Button>
                       )}
                     </div>

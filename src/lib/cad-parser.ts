@@ -159,13 +159,18 @@ export interface CADModelData {
   volume?: number;
   surfaceArea?: number;
   parts: CADPart[];
-  // Manufacturing analysis data
+  // Manufacturing analysis data (computed on-demand)
   boundingBoxWithTolerance?: BoundingBoxWithTolerance;
   holeAnalysis?: HoleAnalysis;
   thicknessAnalysis?: ThicknessAnalysis;
   edgeAnalysis?: EdgeAnalysis;
   weldJointAnalysis?: WeldJointAnalysis;
   bendAnalysis?: BendAnalysis;
+  // Internal: cached shape for on-demand analysis
+  _internalShapeData?: {
+    fileContent: ArrayBuffer;
+    fileType: string;
+  };
 }
 
 export interface CADPart {
@@ -761,22 +766,9 @@ export class CADParser {
         },
       });
 
-      // Perform manufacturing analysis
-      console.log('Performing manufacturing analysis...');
-      const manufacturingAnalyzer = new ManufacturingAnalyzer(this.oc);
-      let manufacturingData;
-
-      try {
-        manufacturingData = manufacturingAnalyzer.analyzeManufacturing(shape, 'A36');
-        console.log('Manufacturing analysis completed:', {
-          holes: manufacturingData.holeAnalysis.count,
-          edges: manufacturingData.edgeAnalysis.totalEdges,
-          thickness: manufacturingData.thicknessAnalysis.estimatedThickness,
-        });
-      } catch (error: any) {
-        console.warn('Manufacturing analysis failed:', error.message);
-        manufacturingData = null;
-      }
+      // Note: Manufacturing analysis is now deferred until requested
+      // This saves ~1-2s on initial parse and reduces resource usage
+      console.log('Geometry extraction completed. Manufacturing analysis deferred.');
 
       // Cleanup
       triangulation.delete();
@@ -800,13 +792,6 @@ export class CADParser {
         volume,
         surfaceArea,
         parts,
-        // Add manufacturing analysis data
-        boundingBoxWithTolerance: manufacturingData?.boundingBoxWithTolerance,
-        holeAnalysis: manufacturingData?.holeAnalysis,
-        thicknessAnalysis: manufacturingData?.thicknessAnalysis,
-        edgeAnalysis: manufacturingData?.edgeAnalysis,
-        weldJointAnalysis: manufacturingData?.weldJointAnalysis,
-        bendAnalysis: manufacturingData?.bendAnalysis,
       };
     } catch (error: any) {
       console.error('Error extracting geometry:', error);
@@ -1087,38 +1072,131 @@ export class CADParser {
 
     const declaredExtension = file.name.split('.').pop()?.toLowerCase();
     const arrayBuffer = await file.arrayBuffer();
-    
+
     // Validate file has content
     if (arrayBuffer.byteLength === 0) {
       throw new Error('File is empty');
     }
-    
+
     // Detect actual format from content
     const detectedFormat = this.detectFileFormat(arrayBuffer, declaredExtension);
-    
+
     console.log(`File: ${file.name}, Declared: ${declaredExtension}, Detected: ${detectedFormat}, Size: ${arrayBuffer.byteLength} bytes`);
-    
+
     // Log first few bytes for debugging
     const preview = new Uint8Array(arrayBuffer.slice(0, 100));
     const previewText = new TextDecoder('utf-8', { fatal: false }).decode(preview);
     console.log('File content preview:', previewText.substring(0, 200));
 
+    let modelData: CADModelData;
+
     switch (detectedFormat) {
       case 'step':
       case 'stp':
-        return this.parseSTEP(arrayBuffer);
+        modelData = await this.parseSTEP(arrayBuffer);
+        break;
       case 'stl':
-        return this.parseSTL(arrayBuffer);
+        modelData = await this.parseSTL(arrayBuffer);
+        break;
       case 'obj':
-        return this.parseOBJ(arrayBuffer);
+        modelData = await this.parseOBJ(arrayBuffer);
+        break;
       case 'dxf':
-        return this.parseDXF(arrayBuffer);
+        modelData = await this.parseDXF(arrayBuffer);
+        break;
       case 'gltf':
       case 'glb':
-        return this.parseGLTF(arrayBuffer);
+        modelData = await this.parseGLTF(arrayBuffer);
+        break;
       default:
         throw new Error(`Unsupported or unrecognized file format. Declared: ${declaredExtension}, Detected: ${detectedFormat}. File may be corrupted or in an unsupported format.`);
     }
+
+    // Store file content for on-demand manufacturing analysis
+    modelData._internalShapeData = {
+      fileContent: arrayBuffer,
+      fileType: detectedFormat,
+    };
+
+    return modelData;
+  }
+
+  /**
+   * Run manufacturing analysis on a previously parsed model (on-demand)
+   * This avoids running expensive analysis during initial parse
+   */
+  async analyzeManufacturing(
+    modelData: CADModelData,
+    materialGrade: string = 'A36'
+  ): Promise<CADModelData> {
+    await this.initialize();
+
+    if (!modelData._internalShapeData) {
+      console.warn('Cannot run manufacturing analysis: no internal shape data available');
+      return modelData;
+    }
+
+    // Check if already analyzed
+    if (modelData.holeAnalysis !== undefined) {
+      console.log('Manufacturing analysis already complete');
+      return modelData;
+    }
+
+    console.log('Running on-demand manufacturing analysis...');
+
+    try {
+      const { fileContent, fileType } = modelData._internalShapeData;
+
+      // Re-parse to get shape object for analysis
+      // Only STEP files support detailed manufacturing analysis
+      if (fileType === 'step' || fileType === 'stp') {
+        const filename = 'model_analysis.step';
+        const fileData = new Uint8Array(fileContent);
+        this.oc.FS.writeFile(filename, fileData);
+
+        const reader = new this.oc.STEPControl_Reader_1();
+        const status = reader.ReadFile(filename);
+
+        if (status === this.oc.IFSelect_ReturnStatus.IFSelect_RetDone) {
+          reader.TransferRoots(new this.oc.Message_ProgressRange_1());
+          const shape = reader.OneShape();
+
+          if (!shape.IsNull()) {
+            const manufacturingAnalyzer = new ManufacturingAnalyzer(this.oc);
+            const manufacturingResults = manufacturingAnalyzer.analyzeManufacturing(
+              shape,
+              materialGrade
+            );
+
+            // Add manufacturing data to model
+            modelData.boundingBoxWithTolerance = manufacturingResults.boundingBoxWithTolerance;
+            modelData.holeAnalysis = manufacturingResults.holeAnalysis;
+            modelData.thicknessAnalysis = manufacturingResults.thicknessAnalysis;
+            modelData.edgeAnalysis = manufacturingResults.edgeAnalysis;
+            modelData.weldJointAnalysis = manufacturingResults.weldJointAnalysis;
+            modelData.bendAnalysis = manufacturingResults.bendAnalysis;
+
+            console.log('Manufacturing analysis completed:', {
+              holes: manufacturingResults.holeAnalysis.count,
+              edges: manufacturingResults.edgeAnalysis.totalEdges,
+              thickness: manufacturingResults.thicknessAnalysis.estimatedThickness,
+            });
+
+            // Cleanup
+            shape.delete();
+            reader.delete();
+            this.oc.FS.unlink(filename);
+          }
+        }
+      } else {
+        console.warn(`Manufacturing analysis not supported for ${fileType} format. Use STEP files for full analysis.`);
+      }
+    } catch (error: any) {
+      console.error('Manufacturing analysis failed:', error);
+      // Don't throw - return model with whatever data we have
+    }
+
+    return modelData;
   }
 
   dispose(): void {
