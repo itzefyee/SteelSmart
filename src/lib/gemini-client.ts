@@ -56,7 +56,12 @@ export class GeminiClient {
     }
   }
 
-  async analyzeDrawing(fileBuffer: Buffer, mimeType: string, filename?: string): Promise<GeminiAnalysisResponse> {
+  async analyzeDrawing(
+    fileBuffer: Buffer,
+    mimeType: string,
+    filename?: string,
+    cadModelData?: any
+  ): Promise<GeminiAnalysisResponse> {
     if (!this.apiKey || !this.model) {
       throw new Error('Gemini API key not configured or model not initialized');
     }
@@ -64,14 +69,14 @@ export class GeminiClient {
     try {
       // Convert file to base64 for Gemini
       const base64Data = fileBuffer.toString('base64');
-      
+
       // Check if this is a sample file (very small size indicates placeholder)
       if (fileBuffer.length < 100) {
         console.log('Sample file detected, using default analysis for demo purposes');
         // For sample files, use default mock analysis for better demo results
-        return this.getSampleAnalysis(filename);
+        return this.getSampleAnalysis(filename, cadModelData);
       }
-      
+
       // For real files, prepare the image part for Gemini
       const imagePart = {
         inlineData: {
@@ -80,11 +85,17 @@ export class GeminiClient {
         }
       };
 
-      console.log('Analyzing drawing with Gemini API (with image)...');
-      
+      // Build enhanced prompt with CAD data if available
+      let promptText = GEMINI_ANALYSIS_PROMPT;
+      if (cadModelData) {
+        promptText += this.buildCADDataContext(cadModelData);
+      }
+
+      console.log('Analyzing drawing with Gemini API (with image and CAD data)...');
+
       // Call Gemini API with the image and prompt
       const result = await this.model.generateContent([
-        GEMINI_ANALYSIS_PROMPT,
+        promptText,
         imagePart
       ]);
 
@@ -135,7 +146,116 @@ export class GeminiClient {
     return !!(this.apiKey && this.model);
   }
 
-  private getSampleAnalysis(filename?: string): GeminiAnalysisResponse {
+  private buildCADDataContext(cadModelData: any): string {
+    let context = '\n\n## Additional 3D CAD Model Data Extracted:\n\n';
+
+    if (cadModelData.boundingBox) {
+      const bbox = cadModelData.boundingBox;
+      context += `**Bounding Box Dimensions**:\n`;
+      context += `- Length: ${bbox.length.toFixed(2)}" (${(bbox.length * 25.4).toFixed(1)}mm)\n`;
+      context += `- Width: ${bbox.width.toFixed(2)}" (${(bbox.width * 25.4).toFixed(1)}mm)\n`;
+      context += `- Height: ${bbox.height.toFixed(2)}" (${(bbox.height * 25.4).toFixed(1)}mm)\n`;
+      context += `- Volume: ${bbox.volume.toFixed(2)} cubic inches\n\n`;
+    }
+
+    if (cadModelData.boundingBoxWithTolerance) {
+      const bbox = cadModelData.boundingBoxWithTolerance;
+      context += `**AISC 303 Tolerance**: ±${bbox.tolerance.toFixed(3)}"\n\n`;
+    }
+
+    if (cadModelData.faceCount) {
+      context += `**Geometry Complexity**:\n`;
+      context += `- Total Faces: ${cadModelData.faceCount}\n`;
+      if (cadModelData.edgeCount) context += `- Total Edges: ${cadModelData.edgeCount}\n`;
+      if (cadModelData.vertexCount) context += `- Total Vertices: ${cadModelData.vertexCount}\n\n`;
+    }
+
+    if (cadModelData.holeAnalysis && cadModelData.holeAnalysis.count > 0) {
+      const holes = cadModelData.holeAnalysis;
+      context += `**Hole Analysis** (${holes.count} holes detected):\n`;
+      holes.holes.forEach((hole: any, idx: number) => {
+        context += `- Hole #${idx + 1}: Diameter ${hole.diameter.toFixed(4)}" ${hole.isStandardSize ? '(standard)' : '(non-standard)'}\n`;
+      });
+      if (holes.nonStandardSizes.length > 0) {
+        context += `- ${holes.nonStandardSizes.length} non-standard drill sizes detected\n`;
+      }
+      if (holes.spacingViolations.length > 0) {
+        context += `- ${holes.spacingViolations.length} AISC 360 spacing violations\n`;
+      }
+      context += '\n';
+    }
+
+    if (cadModelData.thicknessAnalysis) {
+      const thickness = cadModelData.thicknessAnalysis;
+      context += `**Material Thickness**: ${thickness.estimatedThickness.toFixed(3)}"\n`;
+      context += `- Standard Gauge: ${thickness.isStandardGauge ? 'Yes' : 'No'}\n`;
+      context += `- Min Weld Size (AISC 360): ${thickness.minWeldSize.toFixed(3)}"\n`;
+      context += `- Preheat Required (AWS D1.1): ${thickness.requiresPreheat ? 'Yes' : 'No'}\n\n`;
+    }
+
+    if (cadModelData.edgeAnalysis) {
+      const edges = cadModelData.edgeAnalysis;
+      context += `**Edge Analysis**: ${edges.totalEdges} edges\n`;
+      if (edges.sharpCorners.length > 0) {
+        context += `- ${edges.sharpCorners.length} sharp corners detected (< 1/8" radius)\n\n`;
+      }
+    }
+
+    if (cadModelData.weldJointAnalysis && cadModelData.weldJointAnalysis.totalJoints > 0) {
+      const welds = cadModelData.weldJointAnalysis;
+      context += `**Weld Joint Analysis**: ${welds.totalJoints} potential weld joints\n`;
+      context += `- Accessibility Issues: ${welds.accessibilityIssues}\n`;
+      const compliantJoints = welds.joints.filter((j: any) => j.meetsAWSRequirement).length;
+      context += `- AWS D1.1 Compliant: ${compliantJoints}/${welds.totalJoints}\n\n`;
+    }
+
+    if (cadModelData.bendAnalysis && cadModelData.bendAnalysis.totalBends > 0) {
+      const bends = cadModelData.bendAnalysis;
+      context += `**Bend Analysis**: ${bends.totalBends} bends detected\n`;
+      context += `- Material Grade: ${bends.materialGrade}\n`;
+      context += `- Min Bend Radius: ${bends.minBendRadius.toFixed(3)}"\n`;
+      context += `- Violations: ${bends.violations}\n\n`;
+    }
+
+    context += '\n**Use this extracted CAD data to provide more accurate dimensions, material thickness, and manufacturing specifications in your analysis.**\n';
+
+    return context;
+  }
+
+  private getSampleAnalysis(filename?: string, cadModelData?: any): GeminiAnalysisResponse {
+    // If we have CAD model data, use it to build a more accurate analysis
+    if (cadModelData) {
+      const dimensions = cadModelData.boundingBox
+        ? `${(cadModelData.boundingBox.length * 25.4).toFixed(1)}mm x ${(cadModelData.boundingBox.width * 25.4).toFixed(1)}mm x ${(cadModelData.boundingBox.height * 25.4).toFixed(1)}mm`
+        : null;
+
+      const material = cadModelData.thicknessAnalysis
+        ? `Steel (${cadModelData.thicknessAnalysis.estimatedThickness.toFixed(3)}" thick)`
+        : null;
+
+      const componentType = cadModelData.holeAnalysis?.count > 0
+        ? 'mounting bracket or structural component'
+        : 'structural component';
+
+      const tolerance = cadModelData.boundingBoxWithTolerance
+        ? `±${cadModelData.boundingBoxWithTolerance.tolerance.toFixed(3)}"`
+        : null;
+
+      return {
+        extractedSpecs: {
+          dimensions,
+          material,
+          loadRequirements: null,
+          componentType,
+          tolerance
+        },
+        confidence: 0.92,
+        reasoning: `Analysis based on parsed 3D CAD model data. Detected ${cadModelData.faceCount || 0} faces, ${cadModelData.holeAnalysis?.count || 0} holes, and ${cadModelData.weldJointAnalysis?.totalJoints || 0} potential weld joints.`,
+        suggestedCategories: ['structural', 'custom']
+      };
+    }
+
+    // Original sample analysis (fallback)
     if (filename?.includes('bracket')) {
       return {
         extractedSpecs: {

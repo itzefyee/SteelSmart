@@ -7,12 +7,23 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    
+    const cadDataJson = formData.get('cadModelData') as string;
+
     if (!file) {
       return NextResponse.json<APIResponse<null>>({
         success: false,
         error: 'No file provided'
       }, { status: 400 });
+    }
+
+    // Parse CAD model data if provided
+    let cadModelData = null;
+    if (cadDataJson) {
+      try {
+        cadModelData = JSON.parse(cadDataJson);
+      } catch (e) {
+        console.warn('Failed to parse CAD model data:', e);
+      }
     }
 
     // Validate file type and size
@@ -52,14 +63,19 @@ export async function POST(request: NextRequest) {
     if (isGeminiConfigured) {
       try {
         // Use real Gemini API for analysis
-        console.log('Using Gemini API for real analysis');
-        
+        console.log('Using Gemini API for real analysis', cadModelData ? 'with CAD data' : 'without CAD data');
+
         // Convert file to buffer
         const fileBuffer = Buffer.from(await file.arrayBuffer());
-        
-        // Call Gemini API
-        const geminiResponse = await geminiClient.analyzeDrawing(fileBuffer, file.type, file.name);
-        
+
+        // Call Gemini API with CAD data
+        const geminiResponse = await geminiClient.analyzeDrawing(
+          fileBuffer,
+          file.type,
+          file.name,
+          cadModelData
+        );
+
         // Create DrawingAnalysis from Gemini response, converting null to undefined
         analysis = {
           extractedSpecs: {
@@ -75,16 +91,16 @@ export async function POST(request: NextRequest) {
           reasoning: geminiResponse.reasoning,
           analysisId: `analysis_${Date.now()}`
         };
-        
+
       } catch (geminiError) {
         console.error('Gemini API failed, falling back to mock:', geminiError);
         // Fallback to mock analysis if Gemini fails
-        analysis = getFallbackAnalysis(file.name);
+        analysis = getFallbackAnalysis(file.name, cadModelData);
       }
     } else {
       console.log('Gemini API not configured, using mock analysis');
       // Use mock analysis if API not configured
-      analysis = getFallbackAnalysis(file.name);
+      analysis = getFallbackAnalysis(file.name, cadModelData);
     }
 
     // Use product matcher to find relevant products
@@ -116,7 +132,42 @@ export async function POST(request: NextRequest) {
 }
 
 // Fallback mock analysis function
-function getFallbackAnalysis(filename: string): DrawingAnalysis {
+function getFallbackAnalysis(filename: string, cadModelData?: any): DrawingAnalysis {
+  // If we have CAD model data, use it for more accurate analysis
+  if (cadModelData) {
+    const dimensions = cadModelData.boundingBox
+      ? `${(cadModelData.boundingBox.length * 25.4).toFixed(1)}mm x ${(cadModelData.boundingBox.width * 25.4).toFixed(1)}mm x ${(cadModelData.boundingBox.height * 25.4).toFixed(1)}mm`
+      : undefined;
+
+    const material = cadModelData.thicknessAnalysis
+      ? `Steel (${cadModelData.thicknessAnalysis.estimatedThickness.toFixed(3)}" thick)`
+      : 'Steel';
+
+    const componentType = cadModelData.holeAnalysis?.count > 0
+      ? 'Mounting bracket or structural component'
+      : 'Structural component';
+
+    const tolerance = cadModelData.boundingBoxWithTolerance
+      ? `±${cadModelData.boundingBoxWithTolerance.tolerance.toFixed(3)}"`
+      : undefined;
+
+    return {
+      extractedSpecs: {
+        dimensions,
+        material,
+        loadRequirements: undefined,
+        componentType,
+        tolerance
+      },
+      recommendedProducts: [],
+      totalRecommendations: 0,
+      confidence: 0.92,
+      reasoning: `Analysis based on parsed 3D CAD model data. Detected ${cadModelData.faceCount || 0} faces, ${cadModelData.holeAnalysis?.count || 0} holes, and ${cadModelData.weldJointAnalysis?.totalJoints || 0} potential weld joints. ${cadModelData.thicknessAnalysis ? `Material thickness: ${cadModelData.thicknessAnalysis.estimatedThickness.toFixed(3)}".` : ''}`,
+      analysisId: `analysis_${Date.now()}`
+    };
+  }
+
+  // Original sample-based analysis
   if (filename.includes('bracket')) {
     return {
       extractedSpecs: {

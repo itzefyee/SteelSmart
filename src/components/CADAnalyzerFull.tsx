@@ -122,6 +122,24 @@ const CADAnalyzerFull: React.FC = () => {
       const formData = new FormData();
       formData.append('file', uploadState.file);
 
+      // Include CAD model data if available (for enhanced analysis)
+      if (cadModelData) {
+        // Create a clean copy without internal data to reduce payload size
+        const cleanedCADData = {
+          boundingBox: cadModelData.boundingBox,
+          boundingBoxWithTolerance: cadModelData.boundingBoxWithTolerance,
+          faceCount: cadModelData.faceCount,
+          edgeCount: cadModelData.edgeCount,
+          vertexCount: cadModelData.vertexCount,
+          holeAnalysis: cadModelData.holeAnalysis,
+          thicknessAnalysis: cadModelData.thicknessAnalysis,
+          edgeAnalysis: cadModelData.edgeAnalysis,
+          weldJointAnalysis: cadModelData.weldJointAnalysis,
+          bendAnalysis: cadModelData.bendAnalysis,
+        };
+        formData.append('cadModelData', JSON.stringify(cleanedCADData));
+      }
+
       // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadState(prev => ({
