@@ -678,10 +678,11 @@ const CADAnalyzerFull: React.FC = () => {
     if (cadModelData?.boundingBox) {
       const bbox = cadModelData.boundingBox;
       report += `Bounding Box:\n`;
-      report += `  Length: ${bbox.length.toFixed(3)}" (${(bbox.length * 25.4).toFixed(1)}mm)\n`;
-      report += `  Width: ${bbox.width.toFixed(3)}" (${(bbox.width * 25.4).toFixed(1)}mm)\n`;
-      report += `  Height: ${bbox.height.toFixed(3)}" (${(bbox.height * 25.4).toFixed(1)}mm)\n`;
-      report += `  Volume: ${bbox.volume.toFixed(2)} cubic inches\n\n`;
+      if (bbox.length != null) report += `  Length: ${bbox.length.toFixed(3)}" (${(bbox.length * 25.4).toFixed(1)}mm)\n`;
+      if (bbox.width != null) report += `  Width: ${bbox.width.toFixed(3)}" (${(bbox.width * 25.4).toFixed(1)}mm)\n`;
+      if (bbox.height != null) report += `  Height: ${bbox.height.toFixed(3)}" (${(bbox.height * 25.4).toFixed(1)}mm)\n`;
+      if (bbox.volume != null) report += `  Volume: ${bbox.volume.toFixed(2)} cubic inches\n`;
+      report += '\n';
     }
 
     if (cadModelData) {
@@ -736,16 +737,18 @@ const CADAnalyzerFull: React.FC = () => {
     if (cadModelData?.holeAnalysis && cadModelData.holeAnalysis.count > 0) {
       const holes = cadModelData.holeAnalysis;
       report += `Hole Analysis (${holes.count} holes detected):\n`;
-      holes.holes.forEach((hole, idx) => {
+      holes.holes?.forEach((hole, idx) => {
         report += `  Hole #${idx + 1}:\n`;
-        report += `    Diameter: ${hole.diameter.toFixed(4)}"\n`;
+        if (hole.diameter != null) report += `    Diameter: ${hole.diameter.toFixed(4)}"\n`;
         report += `    Standard Size: ${hole.isStandardSize ? 'Yes' : 'No'}\n`;
-        report += `    Center: (${hole.center.x.toFixed(2)}, ${hole.center.y.toFixed(2)}, ${hole.center.z.toFixed(2)})\n`;
+        if (hole.center?.x != null && hole.center?.y != null && hole.center?.z != null) {
+          report += `    Center: (${hole.center.x.toFixed(2)}, ${hole.center.y.toFixed(2)}, ${hole.center.z.toFixed(2)})\n`;
+        }
       });
-      if (holes.nonStandardSizes.length > 0) {
+      if (holes.nonStandardSizes?.length > 0) {
         report += `  Non-Standard Sizes: ${holes.nonStandardSizes.length}\n`;
       }
-      if (holes.spacingViolations.length > 0) {
+      if (holes.spacingViolations?.length > 0) {
         report += `  Spacing Violations: ${holes.spacingViolations.length}\n`;
       }
       report += '\n';
@@ -754,10 +757,10 @@ const CADAnalyzerFull: React.FC = () => {
     if (cadModelData?.thicknessAnalysis) {
       const thickness = cadModelData.thicknessAnalysis;
       report += `Material Thickness Analysis:\n`;
-      report += `  Estimated Thickness: ${thickness.estimatedThickness.toFixed(3)}"\n`;
+      if (thickness.estimatedThickness != null) report += `  Estimated Thickness: ${thickness.estimatedThickness.toFixed(3)}"\n`;
       report += `  Standard Gauge: ${thickness.isStandardGauge ? 'Yes' : 'No'}\n`;
-      report += `  Min Weld Size (AISC 360 J2.4): ${thickness.minWeldSize.toFixed(3)}"\n`;
-      report += `  Max Weld Size: ${thickness.maxWeldSize.toFixed(3)}"\n`;
+      if (thickness.minWeldSize != null) report += `  Min Weld Size (AISC 360 J2.4): ${thickness.minWeldSize.toFixed(3)}"\n`;
+      if (thickness.maxWeldSize != null) report += `  Max Weld Size: ${thickness.maxWeldSize.toFixed(3)}"\n`;
       report += `  Preheat Required (AWS D1.1): ${thickness.requiresPreheat ? 'Yes' : 'No'}\n\n`;
     }
 
@@ -765,10 +768,12 @@ const CADAnalyzerFull: React.FC = () => {
       const edges = cadModelData.edgeAnalysis;
       report += `Edge Analysis:\n`;
       report += `  Total Edges: ${edges.totalEdges}\n`;
-      if (edges.sharpCorners.length > 0) {
+      if (edges.sharpCorners?.length > 0) {
         report += `  Sharp Corners Detected: ${edges.sharpCorners.length}\n`;
         edges.sharpCorners.forEach((corner, idx) => {
-          report += `    Corner #${idx + 1}: Radius ${corner.radius.toFixed(4)}" - ${corner.warning}\n`;
+          if (corner.radius != null) {
+            report += `    Corner #${idx + 1}: Radius ${corner.radius.toFixed(4)}" - ${corner.warning || 'N/A'}\n`;
+          }
         });
       }
       report += '\n';
@@ -779,7 +784,7 @@ const CADAnalyzerFull: React.FC = () => {
       report += `Weld Joint Analysis:\n`;
       report += `  Total Joints: ${welds.totalJoints}\n`;
       report += `  Accessibility Issues: ${welds.accessibilityIssues}\n`;
-      const compliantJoints = welds.joints.filter(j => j.meetsAWSRequirement).length;
+      const compliantJoints = welds.joints?.filter(j => j.meetsAWSRequirement).length || 0;
       report += `  AWS D1.1 Compliant: ${compliantJoints}/${welds.totalJoints}\n\n`;
     }
 
@@ -787,9 +792,9 @@ const CADAnalyzerFull: React.FC = () => {
       const bends = cadModelData.bendAnalysis;
       report += `Bend Analysis:\n`;
       report += `  Total Bends: ${bends.totalBends}\n`;
-      report += `  Material Grade: ${bends.materialGrade}\n`;
-      report += `  Min Bend Radius: ${bends.minBendRadius.toFixed(3)}"\n`;
-      report += `  Violations: ${bends.violations}\n\n`;
+      if (bends.materialGrade) report += `  Material Grade: ${bends.materialGrade}\n`;
+      if (bends.minBendRadius != null) report += `  Min Bend Radius: ${bends.minBendRadius.toFixed(3)}"\n`;
+      report += `  Violations: ${bends.violations || 0}\n\n`;
     }
 
     // 6. Recommendations

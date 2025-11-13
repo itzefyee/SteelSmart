@@ -135,21 +135,44 @@ export async function POST(request: NextRequest) {
 function getFallbackAnalysis(filename: string, cadModelData?: any): DrawingAnalysis {
   // If we have CAD model data, use it for more accurate analysis
   if (cadModelData) {
-    const dimensions = cadModelData.boundingBox
-      ? `${(cadModelData.boundingBox.length * 25.4).toFixed(1)}mm x ${(cadModelData.boundingBox.width * 25.4).toFixed(1)}mm x ${(cadModelData.boundingBox.height * 25.4).toFixed(1)}mm`
-      : undefined;
+    // Calculate dimensions from bounding box (may have length/width/height OR min/max)
+    let dimensions: string | undefined = undefined;
+    if (cadModelData.boundingBox?.length && cadModelData.boundingBox?.width && cadModelData.boundingBox?.height) {
+      // Manufacturing analysis has been run, use calculated dimensions
+      dimensions = `${(cadModelData.boundingBox.length * 25.4).toFixed(1)}mm x ${(cadModelData.boundingBox.width * 25.4).toFixed(1)}mm x ${(cadModelData.boundingBox.height * 25.4).toFixed(1)}mm`;
+    } else if (cadModelData.boundingBox?.min && cadModelData.boundingBox?.max) {
+      // Only basic geometry extraction, calculate dimensions from min/max
+      const length = Math.abs(cadModelData.boundingBox.max.x - cadModelData.boundingBox.min.x);
+      const width = Math.abs(cadModelData.boundingBox.max.y - cadModelData.boundingBox.min.y);
+      const height = Math.abs(cadModelData.boundingBox.max.z - cadModelData.boundingBox.min.z);
+      dimensions = `${(length * 25.4).toFixed(1)}mm x ${(width * 25.4).toFixed(1)}mm x ${(height * 25.4).toFixed(1)}mm`;
+    }
 
-    const material = cadModelData.thicknessAnalysis
+    const material = cadModelData.thicknessAnalysis?.estimatedThickness
       ? `Steel (${cadModelData.thicknessAnalysis.estimatedThickness.toFixed(3)}" thick)`
-      : 'Steel';
+      : 'Steel (material analysis pending)';
 
     const componentType = cadModelData.holeAnalysis?.count > 0
       ? 'Mounting bracket or structural component'
-      : 'Structural component';
+      : (cadModelData.faceCount ? 'Structural component' : '3D CAD Model');
 
-    const tolerance = cadModelData.boundingBoxWithTolerance
+    const tolerance = cadModelData.boundingBoxWithTolerance?.tolerance
       ? `±${cadModelData.boundingBoxWithTolerance.tolerance.toFixed(3)}"`
-      : undefined;
+      : '±0.005" (standard)';
+
+    const thicknessInfo = cadModelData.thicknessAnalysis?.estimatedThickness
+      ? `Material thickness: ${cadModelData.thicknessAnalysis.estimatedThickness.toFixed(3)}".`
+      : '';
+
+    const hasManufacturingAnalysis = !!(cadModelData.holeAnalysis || cadModelData.thicknessAnalysis || cadModelData.weldJointAnalysis);
+
+    console.log('Using CAD model data for analysis:', {
+      hasBoundingBox: !!cadModelData.boundingBox,
+      hasDimensions: !!dimensions,
+      hasManufacturingAnalysis,
+      faceCount: cadModelData.faceCount || 0,
+      holeCount: cadModelData.holeAnalysis?.count || 0,
+    });
 
     return {
       extractedSpecs: {
@@ -161,8 +184,10 @@ function getFallbackAnalysis(filename: string, cadModelData?: any): DrawingAnaly
       },
       recommendedProducts: [],
       totalRecommendations: 0,
-      confidence: 0.92,
-      reasoning: `Analysis based on parsed 3D CAD model data. Detected ${cadModelData.faceCount || 0} faces, ${cadModelData.holeAnalysis?.count || 0} holes, and ${cadModelData.weldJointAnalysis?.totalJoints || 0} potential weld joints. ${cadModelData.thicknessAnalysis ? `Material thickness: ${cadModelData.thicknessAnalysis.estimatedThickness.toFixed(3)}".` : ''}`,
+      confidence: hasManufacturingAnalysis ? 0.92 : 0.75,
+      reasoning: hasManufacturingAnalysis
+        ? `Analysis based on parsed 3D CAD model data with detailed manufacturing analysis. Detected ${cadModelData.faceCount || 0} faces, ${cadModelData.holeAnalysis?.count || 0} holes, and ${cadModelData.weldJointAnalysis?.totalJoints || 0} potential weld joints. ${thicknessInfo}`
+        : `Analysis based on 3D CAD geometry. Detected ${cadModelData.faceCount || 0} faces. Run manufacturing analysis for detailed hole, thickness, and weld information.`,
       analysisId: `analysis_${Date.now()}`
     };
   }
