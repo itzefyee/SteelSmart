@@ -64,7 +64,6 @@ async function pollTextToCadOperation(
   maxAttempts: number = 60,
   pollInterval: number = 2000
 ): Promise<any> {
-  console.log(`Starting to poll operation ${operationId}, format: ${format}`);
   
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -74,16 +73,12 @@ async function pollTextToCadOperation(
         id: operationId
       });
 
-      console.log(`Poll attempt ${attempt}/${maxAttempts} - Status: ${operation.status}`);
 
       // Check if operation completed successfully
       if (operation.status === 'completed') {
-        console.log('Operation completed successfully');
         
         // Extract model data from outputs
         const outputKey = `source.${format}`;
-        console.log(`Looking for output key: ${outputKey}`);
-        console.log('Available outputs:', operation.outputs ? Object.keys(operation.outputs) : 'none');
         
         if (operation.outputs && operation.outputs[outputKey]) {
           return {
@@ -110,7 +105,6 @@ async function pollTextToCadOperation(
       }
 
       // Operation is still in progress (queued, in_progress, uploading, etc.)
-      console.log(`Operation status: ${operation.status}, waiting ${pollInterval}ms before next poll...`);
       
       // Wait before next poll
       await new Promise(resolve => setTimeout(resolve, pollInterval));
@@ -159,12 +153,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
     }
 
     // Use the original description without enhancement
-    console.log('Starting CAD generation with Zoo Dev API...');
-    console.log('Original prompt:', description);
 
     try {
       // Use Zoo Dev API for text-to-CAD generation
-      console.log('Calling Zoo Dev API with prompt:', description);
       
       const result = await ml.create_text_to_cad({
           body: {
@@ -173,7 +164,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
           output_format: format
       });
 
-      console.log('Zoo Dev API raw response:', {
         type: typeof result,
         keys: result ? Object.keys(result) : null,
         hasError: result && 'error_code' in result,
@@ -193,14 +183,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
       // Check if this is an async operation that needs polling
       let finalResult = result;
       if (result && 'status' in result && result.status !== 'completed') {
-        console.log('CAD generation is async, status:', result.status, 'Operation ID:', result.id);
         
         // Poll the operation until it completes
         finalResult = await pollTextToCadOperation(result.id || '', format);
-        console.log('Polling completed, final status:', finalResult.status);
       }
 
-      console.log('CAD generation completed, result structure:', {
         hasId: !!finalResult.id,
         hasOutputs: !!finalResult.outputs,
         outputsType: typeof finalResult.outputs,
@@ -213,7 +200,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
       let modelData = null;
       const outputKey = `source.${format}`;
       
-      console.log(`Attempting to extract model data with key: ${outputKey}`);
       
       if (finalResult.outputs && typeof finalResult.outputs === 'object') {
         // Try the specific format key first (e.g., "source.step")
@@ -223,11 +209,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
           modelData = (typeof output === 'object' && output !== null && 'content' in output) 
             ? (output as any).content 
             : (typeof output === 'string' ? output : String(output));
-          console.log(`Found model data with key ${outputKey}, type:`, typeof modelData);
         } else {
           // Fallback: try any available output
           const availableKeys = Object.keys(finalResult.outputs);
-          console.log('Available output keys:', availableKeys);
           
           for (const key of availableKeys) {
             const output = finalResult.outputs[key];
@@ -240,7 +224,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
               } else {
                 modelData = String(output);
               }
-              console.log(`Found model data with fallback key ${key}`);
               break;
             }
           }
@@ -252,10 +235,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
         const resultAny = finalResult as any;
         if (resultAny.model_data) {
           modelData = resultAny.model_data;
-          console.log('Found model data in model_data field (legacy)');
         } else if (resultAny.data?.model_data) {
           modelData = resultAny.data.model_data;
-          console.log('Found model data in data.model_data field (legacy)');
         }
       }
       
@@ -273,7 +254,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
         modelData = String(modelData);
       }
 
-      console.log('CAD generation completed successfully');
 
       const generationId = finalResult.id || `cad_${Date.now()}`;
       

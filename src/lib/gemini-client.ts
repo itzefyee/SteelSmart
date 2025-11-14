@@ -67,7 +67,6 @@ export class GeminiClient {
       
       // Check if this is a sample file (very small size indicates placeholder)
       if (fileBuffer.length < 100) {
-        console.log('Sample file detected, using default analysis for demo purposes');
         // For sample files, use default mock analysis for better demo results
         return this.getSampleAnalysis(filename);
       }
@@ -80,7 +79,6 @@ export class GeminiClient {
         }
       };
 
-      console.log('Analyzing drawing with Gemini API (with image)...');
       
       // Call Gemini API with the image and prompt
       const result = await this.model.generateContent([
@@ -91,7 +89,6 @@ export class GeminiClient {
       const response = await result.response;
       const text = response.text();
       
-      console.log('Raw Gemini response:', text);
 
       // Parse the JSON response
       try {

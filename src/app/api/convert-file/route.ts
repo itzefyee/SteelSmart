@@ -47,7 +47,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<FileConve
       }, { status: 400 });
     }
 
-    console.log(`Converting file from ${sourceFormat} to ${targetFormat}`);
 
     try {
       // Use Zoo Dev API for file conversion

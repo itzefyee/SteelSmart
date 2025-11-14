@@ -107,7 +107,6 @@ const CADGenerator: React.FC = () => {
   }, [generatedDrawing]);
 
   const handleHistorySelect = (historyItem: any) => {
-    console.log('handleHistorySelect called with:', {
       id: historyItem.id,
       hasModelData: !!historyItem.model_data,
       modelDataLength: historyItem.model_data?.length || 0,
@@ -162,7 +161,6 @@ const CADGenerator: React.FC = () => {
       }
     };
     
-    console.log('Setting generated drawing:', {
       id: drawing.id,
       hasDxf: !!drawing.dxf,
       dxfLength: drawing.dxf?.length || 0

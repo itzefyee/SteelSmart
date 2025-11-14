@@ -23,7 +23,6 @@ export async function GET(
       }, { status: 400 });
     }
 
-    console.log(`Fetching Zoo Dev part with ID: ${id}`);
 
     // Use the list endpoint and filter by ID
     // This is more reliable as the individual part endpoint may not exist
@@ -62,7 +61,6 @@ export async function GET(
     }
 
     const listData = await response.json();
-    console.log('Zoo Dev list fetched, searching for ID:', id);
     
     // Find the item with matching ID (could be id or conversation_id)
     let foundItem = null;
@@ -76,15 +74,12 @@ export async function GET(
     }
     
     if (!foundItem) {
-      console.log('Item not found. Available IDs:', listData.items?.map((i: any) => ({ id: i.id, conversation_id: i.conversation_id })));
       return NextResponse.json({
         success: false,
         error: `Part not found. The specified ID (${id}) does not exist in your generated parts.`
       }, { status: 404 });
     }
     
-    console.log('Found item:', foundItem.id, foundItem.conversation_id);
-    console.log('Item structure:', {
       hasModelData: !!foundItem.model_data,
       hasOutputs: !!foundItem.outputs,
       outputKeys: foundItem.outputs ? Object.keys(foundItem.outputs) : null,
@@ -98,19 +93,16 @@ export async function GET(
     const requestedFormat = foundItem.format || foundItem.output_format || 'step';
     const outputKey = `source.${requestedFormat}`;
     
-    console.log(`Looking for output with key: ${outputKey}`);
     
     if (foundItem.model_data) {
       // Direct model_data field (legacy format)
       modelData = foundItem.model_data;
-      console.log('Found model_data in direct field');
     } else if (foundItem.outputs) {
       // Check for the specific format output first (e.g., "source.step")
       if (foundItem.outputs[outputKey]) {
         const output = foundItem.outputs[outputKey];
         // Extract content from output object (could be { content: "..." } or just a string)
         modelData = typeof output === 'object' && output !== null ? (output.content || output) : output;
-        console.log(`Found model data with requested format key: ${outputKey}`);
       } else {
         // Log available outputs for debugging
         const availableKeys = Object.keys(foundItem.outputs);
@@ -135,13 +127,11 @@ export async function GET(
       }
     } else if (foundItem.data?.model_data) {
       modelData = foundItem.data.model_data;
-      console.log('Found model_data in data.model_data field');
     } else if (foundItem.data?.outputs) {
       // Same logic for nested outputs
       if (foundItem.data.outputs[outputKey]) {
         const output = foundItem.data.outputs[outputKey];
         modelData = typeof output === 'object' && output !== null ? (output.content || output) : output;
-        console.log(`Found model data in data.outputs with key: ${outputKey}`);
       } else {
         const outputValues = Object.values(foundItem.data.outputs);
         if (outputValues.length > 0) {
@@ -158,7 +148,6 @@ export async function GET(
         console.warn('Available output keys:', Object.keys(foundItem.outputs));
       }
     } else {
-      console.log(`Successfully extracted model data. Type: ${typeof modelData}, Length: ${typeof modelData === 'string' ? modelData.length : 'N/A'}`);
     }
 
     return NextResponse.json({
