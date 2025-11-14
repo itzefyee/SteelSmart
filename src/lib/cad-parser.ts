@@ -84,11 +84,6 @@ export class CADParser {
           fileSize: fileContent.byteLength
         });
         
-        // Check if file was written correctly
-        const writtenData = this.oc.FS.readFile(filename);
-          new TextDecoder('utf-8', { fatal: false }).decode(writtenData.slice(0, 200))
-        );
-        
         throw new Error(`Failed to read STEP file. Status: ${statusName} (${status}). The file may be corrupted or incomplete.`);
       }
 
@@ -109,10 +104,6 @@ export class CADParser {
 
       // Extract geometry data
       const modelData = this.extractGeometry(shape);
-        vertices: modelData.vertices_count,
-        faces: modelData.faces,
-        edges: modelData.edges
-      });
 
       // Cleanup
       this.oc.FS.unlink(filename);
@@ -809,11 +800,6 @@ export class CADParser {
       }, 0);
 
       const faceCount = indices.length / 3;
-
-        vertices: vertices.length / 3,
-        faces: faceCount,
-        parts: parts.length
-      });
 
       return {
         vertices: new Float32Array(vertices),

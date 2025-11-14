@@ -8,14 +8,20 @@ describe('ProductCard Component', () => {
     id: '1',
     name: 'Steel Beam I-100',
     price: 150,
-    category: 'Structural',
+    category: 'structural',
+    material: 'Steel A36',
+    specifications: {
+      dimensions: '6m x 200mm x 100mm',
+      weight: '45kg',
+      loadCapacity: '1000kg'
+    },
+    images: ['/images/beam.jpg'],
     description: 'High-quality structural steel beam',
     technicalDetails: 'Load capacity: 1000kg, Length: 6m',
-    image: '/images/beam.jpg',
+    compatibleWith: [],
     inStock: true,
-    manufacturer: 'SteelCorp',
     leadTime: '5-7 days',
-  } as Product;
+  };
 
   it('should render product name', () => {
     render(<ProductCard product={mockProduct} />);

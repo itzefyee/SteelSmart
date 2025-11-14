@@ -48,12 +48,6 @@ export async function POST(request: NextRequest) {
     // 3. Notify sales team
     // For now, we'll just return success
 
-      rfqId,
-      contactInfo,
-      requirements,
-      timestamp: new Date().toISOString()
-    });
-
     return NextResponse.json<APIResponse<{ rfqId: string }>>({
       success: true,
       data: { rfqId },

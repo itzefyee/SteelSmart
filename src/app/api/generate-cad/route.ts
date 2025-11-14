@@ -69,7 +69,7 @@ async function pollTextToCadOperation(
     try {
       // Get the operation status using the Zoo Dev API
       // Note: Using type assertion as the method name may vary in type definitions
-      const operation = await (ml as any).get_text_to_cad_model_for_user({
+      const operation = await (ml as any).get_text_to_cad_part_for_user({
         id: operationId
       });
 
@@ -152,23 +152,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
       }, { status: 400 });
     }
 
-    // Use the original description without enhancement
-
     try {
       // Use Zoo Dev API for text-to-CAD generation
-      
       const result = await ml.create_text_to_cad({
           body: {
               prompt: description,
           },
           output_format: format
-      });
-
-        type: typeof result,
-        keys: result ? Object.keys(result) : null,
-        hasError: result && 'error_code' in result,
-        hasStatus: result && 'status' in result,
-        hasId: result && 'id' in result
       });
 
       // Check for API errors
@@ -187,14 +177,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
         // Poll the operation until it completes
         finalResult = await pollTextToCadOperation(result.id || '', format);
       }
-
-        hasId: !!finalResult.id,
-        hasOutputs: !!finalResult.outputs,
-        outputsType: typeof finalResult.outputs,
-        outputsKeys: finalResult.outputs ? Object.keys(finalResult.outputs) : null,
-        resultKeys: Object.keys(finalResult),
-        resultString: JSON.stringify(finalResult).substring(0, 500)
-      });
 
       // Extract the generated model data using the correct output key format
       let modelData = null;
