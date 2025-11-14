@@ -95,7 +95,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<{ success
       cadHistory = cadHistory.slice(-100);
     }
 
-    console.log(`Added CAD generation to history: ${historyItem.id}`);
 
     return NextResponse.json({
       success: true,
@@ -129,11 +128,9 @@ export async function DELETE(request: NextRequest): Promise<NextResponse<{ succe
         }, { status: 404 });
       }
 
-      console.log(`Deleted CAD history item: ${id}`);
     } else {
       // Clear all history
       cadHistory = [];
-      console.log('Cleared all CAD history');
     }
 
     return NextResponse.json({

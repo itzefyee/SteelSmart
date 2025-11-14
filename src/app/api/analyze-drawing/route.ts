@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
     if (isGeminiConfigured) {
       try {
         // Use real Gemini API for analysis
-        console.log('Using Gemini API for real analysis');
         
         // Convert file to buffer
         const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -82,7 +81,6 @@ export async function POST(request: NextRequest) {
         analysis = getFallbackAnalysis(file.name);
       }
     } else {
-      console.log('Gemini API not configured, using mock analysis');
       // Use mock analysis if API not configured
       analysis = getFallbackAnalysis(file.name);
     }

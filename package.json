@@ -6,16 +6,16 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@bitbybit-dev/occt": "^0.20.11",
     "@google/generative-ai": "^0.24.1",
     "@kittycad/lib": "^3.1.4",
-    "@types/multer": "^2.0.0",
     "@types/three": "^0.181.0",
     "autoprefixer": "^10.4.21",
-    "multer": "^2.0.2",
     "next": "^16.0.1",
     "opencascade.js": "^2.0.0-beta.b5ff984",
     "postcss": "^8.5.6",
@@ -27,12 +27,19 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.5.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/ui": "^2.1.8",
     "eslint": "^9",
     "eslint-config-next": "15.4.5",
-    "file-loader": "^6.2.0",
-    "typescript": "^5"
+    "jsdom": "^25.0.1",
+    "typescript": "^5",
+    "vitest": "^2.1.8"
   }
 }

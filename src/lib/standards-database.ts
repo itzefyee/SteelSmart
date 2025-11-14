@@ -467,9 +467,7 @@ export const STANDARDS_DATABASE: StandardsDatabase = {
           },
           {
             type: "Fillet Weld",
-            description: "Standard fillet weld",
-            min_leg_size: "Per AISC 360 Table J2.4",
-            max_leg_size: "Material thickness",
+            description: "Standard fillet weld - leg size per AISC 360 Table J2.4, maximum leg size equals material thickness",
             use_case: "T-joints, lap joints, corner joints"
           }
         ]
@@ -601,6 +599,11 @@ export const STANDARDS_DATABASE: StandardsDatabase = {
       A500: {
         designation: "ASTM A500",
         title: "Cold-Formed Welded and Seamless Carbon Steel Structural Tubing",
+        properties: {
+          yield_strength: 42000, // Grade B minimum
+          tensile_strength: 58000, // Grade B minimum
+          elongation: 23 // % (minimum for Grade B)
+        },
         grades: {
           B: { yield: 42000, tensile: 58000 },
           C: { yield: 46000, tensile: 62000 }

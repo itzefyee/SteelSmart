@@ -47,13 +47,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<FileConve
       }, { status: 400 });
     }
 
-    console.log(`Converting file from ${sourceFormat} to ${targetFormat}`);
-
     try {
       // Use Zoo Dev API for file conversion
       const result = await convertFile(fileContent, sourceFormat, targetFormat);
       
       // Get the converted file (should be only one output)
+      if (!result) {
+        return NextResponse.json({
+          success: false,
+          error: 'No converted file received from Zoo Dev API'
+        }, { status: 500 });
+      }
+      
       const convertedFiles = Object.entries(result);
       if (convertedFiles.length === 0) {
         return NextResponse.json({
