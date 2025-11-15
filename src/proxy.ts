@@ -2,7 +2,7 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
 
@@ -11,27 +11,12 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // List of public routes that don't require authentication
-  const publicRoutes = [
-    '/login',
-    '/signup',
-    '/',
-    '/products',
-    '/analyze',
-    '/generate',
-    '/history',
-  ];
-
   // API routes that don't require authentication
   const publicApiRoutes = [
     '/api/auth',
     '/api/generate-cad', // Allow public CAD generation (consider changing in production)
     '/api/analyze-drawing', // Allow public drawing analysis (consider changing in production)
   ];
-
-  const isPublicRoute = publicRoutes.some((route) =>
-    req.nextUrl.pathname === route || req.nextUrl.pathname.startsWith(route)
-  );
 
   const isPublicApiRoute = publicApiRoutes.some((route) =>
     req.nextUrl.pathname.startsWith(route)

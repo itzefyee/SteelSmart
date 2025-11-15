@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { APIResponse } from '@/types';
-import { getSupabaseServer } from '@/lib/supabase';
+import { getSupabaseServer } from '@/lib/supabase-server';
 
 export async function POST(request: NextRequest) {
   try {

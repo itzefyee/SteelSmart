@@ -48,7 +48,6 @@ export class CADParser {
       const initOpenCascade = (await import('opencascade.js')).default;
       this.oc = await initOpenCascade();
       this.initialized = true;
-      console.log('OpenCascade.js initialized successfully');
     } catch (error) {
       console.error('Failed to initialize OpenCascade.js:', error);
       throw new Error('Failed to initialize CAD parser');
@@ -64,19 +63,13 @@ export class CADParser {
 
     try {
       // Write file to virtual filesystem
-      console.log(`Writing STEP file to virtual filesystem: ${fileContent.byteLength} bytes`);
       const fileData = new Uint8Array(fileContent);
       this.oc.FS.writeFile(filename, fileData);
-      console.log('STEP file written successfully');
 
       // Read STEP file
-      console.log('Creating STEP reader...');
       reader = new this.oc.STEPControl_Reader_1();
-      console.log('Reading STEP file...');
       const status = reader.ReadFile(filename);
       
-      console.log('STEP ReadFile status:', status);
-      console.log('Expected status (IFSelect_RetDone):', this.oc.IFSelect_ReturnStatus.IFSelect_RetDone);
 
       if (status !== this.oc.IFSelect_ReturnStatus.IFSelect_RetDone) {
         // Get more details about the failure
@@ -91,42 +84,26 @@ export class CADParser {
           fileSize: fileContent.byteLength
         });
         
-        // Check if file was written correctly
-        const writtenData = this.oc.FS.readFile(filename);
-        console.log('File verification - written size:', writtenData.length);
-        console.log('File verification - first 200 bytes:', 
-          new TextDecoder('utf-8', { fatal: false }).decode(writtenData.slice(0, 200))
-        );
-        
         throw new Error(`Failed to read STEP file. Status: ${statusName} (${status}). The file may be corrupted or incomplete.`);
       }
 
-      console.log('STEP file read successfully, transferring roots...');
       reader.TransferRoots(new this.oc.Message_ProgressRange_1());
       
       // Check number of roots transferred
       const nbRoots = reader.NbRootsForTransfer();
-      console.log(`Number of roots for transfer: ${nbRoots}`);
       
       if (nbRoots === 0) {
         throw new Error('No geometric data found in STEP file. The file may be empty or contain only metadata.');
       }
 
-      console.log('Getting shape from STEP reader...');
       shape = reader.OneShape();
       
       if (!shape || shape.IsNull()) {
         throw new Error('STEP file contains no valid geometric shape. The file may be incomplete or contain only non-geometric data.');
       }
 
-      console.log('Shape extracted successfully, extracting geometry...');
       // Extract geometry data
       const modelData = this.extractGeometry(shape);
-      console.log('Geometry extraction completed:', {
-        vertices: modelData.vertices_count,
-        faces: modelData.faces,
-        edges: modelData.edges
-      });
 
       // Cleanup
       this.oc.FS.unlink(filename);
@@ -655,7 +632,6 @@ export class CADParser {
       const blob = new Blob([fileContent], { type: 'model/gltf+json' });
       const url = URL.createObjectURL(blob);
 
-      console.log('Loading glTF file...');
       
       // Load the glTF model
       const gltf = await new Promise<any>((resolve, reject) => {
@@ -670,7 +646,6 @@ export class CADParser {
       // Clean up blob URL
       URL.revokeObjectURL(url);
 
-      console.log('glTF loaded successfully, extracting geometry...');
 
       // Extract geometry from all meshes in the scene
       const vertices: number[] = [];
@@ -826,12 +801,6 @@ export class CADParser {
 
       const faceCount = indices.length / 3;
 
-      console.log('glTF parsing completed:', {
-        vertices: vertices.length / 3,
-        faces: faceCount,
-        parts: parts.length
-      });
-
       return {
         vertices: new Float32Array(vertices),
         normals: new Float32Array(normals),
@@ -921,12 +890,10 @@ export class CADParser {
     // Detect actual format from content
     const detectedFormat = this.detectFileFormat(arrayBuffer, declaredExtension);
     
-    console.log(`File: ${file.name}, Declared: ${declaredExtension}, Detected: ${detectedFormat}, Size: ${arrayBuffer.byteLength} bytes`);
     
     // Log first few bytes for debugging
     const preview = new Uint8Array(arrayBuffer.slice(0, 100));
     const previewText = new TextDecoder('utf-8', { fatal: false }).decode(preview);
-    console.log('File content preview:', previewText.substring(0, 200));
 
     switch (detectedFormat) {
       case 'step':

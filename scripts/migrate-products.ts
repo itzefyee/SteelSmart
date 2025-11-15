@@ -54,15 +54,31 @@ async function migrateProducts() {
       console.log('   To replace existing data, delete all products first.\n');
     }
 
+    // Transform products to match database schema (camelCase to snake_case)
+    const transformedProducts = products.map((product: any) => ({
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      material: product.material,
+      specifications: product.specifications,
+      price: product.price,
+      images: product.images,
+      description: product.description,
+      technical_details: product.technicalDetails, // camelCase to snake_case
+      compatible_with: product.compatibleWith, // camelCase to snake_case
+      in_stock: product.inStock, // camelCase to snake_case
+      lead_time: product.leadTime, // camelCase to snake_case
+    }));
+
     // Migrate products in batches
     const batchSize = 10;
     let successCount = 0;
     let errorCount = 0;
 
-    for (let i = 0; i < products.length; i += batchSize) {
-      const batch = products.slice(i, i + batchSize);
+    for (let i = 0; i < transformedProducts.length; i += batchSize) {
+      const batch = transformedProducts.slice(i, i + batchSize);
 
-      console.log(`Migrating products ${i + 1} to ${Math.min(i + batchSize, products.length)}...`);
+      console.log(`Migrating products ${i + 1} to ${Math.min(i + batchSize, transformedProducts.length)}...`);
 
       const { data, error } = await supabase
         .from('products')

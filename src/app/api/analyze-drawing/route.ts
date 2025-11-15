@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { APIResponse, DrawingAnalysis, Product } from '@/types';
 import { productMatcher } from '@/lib/product-matcher';
 import { geminiClient } from '@/lib/gemini-client';
-import { getSupabaseServer } from '@/lib/supabase';
+import { getSupabaseServer } from '@/lib/supabase-server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,7 +53,6 @@ export async function POST(request: NextRequest) {
     if (isGeminiConfigured) {
       try {
         // Use real Gemini API for analysis
-        console.log('Using Gemini API for real analysis');
         
         // Convert file to buffer
         const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -83,7 +82,6 @@ export async function POST(request: NextRequest) {
         analysis = getFallbackAnalysis(file.name);
       }
     } else {
-      console.log('Gemini API not configured, using mock analysis');
       // Use mock analysis if API not configured
       analysis = getFallbackAnalysis(file.name);
     }

@@ -40,7 +40,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<ZooPartsRe
     const noModels = searchParams.get('no_models') || 'false';
     const noParts = searchParams.get('no_parts') || 'false';
 
-    console.log('Fetching Zoo Dev generated parts...');
 
     // Build query parameters
     const queryParams = new URLSearchParams({
@@ -87,7 +86,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<ZooPartsRe
     }
 
     const data = await response.json();
-    console.log('Zoo Dev parts fetched successfully:', data.items?.length || 0, 'items');
 
     return NextResponse.json({
       success: true,

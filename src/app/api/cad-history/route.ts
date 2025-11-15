@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseServer } from '@/lib/supabase';
+import { getSupabaseServer } from '@/lib/supabase-server';
 
 // Types for the history API
 interface CADHistoryItem {
@@ -86,18 +86,18 @@ export async function GET(request: NextRequest): Promise<NextResponse<HistoryRes
     }
 
     // Transform data to include model_data_url and maintain backward compatibility
-    const transformedData = data.map(item => ({
+    const transformedData: CADHistoryItem[] = data.map(item => ({
       id: item.id,
       prompt: item.prompt,
       category: item.category || '',
       format: item.format,
       units: item.units || 'mm',
-      model_data_url: item.model_data_url,
-      file_path: item.file_path,
-      generated_at: item.generated_at,
-      status: item.status,
-      error: item.error,
-      zoo_operation_id: item.zoo_operation_id
+      model_data_url: item.model_data_url ?? undefined,
+      file_path: item.file_path ?? undefined,
+      generated_at: item.generated_at || new Date().toISOString(),
+      status: (item.status as 'completed' | 'failed' | 'processing') || 'completed',
+      error: item.error ?? undefined,
+      zoo_operation_id: item.zoo_operation_id ?? undefined
     }));
 
     return NextResponse.json({
@@ -208,7 +208,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<{ success
       }, { status: 500 });
     }
 
-    console.log(`Added CAD generation to history: ${insertData.id}`);
 
     return NextResponse.json({
       success: true,

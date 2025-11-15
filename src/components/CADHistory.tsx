@@ -165,12 +165,6 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
   };
 
   const viewDrawing = async (item: CADHistoryItem) => {
-    console.log('View Drawing clicked for item:', item.id, {
-      hasModelData: !!item.model_data,
-      modelDataLength: item.model_data?.length || 0,
-      status: item.status,
-      onSelectHistory: !!onSelectHistory
-    });
     
     // Always fetch model data from Zoo Dev API when viewing (for consistency and to ensure latest data)
     if (item.id && item.status === 'completed') {
@@ -181,7 +175,6 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
         const response = await fetch(`/api/zoo-parts/${item.id}`);
         const result = await response.json();
         
-        console.log('Fetch result:', result);
         
         // Check for API errors first
         if (!result.success) {
@@ -263,11 +256,6 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
     
     // Use the model data (either from fetch or existing)
     if (onSelectHistory) {
-      console.log('Calling onSelectHistory with item:', {
-        id: item.id,
-        hasModelData: !!item.model_data,
-        modelDataLength: item.model_data?.length || 0
-      });
       onSelectHistory(item);
     } else {
       console.error('onSelectHistory callback is not defined!');

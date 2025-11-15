@@ -101,15 +101,17 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Key Specifications */}
         <div className="space-y-1 mb-3 text-xs text-gray-600">
-          <div className="flex justify-between">
-            <span>Dimensions:</span>
-            <span className="font-medium">{product.specifications.dimensions}</span>
-          </div>
+          {product.specifications?.dimensions && (
+            <div className="flex justify-between">
+              <span>Dimensions:</span>
+              <span className="font-medium">{product.specifications.dimensions}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span>Material:</span>
             <span className="font-medium">{product.material}</span>
           </div>
-          {product.specifications.loadCapacity && (
+          {product.specifications?.loadCapacity && (
             <div className="flex justify-between">
               <span>Capacity:</span>
               <span className="font-medium">{product.specifications.loadCapacity}</span>
