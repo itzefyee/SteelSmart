@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { convertFile, getFileFormat, type FileFormat } from '@/lib/zoo-client';
+import { getSupabaseServer } from '@/lib/supabase';
 
 interface FileConversionRequest {
   fileContent: string; // base64 encoded
@@ -63,7 +64,35 @@ export async function POST(request: NextRequest): Promise<NextResponse<FileConve
       }
 
       const [convertedFilename, convertedContent] = convertedFiles[0];
-      
+
+      // Track conversion in database (if user is authenticated)
+      try {
+        const supabase = await getSupabaseServer();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          // Calculate file sizes
+          const originalBuffer = Buffer.from(fileContent, 'base64');
+          const convertedBuffer = Buffer.from(convertedContent, 'base64');
+
+          // Track the conversion
+          await supabase.from('file_conversions').insert({
+            user_id: user.id,
+            original_file_path: `conversion/${filename}.${sourceFormat}`,
+            original_format: sourceFormat,
+            converted_file_path: `conversion/${filename}.${targetFormat}`,
+            converted_format: targetFormat,
+            file_size: convertedBuffer.length,
+            conversion_status: 'completed'
+          });
+
+          console.log(`Tracked file conversion for user ${user.id}: ${sourceFormat} → ${targetFormat}`);
+        }
+      } catch (trackingError) {
+        console.error('Failed to track conversion:', trackingError);
+        // Don't fail the request if tracking fails
+      }
+
       return NextResponse.json({
         success: true,
         data: {

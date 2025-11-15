@@ -12,6 +12,8 @@
     "@bitbybit-dev/occt": "^0.20.11",
     "@google/generative-ai": "^0.24.1",
     "@kittycad/lib": "^3.1.4",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/supabase-js": "^2.81.1",
     "@types/multer": "^2.0.0",
     "@types/three": "^0.181.0",
     "autoprefixer": "^10.4.21",
@@ -30,9 +32,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "15.4.5",
     "file-loader": "^6.2.0",
+    "tsx": "^4.20.6",
     "typescript": "^5"
   }
 }

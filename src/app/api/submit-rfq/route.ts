@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { APIResponse } from '@/types';
+import { getSupabaseServer } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    
+
     // Extract form data
     const contactInfo = {
       name: formData.get('name') as string,
@@ -39,21 +40,81 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Generate RFQ reference number
-    const rfqId = `RFQ-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+    // Get authenticated user (optional - RFQs can be submitted anonymously)
+    const supabase = await getSupabaseServer();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // Here you would typically:
-    // 1. Save to database
-    // 2. Send confirmation email
-    // 3. Notify sales team
-    // For now, we'll just return success
+    // Handle file uploads
+    const attachedFiles: string[] = [];
+    const files = formData.getAll('files');
 
-    console.log('RFQ Submitted:', {
+    for (const file of files) {
+      if (file instanceof File && file.size > 0) {
+        try {
+          const fileBuffer = Buffer.from(await file.arrayBuffer());
+          const userId = user?.id || 'anonymous';
+          const filePath = `${userId}/${Date.now()}_${file.name}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('rfq-attachments')
+            .upload(filePath, fileBuffer, {
+              contentType: file.type,
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error('Failed to upload RFQ attachment:', uploadError);
+          } else {
+            attachedFiles.push(filePath);
+          }
+        } catch (uploadError) {
+          console.error('Error processing file upload:', uploadError);
+        }
+      }
+    }
+
+    // Save RFQ to database
+    const { data: rfqData, error: insertError } = await supabase
+      .from('rfq_submissions')
+      .insert({
+        user_id: user?.id || null,
+        contact_name: contactInfo.name,
+        contact_email: contactInfo.email,
+        contact_company: contactInfo.company || null,
+        contact_phone: contactInfo.phone || null,
+        project_description: requirements.projectDescription,
+        quantity: requirements.quantity,
+        material: requirements.material || null,
+        specifications: requirements.specifications,
+        deadline: requirements.deadline || null,
+        budget: requirements.budget || null,
+        attached_files: attachedFiles,
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Error saving RFQ to database:', insertError);
+      return NextResponse.json<APIResponse<null>>({
+        success: false,
+        error: 'Failed to save RFQ. Please try again.'
+      }, { status: 500 });
+    }
+
+    const rfqId = rfqData.id;
+
+    console.log('RFQ Submitted and saved to database:', {
       rfqId,
+      user_id: user?.id || 'anonymous',
       contactInfo,
       requirements,
+      attachedFilesCount: attachedFiles.length,
       timestamp: new Date().toISOString()
     });
+
+    // TODO: Send confirmation email to user
+    // TODO: Notify sales team
 
     return NextResponse.json<APIResponse<{ rfqId: string }>>({
       success: true,

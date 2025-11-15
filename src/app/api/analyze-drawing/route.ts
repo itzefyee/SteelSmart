@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { APIResponse, DrawingAnalysis, Product } from '@/types';
 import { productMatcher } from '@/lib/product-matcher';
 import { geminiClient } from '@/lib/gemini-client';
+import { getSupabaseServer } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -99,6 +100,54 @@ export async function POST(request: NextRequest) {
       const product = productsData.products.find(p => p.id === rec.productId);
       return product;
     }).filter(Boolean) as Product[];
+
+    // Store drawing and analysis in Supabase (if user is authenticated)
+    try {
+      const supabase = await getSupabaseServer();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        const fileBuffer = Buffer.from(await file.arrayBuffer());
+        const filePath = `${user.id}/${Date.now()}_${file.name}`;
+
+        // Upload drawing to storage
+        const { error: uploadError } = await supabase.storage
+          .from('technical-drawings')
+          .upload(filePath, fileBuffer, {
+            contentType: file.type,
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Failed to upload drawing:', uploadError);
+        } else {
+          // Save analysis to database
+          await supabase.from('drawing_analyses').insert({
+            user_id: user.id,
+            file_name: file.name,
+            file_path: filePath,
+            file_type: file.type,
+            file_size: file.size,
+            extracted_specs: analysis.extractedSpecs,
+            recommended_products: analysis.recommendedProducts.map(p => ({
+              id: p.id,
+              name: p.name,
+              category: p.category
+            })),
+            confidence: analysis.confidence,
+            reasoning: analysis.reasoning,
+            gemini_response: analysis // Store full analysis
+          });
+
+          console.log(`Saved drawing analysis for user ${user.id}`);
+        }
+      } else {
+        console.log('User not authenticated, skipping drawing storage');
+      }
+    } catch (storageError) {
+      console.error('Failed to store drawing analysis:', storageError);
+      // Don't fail the main request if storage fails
+    }
 
     return NextResponse.json<APIResponse<DrawingAnalysis>>({
       success: true,

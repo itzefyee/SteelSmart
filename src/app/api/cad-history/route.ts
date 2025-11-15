@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseServer } from '@/lib/supabase';
 
 // Types for the history API
 interface CADHistoryItem {
@@ -7,15 +8,24 @@ interface CADHistoryItem {
   category: string;
   format: string;
   units: string;
-  model_data: string; // base64 encoded
+  model_data_url?: string; // URL to file in Supabase Storage
+  file_path?: string;
+  model_data?: string; // Legacy: base64 encoded (deprecated, use model_data_url)
   generated_at: string;
-  status: 'completed' | 'failed';
+  status: 'completed' | 'failed' | 'processing';
   error?: string;
+  zoo_operation_id?: string;
 }
 
 interface HistoryResponse {
   success: boolean;
   data?: CADHistoryItem[];
+  pagination?: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
   error?: string;
 }
 
@@ -24,33 +34,81 @@ interface AddHistoryRequest {
   category: string;
   format: string;
   units: string;
-  model_data?: string;
-  status: 'completed' | 'failed';
+  model_data?: string; // base64 encoded model data
+  status: 'completed' | 'failed' | 'processing';
   error?: string;
+  zoo_operation_id?: string;
 }
-
-// In-memory storage for demo purposes
-// In production, you'd use a database like PostgreSQL, MongoDB, etc.
-let cadHistory: CADHistoryItem[] = [];
 
 // GET - Retrieve CAD generation history
 export async function GET(request: NextRequest): Promise<NextResponse<HistoryResponse>> {
   try {
+    const supabase = await getSupabaseServer();
+
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized - Please sign in to view history'
+      }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '5');
+    const limit = parseInt(searchParams.get('limit') || '10');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Sort by generated_at descending (newest first)
-    const sortedHistory = [...cadHistory].sort((a, b) => 
-      new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime()
-    );
+    // Get total count
+    const { count, error: countError } = await supabase
+      .from('cad_history')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id);
 
-    // Apply pagination
-    const paginatedHistory = sortedHistory.slice(offset, offset + limit);
+    if (countError) {
+      console.error('Error counting CAD history:', countError);
+    }
+
+    // Get paginated history
+    const { data, error } = await supabase
+      .from('cad_history')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('generated_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Error retrieving CAD history:', error);
+      return NextResponse.json({
+        success: false,
+        error: `Failed to retrieve history: ${error.message}`
+      }, { status: 500 });
+    }
+
+    // Transform data to include model_data_url and maintain backward compatibility
+    const transformedData = data.map(item => ({
+      id: item.id,
+      prompt: item.prompt,
+      category: item.category || '',
+      format: item.format,
+      units: item.units || 'mm',
+      model_data_url: item.model_data_url,
+      file_path: item.file_path,
+      generated_at: item.generated_at,
+      status: item.status,
+      error: item.error,
+      zoo_operation_id: item.zoo_operation_id
+    }));
 
     return NextResponse.json({
       success: true,
-      data: paginatedHistory
+      data: transformedData,
+      pagination: {
+        total: count || 0,
+        limit,
+        offset,
+        hasMore: (offset + limit) < (count || 0)
+      }
     });
 
   } catch (error: any) {
@@ -65,8 +123,20 @@ export async function GET(request: NextRequest): Promise<NextResponse<HistoryRes
 // POST - Add new CAD generation to history
 export async function POST(request: NextRequest): Promise<NextResponse<{ success: boolean; id?: string; error?: string }>> {
   try {
+    const supabase = await getSupabaseServer();
+
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized - Please sign in to save history'
+      }, { status: 401 });
+    }
+
     const body: AddHistoryRequest = await request.json();
-    const { prompt, category, format, units, model_data, status, error } = body;
+    const { prompt, category, format, units, model_data, status, error, zoo_operation_id } = body;
 
     if (!prompt || !category || !format || !units || !status) {
       return NextResponse.json({
@@ -75,31 +145,74 @@ export async function POST(request: NextRequest): Promise<NextResponse<{ success
       }, { status: 400 });
     }
 
-    const historyItem: CADHistoryItem = {
-      id: `cad_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      prompt,
-      category,
-      format,
-      units,
-      model_data: model_data || '',
-      generated_at: new Date().toISOString(),
-      status,
-      error
-    };
+    // If model_data is provided, upload to Supabase Storage
+    let filePath: string | null = null;
+    let modelDataUrl: string | null = null;
+    let fileSize: number | null = null;
 
-    // Add to history
-    cadHistory.push(historyItem);
+    if (model_data) {
+      try {
+        // Decode base64 and upload to storage
+        const modelBuffer = Buffer.from(model_data, 'base64');
+        fileSize = modelBuffer.length;
+        filePath = `${user.id}/${Date.now()}.${format}`;
 
-    // Keep only the last 100 items to prevent memory issues
-    if (cadHistory.length > 100) {
-      cadHistory = cadHistory.slice(-100);
+        const { error: uploadError } = await supabase.storage
+          .from('cad-models')
+          .upload(filePath, modelBuffer, {
+            contentType: `model/${format}`,
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Error uploading CAD model:', uploadError);
+          // Continue without file storage if upload fails
+        } else {
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('cad-models')
+            .getPublicUrl(filePath);
+
+          modelDataUrl = publicUrl;
+        }
+      } catch (uploadError) {
+        console.error('Error processing model upload:', uploadError);
+        // Continue without file storage
+      }
     }
 
-    console.log(`Added CAD generation to history: ${historyItem.id}`);
+    // Insert database record
+    const { data: insertData, error: insertError } = await supabase
+      .from('cad_history')
+      .insert({
+        user_id: user.id,
+        prompt,
+        category,
+        format,
+        units,
+        model_data_url: modelDataUrl,
+        file_path: filePath,
+        file_size: fileSize,
+        status,
+        error,
+        zoo_operation_id
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Error adding to CAD history:', insertError);
+      return NextResponse.json({
+        success: false,
+        error: `Failed to add to history: ${insertError.message}`
+      }, { status: 500 });
+    }
+
+    console.log(`Added CAD generation to history: ${insertData.id}`);
 
     return NextResponse.json({
       success: true,
-      id: historyItem.id
+      id: insertData.id
     });
 
   } catch (error: any) {
@@ -114,26 +227,94 @@ export async function POST(request: NextRequest): Promise<NextResponse<{ success
 // DELETE - Clear history or delete specific item
 export async function DELETE(request: NextRequest): Promise<NextResponse<{ success: boolean; error?: string }>> {
   try {
+    const supabase = await getSupabaseServer();
+
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized - Please sign in'
+      }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (id) {
-      // Delete specific item
-      const initialLength = cadHistory.length;
-      cadHistory = cadHistory.filter(item => item.id !== id);
-      
-      if (cadHistory.length === initialLength) {
+      // Get the item first to delete associated file
+      const { data: item, error: fetchError } = await supabase
+        .from('cad_history')
+        .select('file_path')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError) {
         return NextResponse.json({
           success: false,
           error: 'Item not found'
         }, { status: 404 });
       }
 
+      // Delete file from storage if exists
+      if (item.file_path) {
+        await supabase.storage
+          .from('cad-models')
+          .remove([item.file_path]);
+      }
+
+      // Delete database record
+      const { error: deleteError } = await supabase
+        .from('cad_history')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (deleteError) {
+        return NextResponse.json({
+          success: false,
+          error: `Failed to delete: ${deleteError.message}`
+        }, { status: 500 });
+      }
+
       console.log(`Deleted CAD history item: ${id}`);
     } else {
-      // Clear all history
-      cadHistory = [];
-      console.log('Cleared all CAD history');
+      // Clear all history for this user
+      // First get all file paths
+      const { data: items } = await supabase
+        .from('cad_history')
+        .select('file_path')
+        .eq('user_id', user.id);
+
+      // Delete all files from storage
+      if (items && items.length > 0) {
+        const filePaths = items
+          .map(item => item.file_path)
+          .filter(Boolean) as string[];
+
+        if (filePaths.length > 0) {
+          await supabase.storage
+            .from('cad-models')
+            .remove(filePaths);
+        }
+      }
+
+      // Delete all database records
+      const { error: deleteError } = await supabase
+        .from('cad_history')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (deleteError) {
+        return NextResponse.json({
+          success: false,
+          error: `Failed to clear history: ${deleteError.message}`
+        }, { status: 500 });
+      }
+
+      console.log('Cleared all CAD history for user:', user.id);
     }
 
     return NextResponse.json({

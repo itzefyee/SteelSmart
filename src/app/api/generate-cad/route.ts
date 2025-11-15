@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ml } from '@kittycad/lib';
+import { getSupabaseServer } from '@/lib/supabase';
 
 /**
  * CAD Generation API Route
@@ -276,21 +277,51 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
       console.log('CAD generation completed successfully');
 
       const generationId = finalResult.id || `cad_${Date.now()}`;
-      
-      // Add to history
+
+      // Add to history and storage (if user is authenticated)
       try {
-        await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/cad-history`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: description,
-            category,
-            format,
-            units,
-            model_data: modelData as string,
-            status: 'completed'
-          })
-        });
+        const supabase = await getSupabaseServer();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          // Upload model to Supabase Storage
+          const modelBuffer = Buffer.from(modelData as string, 'base64');
+          const filePath = `${user.id}/${generationId}.${format}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('cad-models')
+            .upload(filePath, modelBuffer, {
+              contentType: `model/${format}`,
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error('Failed to upload CAD model:', uploadError);
+          } else {
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+              .from('cad-models')
+              .getPublicUrl(filePath);
+
+            // Insert database record
+            await supabase.from('cad_history').insert({
+              user_id: user.id,
+              prompt: description,
+              category,
+              format,
+              units,
+              file_path: filePath,
+              model_data_url: publicUrl,
+              file_size: modelBuffer.length,
+              zoo_operation_id: generationId,
+              status: 'completed'
+            });
+
+            console.log(`Saved CAD generation to database: ${generationId}`);
+          }
+        } else {
+          console.log('User not authenticated, skipping history save');
+        }
       } catch (historyError) {
         console.error('Failed to add to history:', historyError);
         // Don't fail the main request if history fails
@@ -321,18 +352,20 @@ export async function POST(request: NextRequest): Promise<NextResponse<CADGenera
       
       // Add failed generation to history
       try {
-        await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/cad-history`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const supabase = await getSupabaseServer();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          await supabase.from('cad_history').insert({
+            user_id: user.id,
             prompt: description,
             category,
             format,
             units,
             status: 'failed',
             error: errorMessage
-          })
-        });
+          });
+        }
       } catch (historyError) {
         console.error('Failed to add failed generation to history:', historyError);
       }
