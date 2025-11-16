@@ -1,12 +1,13 @@
 // Product matching and recommendation logic
-import { Product, RecommendationScore, DrawingAnalysis } from '@/types';
+import { LegacyProduct, RecommendationScore, DrawingAnalysis } from '@/types';
 import productsData from '@/data/products.json';
+import { alternativeSuggester, type AlternativeSuggestionResponse } from './alternative-product-suggester';
 
 export class ProductMatcher {
-  private products: Product[];
+  private products: LegacyProduct[];
 
   constructor() {
-    this.products = productsData.products as Product[];
+    this.products = productsData.products as LegacyProduct[];
   }
 
   /**
@@ -28,15 +29,43 @@ export class ProductMatcher {
       }
     }
 
-    // If no recommendations found, add some fallback products based on category
+    // If no recommendations found, try to get alternative suggestions
     if (recommendations.length === 0) {
+      // First try fallback products from catalog
       const fallbackProducts = this.getFallbackProducts(extractedSpecs);
-      recommendations.push(...fallbackProducts);
+      if (fallbackProducts.length > 0) {
+        recommendations.push(...fallbackProducts);
+      }
     }
 
     // Sort by score (highest first) and return all recommendations
     return recommendations
       .sort((a, b) => b.score - a.score);
+  }
+
+  /**
+   * Get alternative suggestions when no catalog products match
+   * This uses AI and external sources to suggest alternatives
+   */
+  async getAlternativeSuggestions(
+    analysis: DrawingAnalysis
+  ): Promise<AlternativeSuggestionResponse | null> {
+    const { extractedSpecs } = analysis;
+    
+    // Only suggest alternatives if we have meaningful specifications
+    if (!extractedSpecs.componentType && !extractedSpecs.dimensions && !extractedSpecs.material) {
+      return null;
+    }
+
+    try {
+      return await alternativeSuggester.suggestAlternatives(
+        extractedSpecs,
+        analysis.reasoning || 'No matching products found in catalog'
+      );
+    } catch (error) {
+      console.error('Error getting alternative suggestions:', error);
+      return null;
+    }
   }
 
   /**
@@ -80,7 +109,7 @@ export class ProductMatcher {
     return compatibleProducts.slice(0, 4);
   }
 
-  private calculateMatchScore(product: Product, specs: DrawingAnalysis['extractedSpecs']): number {
+  private calculateMatchScore(product: LegacyProduct, specs: DrawingAnalysis['extractedSpecs']): number {
     let score = 0;
 
     // Component type matching (highest weight)
@@ -119,7 +148,7 @@ export class ProductMatcher {
     return score;
   }
 
-  private matchesComponentType(product: Product, componentType: string): boolean {
+  private matchesComponentType(product: LegacyProduct, componentType: string): boolean {
     const type = componentType.toLowerCase();
     const productName = product.name.toLowerCase();
     const productDescription = product.description.toLowerCase();
@@ -153,7 +182,7 @@ export class ProductMatcher {
     return categoryKeywords.some(keyword => type.includes(keyword));
   }
 
-  private matchesMaterial(product: Product, material: string): boolean {
+  private matchesMaterial(product: LegacyProduct, material: string): boolean {
     const specMaterial = material.toLowerCase();
     const productMaterial = product.material.toLowerCase();
 
@@ -180,7 +209,7 @@ export class ProductMatcher {
     return false;
   }
 
-  private calculateDimensionScore(product: Product, dimensions: string): number {
+  private calculateDimensionScore(product: LegacyProduct, dimensions: string): number {
     // This is a simplified dimension matching
     // In a real implementation, you'd parse dimensions and compare them properly
     const specDims = this.extractNumbers(dimensions);
@@ -198,7 +227,7 @@ export class ProductMatcher {
     return overlap.length / Math.max(specDims.length, productDims.length);
   }
 
-  private matchesLoadRequirements(product: Product, loadReqs: string): boolean {
+  private matchesLoadRequirements(product: LegacyProduct, loadReqs: string): boolean {
     const specLoad = this.extractNumbers(loadReqs);
     const productLoad = this.extractNumbers(product.specifications.loadCapacity || '');
 
@@ -217,7 +246,7 @@ export class ProductMatcher {
     return matches ? matches.map(Number) : [];
   }
 
-  private generateReasoning(product: Product, specs: DrawingAnalysis['extractedSpecs'], score: number): string {
+  private generateReasoning(product: LegacyProduct, specs: DrawingAnalysis['extractedSpecs'], score: number): string {
     const reasons: string[] = [];
 
     if (specs.componentType && this.matchesComponentType(product, specs.componentType)) {
@@ -239,7 +268,7 @@ export class ProductMatcher {
     return `High compatibility: ${reasons.join(', ')}`;
   }
 
-  private getMatchedSpecs(product: Product, specs: DrawingAnalysis['extractedSpecs']): string[] {
+  private getMatchedSpecs(product: LegacyProduct, specs: DrawingAnalysis['extractedSpecs']): string[] {
     const matched: string[] = [];
 
     if (specs.componentType && this.matchesComponentType(product, specs.componentType)) {
@@ -258,7 +287,7 @@ export class ProductMatcher {
     return matched;
   }
 
-  private getCategoryBonus(product: Product, specs: DrawingAnalysis['extractedSpecs']): number {
+  private getCategoryBonus(product: LegacyProduct, specs: DrawingAnalysis['extractedSpecs']): number {
     // Give a small bonus for products in relevant categories
     if (specs.componentType) {
       const type = specs.componentType.toLowerCase();

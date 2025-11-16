@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import RFQForm from '@/components/RFQForm';
-import RFQTracking from '@/components/RFQTracking';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
+import RFQForm from '@/components/rfq/RFQForm';
+import RFQTracking from '@/components/rfq/RFQTracking';
 import FeatureIcon from '@/components/FeatureIcon';
 
 export default function RFQPage() {

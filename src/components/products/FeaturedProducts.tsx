@@ -1,32 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import ProductCard from '@/components/ProductCard';
-
-import { Product } from '@/types';
+import ProductCard from '@/components/products/ProductCard';
+import { useProducts } from '@/hooks';
 
 const FeaturedProducts: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadFeaturedProducts = async () => {
-      try {
-        const response = await import('@/data/products.json');
-        // Get first 4 products as featured products
-        const allProducts = response.products as Product[];
-        const featuredProducts = allProducts.slice(0, 4);
-        setProducts(featuredProducts);
-      } catch (error) {
-        console.error('Error loading featured products:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadFeaturedProducts();
-  }, []);
+  // Fetch first 4 products as featured products
+  const { products, loading } = useProducts({
+    limit: 4,
+    autoFetch: true,
+  });
 
   return (
     <section className="section bg-white">

@@ -109,11 +109,33 @@ export async function POST(request: NextRequest) {
     analysis.totalRecommendations = recommendations.length;
     
     // Get actual product data for recommendations (limit to 3 for display)
-    const productsData = await import('@/data/products.json');
-    analysis.recommendedProducts = recommendations.slice(0, 3).map(rec => {
-      const product = productsData.products.find(p => p.id === rec.productId);
-      return product;
-    }).filter(Boolean) as Product[];
+    const supabaseClient = await getSupabaseServer();
+    const productIds = recommendations.slice(0, 3).map(rec => rec.productId);
+    
+    const { data: products, error: productsError } = await supabaseClient
+      .from('products')
+      .select('*')
+      .in('id', productIds);
+    
+    if (productsError) {
+      console.error('Error fetching products:', productsError);
+      analysis.recommendedProducts = [];
+    } else {
+      // Sort products to match recommendation order
+      analysis.recommendedProducts = productIds
+        .map(id => products?.find(p => p.id === id))
+        .filter(Boolean) as Product[];
+    }
+
+    // If no catalog products found, get alternative suggestions
+    let alternativeSuggestions = null;
+    if (analysis.recommendedProducts.length === 0 && recommendations.length === 0) {
+      try {
+        alternativeSuggestions = await productMatcher.getAlternativeSuggestions(analysis);
+      } catch (error) {
+        console.error('Error getting alternative suggestions:', error);
+      }
+    }
 
     // Store drawing and analysis in Supabase (if user is authenticated)
     try {
@@ -161,6 +183,11 @@ export async function POST(request: NextRequest) {
     } catch (storageError) {
       console.error('Failed to store drawing analysis:', storageError);
       // Don't fail the main request if storage fails
+    }
+
+    // Add alternative suggestions to analysis if available
+    if (alternativeSuggestions) {
+      analysis.alternativeSuggestions = alternativeSuggestions;
     }
 
     return NextResponse.json<APIResponse<DrawingAnalysis>>({

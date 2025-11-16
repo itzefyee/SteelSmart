@@ -1,7 +1,7 @@
 import React from 'react';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import ProductRecommender from '@/components/ProductRecommender';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
+import ProductRecommender from '@/components/products/ProductRecommender';
 
 export const metadata = {
   title: 'Product Recommender - SteelSmart AI Marketplace',

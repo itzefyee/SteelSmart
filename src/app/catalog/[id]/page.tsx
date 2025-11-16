@@ -1,9 +1,10 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import ProductDetailClient from '@/components/ProductDetailClient';
-import { Product } from '@/types';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
+import ProductDetailClient from '@/components/products/ProductDetailClient';
+import { getSupabaseServer } from '@/lib/supabase-server';
+import type { Product } from '@/lib/supabase';
 
 interface ProductDetailPageProps {
   params: Promise<{
@@ -13,25 +14,39 @@ interface ProductDetailPageProps {
 
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { id } = await params;
-  // Load product data server-side
+  
+  // Load product data from Supabase
   try {
-    const response = await import('@/data/products.json');
-    const products = response.products as Product[];
-    const product = products.find((p: Product) => p.id === id);
+    const supabase = await getSupabaseServer();
     
-    if (!product) {
+    // Fetch the product
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (productError || !product) {
+      console.error('Error loading product:', productError);
       notFound();
     }
 
-    // Get related products (same category, excluding current product)  
-    const relatedProducts = products
-      .filter((p: Product) => p.category === product.category && p.id !== product.id)
-      .slice(0, 4);
+    // Get related products (same category, excluding current product)
+    const { data: relatedProducts, error: relatedError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('category', product.category)
+      .neq('id', product.id)
+      .limit(4);
+    
+    if (relatedError) {
+      console.error('Error loading related products:', relatedError);
+    }
 
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <ProductDetailClient product={product} relatedProducts={relatedProducts} />
+        <ProductDetailClient product={product} relatedProducts={relatedProducts || []} />
         <Footer />
       </div>
     );

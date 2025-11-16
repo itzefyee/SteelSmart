@@ -31,6 +31,7 @@ export function getSupabaseAdmin() {
 export type { Database } from './database.types';
 
 // Type helpers for common queries (using generated types from database.types.ts)
+export type Category = Database['public']['Tables']['categories']['Row'];
 export type Product = Database['public']['Tables']['products']['Row'];
 export type CADHistory = Database['public']['Tables']['cad_history']['Row'];
 export type DrawingAnalysis = Database['public']['Tables']['drawing_analyses']['Row'];

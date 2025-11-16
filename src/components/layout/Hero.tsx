@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import CADAnalyzer from '@/components/CADAnalyzer';
+import CADAnalyzer from '@/components/cad/CADAnalyzer';
 import TechnicalPattern from '@/components/TechnicalPattern';
 
 const Hero: React.FC = () => {

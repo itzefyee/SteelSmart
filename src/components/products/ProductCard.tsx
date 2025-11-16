@@ -1,8 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
-import { Product } from '@/types';
+import type { Product } from '@/lib/supabase';
 import { formatPrice } from '@/lib/utils';
-import ProductImagePlaceholder from '@/components/ProductImagePlaceholder';
+import ProductImagePlaceholder from '@/components/products/ProductImagePlaceholder';
 
 interface ProductCardProps {
   product: Product;
@@ -87,9 +87,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
           
           {/* Stock Status */}
           <div className="flex items-center">
-            <div className={`w-2 h-2 rounded-full mr-1 ${product.inStock ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <div className={`w-2 h-2 rounded-full mr-1 ${product.in_stock ? 'bg-green-500' : 'bg-red-500'}`}></div>
             <span className="text-xs text-gray-500">
-              {product.inStock ? 'In Stock' : 'Out of Stock'}
+              {product.in_stock ? 'In Stock' : 'Out of Stock'}
             </span>
           </div>
         </div>
@@ -101,20 +101,22 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Key Specifications */}
         <div className="space-y-1 mb-3 text-xs text-gray-600">
-          {product.specifications?.dimensions && (
+          {typeof product.specifications === 'object' && product.specifications !== null && 'dimensions' in product.specifications && (
             <div className="flex justify-between">
               <span>Dimensions:</span>
-              <span className="font-medium">{product.specifications.dimensions}</span>
+              <span className="font-medium">{(product.specifications as any).dimensions}</span>
             </div>
           )}
-          <div className="flex justify-between">
-            <span>Material:</span>
-            <span className="font-medium">{product.material}</span>
-          </div>
-          {product.specifications?.loadCapacity && (
+          {product.material && (
+            <div className="flex justify-between">
+              <span>Material:</span>
+              <span className="font-medium">{product.material}</span>
+            </div>
+          )}
+          {typeof product.specifications === 'object' && product.specifications !== null && 'loadCapacity' in product.specifications && (
             <div className="flex justify-between">
               <span>Capacity:</span>
-              <span className="font-medium">{product.specifications.loadCapacity}</span>
+              <span className="font-medium">{(product.specifications as any).loadCapacity}</span>
             </div>
           )}
         </div>
@@ -124,17 +126,19 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <div className="text-lg font-bold text-primary">
             {formatPrice(product.price)}
           </div>
-          <div className="text-xs text-gray-500">
-            {product.leadTime}
-          </div>
+          {product.lead_time && (
+            <div className="text-xs text-gray-500">
+              {product.lead_time}
+            </div>
+          )}
         </div>
 
         {/* Compatible Products (if enabled) */}
-        {showCompatibility && product.compatibleWith.length > 0 && (
+        {showCompatibility && product.compatible_with && product.compatible_with.length > 0 && (
           <div className="mb-3 p-2 bg-blue-50 rounded text-xs">
             <span className="font-medium text-blue-900">Compatible with:</span>
             <span className="text-blue-700 ml-1">
-              {product.compatibleWith.length} product{product.compatibleWith.length !== 1 ? 's' : ''}
+              {product.compatible_with.length} product{product.compatible_with.length !== 1 ? 's' : ''}
             </span>
           </div>
         )}

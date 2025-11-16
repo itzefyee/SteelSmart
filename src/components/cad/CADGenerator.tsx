@@ -6,9 +6,9 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import CADHistory from '@/components/CADHistory';
-import CADGenerationDebug from '@/components/CADGenerationDebug';
-import CADPreview3D from '@/components/CADPreview3D';
+import CADHistory from '@/components/cad/CADHistory';
+import CADGenerationDebug from '@/components/cad/CADGenerationDebug';
+import CADPreview3D from '@/components/cad/CADPreview3D';
 
 interface GeneratedDrawing {
   id: number;

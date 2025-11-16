@@ -28,6 +28,8 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
   onModelDataParsed,
 }) => {
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingStage, setLoadingStage] = useState<string>('Initializing...');
   const [error, setError] = useState<string>('');
   const [modelData, setModelData] = useState<CADModelData | null>(initialModelData || null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -63,21 +65,45 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
 
   const parseFile = async (file: File) => {
     setIsLoading(true);
+    setLoadingProgress(0);
+    setLoadingStage('Initializing...');
     setError('');
 
     try {
       if (onParsingStart) onParsingStart();
       if (onPreviewLoaded) onPreviewLoaded(false);
+      
+      // Simulate progress stages for better UX
+      setLoadingProgress(10);
+      setLoadingStage('Loading file...');
+      
       const parser = getCADParser();
+      
+      setLoadingProgress(30);
+      setLoadingStage('Parsing CAD data...');
+      
       const data = await parser.parseFile(file);
+      
+      setLoadingProgress(70);
+      setLoadingStage('Building geometry...');
+      
+      // Small delay to show progress
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      setLoadingProgress(90);
+      setLoadingStage('Finalizing...');
+      
       setModelData(data);
+      setLoadingProgress(100);
       setIsLoading(false);
+      
       if (onParsingComplete) onParsingComplete(true);
       if (onModelDataParsed) onModelDataParsed(data);
     } catch (err: any) {
       console.error('Error parsing CAD file:', err);
       setError(`Failed to parse file: ${err.message}`);
       setIsLoading(false);
+      setLoadingProgress(0);
       if (onParsingComplete) onParsingComplete(false);
       if (onPreviewLoaded) onPreviewLoaded(false);
     }
@@ -118,18 +144,41 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     camera.position.set(center.x + distance, center.y + distance, center.z + distance);
     camera.lookAt(center);
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // Renderer with performance optimizations
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      alpha: false, // Disable alpha for better performance
+      powerPreference: 'high-performance' // Request high-performance GPU
+    });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    // Limit pixel ratio to 2 for performance on high-DPI displays
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Controls
+    // Controls - Enhanced interactive controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.copy(center);
+    
+    // Enable smooth damping for better UX
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
+    
+    // Orbit controls (rotate around model) - left mouse button
+    controls.enableRotate = true;
+    controls.rotateSpeed = 1.0;
+    
+    // Zoom controls (mouse wheel/pinch)
+    controls.enableZoom = true;
+    controls.zoomSpeed = 1.2;
+    controls.minDistance = size * 0.5;
+    controls.maxDistance = size * 10;
+    
+    // Pan controls (right-click drag/two-finger drag)
+    controls.enablePan = true;
+    controls.panSpeed = 1.0;
+    controls.screenSpacePanning = true; // Pan in screen space for better UX
+    
     controls.update();
     controlsRef.current = controls;
 
@@ -155,7 +204,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     axesHelper.position.copy(center);
     scene.add(axesHelper);
 
-    // Create geometry from model data
+    // Create geometry from model data with optimization
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(modelData.vertices, 3));
     
@@ -169,6 +218,10 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     if (modelData.indices.length > 0) {
       geometry.setIndex(new THREE.BufferAttribute(modelData.indices, 1));
     }
+    
+    // Optimize geometry for rendering performance
+    geometry.computeBoundingSphere();
+    geometry.computeBoundingBox();
 
     // Material with improved settings
     const material = new THREE.MeshPhongMaterial({
@@ -195,13 +248,24 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     mesh.add(wireframe);
     wireframeRef.current = wireframe;
 
-    // Animation loop
+    // Optimized animation loop - only render when controls change
+    let needsRender = true;
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
+      
+      // Only render if controls have changed (damping is enabled)
+      if (controls.update() || needsRender) {
+        renderer.render(scene, camera);
+        needsRender = false;
+      }
     };
     animate();
+    
+    // Force render on control changes
+    const handleControlChange = () => {
+      needsRender = true;
+    };
+    controls.addEventListener('change', handleControlChange);
 
     // Handle resize
     const handleResize = () => {
@@ -214,21 +278,50 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     };
     window.addEventListener('resize', handleResize);
 
-    // Cleanup
+    // Cleanup - Proper resource disposal
     return () => {
       window.removeEventListener('resize', handleResize);
+      controls.removeEventListener('change', handleControlChange);
+      
+      // Cancel animation frame
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      if (rendererRef.current && containerRef.current) {
+      
+      // Remove renderer from DOM
+      if (rendererRef.current && containerRef.current && containerRef.current.contains(rendererRef.current.domElement)) {
         containerRef.current.removeChild(rendererRef.current.domElement);
       }
+      
+      // Dispose of geometries
       geometry.dispose();
-      material.dispose();
       wireframeGeometry.dispose();
+      
+      // Dispose of materials
+      material.dispose();
       wireframeMaterial.dispose();
+      
+      // Dispose of renderer and controls
       renderer.dispose();
       controls.dispose();
+      
+      // Clear scene
+      while(scene.children.length > 0) { 
+        const object = scene.children[0];
+        scene.remove(object);
+        
+        // Dispose of any geometries and materials in the scene
+        if (object instanceof THREE.Mesh) {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) {
+            if (Array.isArray(object.material)) {
+              object.material.forEach(mat => mat.dispose());
+            } else {
+              object.material.dispose();
+            }
+          }
+        }
+      }
     };
   }, [modelData, isLoading, modelColor, wireframeColor]);
 
@@ -320,11 +413,24 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
 
   if (isLoading) {
     return (
-      <div className={`w-full h-96 bg-gray-50 rounded-lg border-2 border-gray-200 flex items-center justify-center relative overflow-hidden ${className}`}>
-        <div className="text-center z-10">
+      <div className={`w-full h-[350px] md:h-[450px] bg-gray-50 rounded-lg border-2 border-gray-200 flex items-center justify-center relative overflow-hidden ${className}`}>
+        <div className="text-center z-10 max-w-md px-4">
           <LoadingSpinner />
-          <p className="mt-4 text-sm text-gray-600">Loading 3D model...</p>
-          <p className="text-xs text-gray-500 mt-2">Parsing with OpenCascade.js</p>
+          <p className="mt-4 text-sm text-gray-600 font-medium">Loading 3D model...</p>
+          <p className="text-xs text-gray-500 mt-2">{loadingStage}</p>
+          
+          {/* Progress bar */}
+          <div className="mt-4 w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div 
+              className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${loadingProgress}%` }}
+            />
+          </div>
+          
+          {/* Progress percentage */}
+          <p className="text-xs text-gray-600 mt-2 font-medium">{loadingProgress}%</p>
+          
+          <p className="text-xs text-gray-400 mt-3">Parsing with OpenCascade.js</p>
         </div>
         <div className="absolute inset-0 opacity-20">
           <div className="w-full h-full bg-gradient-to-br from-blue-100 to-indigo-100 animate-pulse"></div>
@@ -335,14 +441,96 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
 
   if (error) {
     if (onPreviewLoaded) onPreviewLoaded(false);
+    
+    // Determine error type and provide specific troubleshooting
+    const getErrorDetails = (errorMsg: string) => {
+      if (errorMsg.toLowerCase().includes('format') || errorMsg.toLowerCase().includes('parse')) {
+        return {
+          title: 'File Format Error',
+          tips: [
+            'Ensure the file is a valid STEP (.step, .stp) format',
+            'Try opening the file in CAD software to verify it\'s not corrupted',
+            'Check if the file was exported correctly from your CAD program'
+          ]
+        };
+      } else if (errorMsg.toLowerCase().includes('size') || errorMsg.toLowerCase().includes('large')) {
+        return {
+          title: 'File Size Error',
+          tips: [
+            'The file may be too large to process in the browser',
+            'Try simplifying the model in your CAD software',
+            'Consider reducing the number of faces or details'
+          ]
+        };
+      } else if (errorMsg.toLowerCase().includes('memory')) {
+        return {
+          title: 'Memory Error',
+          tips: [
+            'Close other browser tabs to free up memory',
+            'Try refreshing the page and uploading again',
+            'Consider using a simpler model'
+          ]
+        };
+      } else {
+        return {
+          title: 'Loading Error',
+          tips: [
+            'Check your internet connection',
+            'Try refreshing the page',
+            'Ensure the file is not corrupted'
+          ]
+        };
+      }
+    };
+    
+    const errorDetails = getErrorDetails(error);
+    
     return (
-      <div className={`w-full h-96 bg-gray-50 rounded-lg border-2 border-red-200 flex items-center justify-center ${className}`}>
-        <div className="text-center p-4">
-          <svg className="w-12 h-12 mx-auto text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-sm text-gray-600 font-medium">{error}</p>
-          <p className="text-xs text-gray-500 mt-2">Please check the file format and try again.</p>
+      <div className={`w-full h-[350px] md:h-[450px] bg-gray-50 rounded-lg border-2 border-red-200 flex items-center justify-center ${className}`}>
+        <div className="text-center p-6 max-w-md">
+          {/* Error icon */}
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          
+          {/* Error title */}
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{errorDetails.title}</h3>
+          
+          {/* Error message */}
+          <p className="text-sm text-gray-600 mb-4">{error}</p>
+          
+          {/* Troubleshooting tips */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-left">
+            <p className="text-xs font-semibold text-yellow-800 mb-2 flex items-center">
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Troubleshooting Tips:
+            </p>
+            <ul className="text-xs text-yellow-700 space-y-1">
+              {errorDetails.tips.map((tip, index) => (
+                <li key={index} className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          
+          {/* Retry button */}
+          {file && (
+            <button
+              onClick={() => parseFile(file)}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Retry
+            </button>
+          )}
         </div>
       </div>
     );
@@ -351,7 +539,11 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
   return (
     <div 
       ref={containerRef}
-      className={`w-full h-96 bg-gradient-to-br from-slate-50 to-blue-50 rounded-lg border-2 border-gray-200 relative overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50 h-screen w-screen rounded-none' : ''} ${className}`}
+      className={`w-full bg-gradient-to-br from-slate-50 to-blue-50 rounded-lg border-2 border-gray-200 relative overflow-hidden ${
+        isFullscreen 
+          ? 'fixed inset-0 z-50 h-screen w-screen rounded-none' 
+          : 'h-[350px] md:h-[450px]'
+      } ${className}`}
     >
       {/* Controls overlay */}
       <div className="absolute top-4 right-4 flex flex-col space-y-2 z-10">

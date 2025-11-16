@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import ProductCard from '@/components/ProductCard';
+import ProductCard from '@/components/products/ProductCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { Product, RecommendationScore, APIResponse } from '@/types';
+import type { Product } from '@/lib/supabase';
+import { RecommendationScore, APIResponse } from '@/types';
 
 interface ProductRecommendationsProps {
   productId: string;
@@ -30,18 +31,22 @@ const ProductRecommendations: React.FC<ProductRecommendationsProps> = ({
         const result: APIResponse<RecommendationScore[]> = await response.json();
 
         if (result.success && result.data) {
-          // Get actual product data for the recommendations
-          const productsData = await import('@/data/products.json');
-          const allProducts = productsData.products as Product[];
-          const recommendedProducts = result.data
-            .slice(0, maxRecommendations)
-            .map(rec => {
-              const product = allProducts.find((p: Product) => p.id === rec.productId);
-              return product;
-            })
-            .filter(Boolean) as Product[];
-
-          setRecommendations(recommendedProducts);
+          // Get actual product data for the recommendations from Supabase
+          const productIds = result.data.slice(0, maxRecommendations).map(rec => rec.productId);
+          
+          const productsResponse = await fetch(`/api/products?${productIds.map(id => `id=${id}`).join('&')}`);
+          const productsData = await productsResponse.json();
+          
+          if (productsData.products) {
+            // Sort products to match recommendation order
+            const recommendedProducts = productIds
+              .map(id => productsData.products.find((p: Product) => p.id === id))
+              .filter(Boolean) as Product[];
+            
+            setRecommendations(recommendedProducts);
+          } else {
+            setRecommendations([]);
+          }
         } else {
           throw new Error(result.error || 'Failed to fetch recommendations');
         }

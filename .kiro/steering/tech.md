@@ -26,7 +26,7 @@
 
 ## AI & External APIs
 
-- **Google Gemini 1.5 Flash**: `@google/generative-ai` for CAD drawing analysis
+- **Google Gemini 2.5 Flash**: `@google/generative-ai` for CAD drawing analysis
 - **Zoo Dev API**: `@kittycad/lib` for CAD model generation and conversion
 - **OpenCascade.js**: WASM-based CAD file parsing (STEP format)
 

@@ -1,6 +1,11 @@
 // TypeScript type definitions for SteelSmart AI Marketplace
 
-export interface Product {
+// Import and re-export Product type from Supabase for consistency
+import type { Product as SupabaseProduct } from '@/lib/supabase';
+export type Product = SupabaseProduct;
+
+// Legacy Product interface for backward compatibility
+export interface LegacyProduct {
   id: string;
   name: string;
   category: 'robotic' | 'structural' | 'fasteners' | 'custom';
@@ -29,11 +34,42 @@ export interface DrawingAnalysis {
     componentType?: string;
     tolerance?: string;
   };
-  recommendedProducts: Product[];
+  recommendedProducts: Product[]; // Using Supabase Product type
   totalRecommendations: number; // Total number of products found before limiting
   confidence: number;
   reasoning: string;
   analysisId: string;
+  alternativeSuggestions?: {
+    alternatives: Array<{
+      name: string;
+      description: string;
+      category: string;
+      material?: string;
+      specifications: {
+        dimensions?: string;
+        loadCapacity?: string;
+        standards?: string[];
+        partNumber?: string;
+      };
+      source: string;
+      confidence: number;
+      reasoning: string;
+      supplierInfo?: {
+        suggestedSuppliers: string[];
+        estimatedPrice?: string;
+        leadTime?: string;
+      };
+      standards?: Array<{
+        code: string;
+        name: string;
+        section?: string;
+      }>;
+    }>;
+    reasoning: string;
+    suggestedAction: string;
+    estimatedCost?: string;
+    leadTime?: string;
+  };
 }
 
 export interface RFQFormData {
@@ -67,6 +103,19 @@ export interface Category {
   name: string;
   description: string;
   icon: string;
+}
+
+export interface UserProfile {
+  id: string;
+  company: string | null;
+  phone: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface UserMetadata {
+  company?: string;
+  phone?: string;
 }
 
 export interface APIResponse<T> {

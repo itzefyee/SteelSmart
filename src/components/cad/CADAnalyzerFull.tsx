@@ -3,10 +3,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone, FileRejection } from 'react-dropzone';
 import Button from '@/components/ui/Button';
-import ProductCard from '@/components/ProductCard';
+import ProductCard from '@/components/products/ProductCard';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import CADPreview3D from '@/components/CADPreview3D';
+import CADPreview3D from '@/components/cad/CADPreview3D';
 import { DrawingAnalysis, FileUploadState, APIResponse } from '@/types';
 import { formatFileSize } from '@/lib/utils';
 import { sampleAnalysisReport } from '@/data/sample-data';
@@ -916,9 +916,9 @@ const CADAnalyzerFull: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* Left Column - Upload and Controls */}
-      <div className="space-y-6">
+    <div className="flex flex-col lg:flex-row gap-8">
+      {/* Left Column - Upload and Controls - 40% width on desktop */}
+      <div className="w-full lg:w-[40%] space-y-6">
         {/* File Upload Area */}
         <div className="bg-white rounded-xl shadow-lg border p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload Drawing</h2>
@@ -1028,90 +1028,66 @@ const CADAnalyzerFull: React.FC = () => {
         </div>
 
         {/* Sample Drawings */}
-        <div className="bg-white rounded-xl shadow-lg border p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Try Sample Drawings</h3>
-          <p className="text-gray-600 text-sm mb-4">
-            Test the analyzer with our sample technical drawings to see AI recommendations.
+        <div className="bg-white rounded-xl shadow-lg border p-4">
+          <h3 className="text-base font-semibold text-gray-900 mb-2">Try Sample Drawings</h3>
+          <p className="text-gray-600 text-xs mb-3">
+            Test with sample drawings.
           </p>
           
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-2">
             {/* Servo Motor Sample */}
-            <div className="bg-white rounded-lg p-3 border border-blue-200 text-center hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full" 
+            <div className="bg-white rounded-lg p-2 border border-blue-200 hover:shadow-md transition-shadow cursor-pointer flex items-center gap-2" 
                  onClick={() => tryWithSample('servo-motor-drawing.pdf', 'Servo Motor')}>
-              <div className="mb-2">
+              <div className="flex-shrink-0">
                 <img 
                   src="/images/sample-cad-preview.svg" 
                   alt="Servo Motor Drawing"
-                  className="w-20 h-16 mx-auto rounded border border-gray-200"
+                  className="w-10 h-8 rounded border border-gray-200"
                 />
               </div>
-              <div className="mb-2 flex-1 flex flex-col justify-center text-center">
-                <h4 className="font-medium text-gray-900 mb-1">Servo Motor Drawing</h4>
-                <p className="text-sm text-gray-600">50Nm torque, aluminum housing</p>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-gray-900 text-xs truncate">Servo Motor</h4>
+                <p className="text-xs text-gray-500 truncate">50Nm torque</p>
               </div>
-              <Button 
-                size="sm" 
-                variant="outline"
-                className="w-full mt-auto"
-                onClick={() => tryWithSample('servo-motor-drawing.pdf', 'Servo Motor')}
-              >
-                Load Sample
-              </Button>
             </div>
 
             {/* Bracket Sample */}
-            <div className="bg-white rounded-lg p-3 border border-blue-200 text-center hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
+            <div className="bg-white rounded-lg p-2 border border-blue-200 hover:shadow-md transition-shadow cursor-pointer flex items-center gap-2"
                  onClick={() => tryWithSample('bracket-drawing.pdf', 'Mounting Bracket')}>
-              <div className="mb-2">
+              <div className="flex-shrink-0">
                 <img 
                   src="/images/bracket-cad-preview.svg" 
                   alt="Bracket Drawing"
-                  className="w-20 h-16 mx-auto rounded border border-gray-200"
+                  className="w-10 h-8 rounded border border-gray-200"
                 />
               </div>
-              <div className="mb-2 flex-1 flex flex-col justify-center text-center">
-                <h4 className="font-medium text-gray-900 mb-1">Mounting Bracket</h4>
-                <p className="text-sm text-gray-600">Steel, 500N load capacity</p>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-gray-900 text-xs truncate">Mounting Bracket</h4>
+                <p className="text-xs text-gray-500 truncate">500N load capacity</p>
               </div>
-              <Button 
-                size="sm" 
-                variant="outline"
-                className="w-full mt-auto"
-                onClick={() => tryWithSample('bracket-drawing.pdf', 'Mounting Bracket')}
-              >
-                Load Sample
-              </Button>
             </div>
 
             {/* Steel Beam Sample */}
-            <div className="bg-white rounded-lg p-3 border border-blue-200 text-center hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
+            <div className="bg-white rounded-lg p-2 border border-blue-200 hover:shadow-md transition-shadow cursor-pointer flex items-center gap-2"
                  onClick={() => tryWithSample('steel-beam-drawing.pdf', 'I-Beam Steel')}>
-              <div className="mb-2">
+              <div className="flex-shrink-0">
                 <img 
                   src="/images/steel-beam-cad-preview.svg" 
                   alt="Steel Beam Drawing"
-                  className="w-20 h-16 mx-auto rounded border border-gray-200"
+                  className="w-10 h-8 rounded border border-gray-200"
                 />
               </div>
-              <div className="mb-2 flex-1 flex flex-col justify-center text-center">
-                <h4 className="font-medium text-gray-900 mb-1">I-Beam Steel</h4>
-                <p className="text-sm text-gray-600">200x100mm structural beam</p>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-gray-900 text-xs truncate">I-Beam Steel</h4>
+                <p className="text-xs text-gray-500 truncate">200x100mm beam</p>
               </div>
-              <Button 
-                size="sm" 
-                variant="outline"
-                className="w-full mt-auto"
-                onClick={() => tryWithSample('steel-beam-drawing.pdf', 'I-Beam Steel')}
-              >
-                Load Sample
-              </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right Column - Analysis Results */}
-      <div className="space-y-6">
+      {/* Right Column - Analysis Results - 60% width on desktop for wider 3D preview */}
+      <div className="w-full lg:w-[60%] space-y-6">
         {analysis ? (
           <>
             {/* Action Buttons
@@ -1218,6 +1194,7 @@ const CADAnalyzerFull: React.FC = () => {
                         <CADPreview3D
                           file={uploadState.file}
                           showStats={true}
+                          className="!h-[350px] md:!h-[400px]"
                           onModelDataParsed={(data) => {
                             setCADModelData(data);
                             console.log('Manufacturing data received:', {

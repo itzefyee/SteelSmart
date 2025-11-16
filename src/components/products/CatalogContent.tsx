@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import ProductCard from '@/components/ProductCard';
-import ProductFilter from '@/components/ProductFilter';
+import ProductCard from '@/components/products/ProductCard';
+import ProductFilter from '@/components/products/ProductFilter';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { Product, FilterOptions } from '@/types';
+import { FilterOptions } from '@/types';
+import { useProducts, useCategories } from '@/hooks';
 import { 
   filterProductsBySearch, 
   filterProductsByPriceRange,
@@ -14,8 +15,6 @@ import {
 
 export default function CatalogContent() {
   const searchParams = useSearchParams();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('name-asc');
   
   const [filters, setFilters] = useState<FilterOptions>({
@@ -26,21 +25,15 @@ export default function CatalogContent() {
     searchQuery: ''
   });
 
-  // Load products on mount
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const productsData = await import('@/data/products.json');
-        setProducts(productsData.products as Product[]);
-      } catch (error) {
-        console.error('Error loading products:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Fetch categories from Supabase
+  const { categories: categoriesData, loading: categoriesLoading } = useCategories();
 
-    loadProducts();
-  }, []);
+  // Fetch products from Supabase
+  const { products, loading: productsLoading } = useProducts({
+    autoFetch: true,
+  });
+
+  const loading = productsLoading || categoriesLoading;
 
   // Filter and sort products
   const filteredAndSortedProducts = useMemo(() => {
@@ -56,27 +49,49 @@ export default function CatalogContent() {
     // Apply material filter
     if (filters.materials.length > 0) {
       filtered = filtered.filter(product =>
-        filters.materials.some(material =>
-          product.material.toLowerCase().includes(material.toLowerCase())
+        product.material && filters.materials.some(material =>
+          product.material!.toLowerCase().includes(material.toLowerCase())
         )
       );
     }
 
     // Apply search filter
     if (filters.searchQuery) {
-      filtered = filterProductsBySearch(filtered, filters.searchQuery);
+      const query = filters.searchQuery.toLowerCase();
+      filtered = filtered.filter(product => 
+        product.name.toLowerCase().includes(query) ||
+        (product.description && product.description.toLowerCase().includes(query)) ||
+        (product.technical_details && product.technical_details.toLowerCase().includes(query))
+      );
     }
 
     // Apply price range filter
-    filtered = filterProductsByPriceRange(filtered, filters.priceRange);
+    filtered = filtered.filter(product => 
+      product.price >= filters.priceRange[0] && product.price <= filters.priceRange[1]
+    );
 
     // Apply in-stock filter
     if (filters.inStockOnly) {
-      filtered = filtered.filter(product => product.inStock);
+      filtered = filtered.filter(product => product.in_stock);
     }
 
     // Sort products
-    return sortProducts(filtered, sortBy);
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'name-asc':
+          return a.name.localeCompare(b.name);
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        case 'price-asc':
+          return a.price - b.price;
+        case 'price-desc':
+          return b.price - a.price;
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
   }, [products, filters, sortBy]);
 
   const handleFiltersChange = (newFilters: FilterOptions) => {
@@ -95,15 +110,14 @@ export default function CatalogContent() {
 
   // Get unique categories and materials for filter options
   const availableCategories = useMemo(() => {
-    const categories = [...new Set(products.map(p => p.category))];
-    return categories.map(cat => ({
-      id: cat,
-      name: cat.charAt(0).toUpperCase() + cat.slice(1)
+    return categoriesData.map(cat => ({
+      id: cat.id,
+      name: cat.name
     }));
-  }, [products]);
+  }, [categoriesData]);
 
   const availableMaterials = useMemo(() => {
-    const materials = [...new Set(products.map(p => p.material))];
+    const materials = [...new Set(products.map(p => p.material).filter((m): m is string => m !== null && m !== undefined))];
     return materials.sort();
   }, [products]);
 

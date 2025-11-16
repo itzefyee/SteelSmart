@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import CADPreview3D from '@/components/CADPreview3D';
+import CADPreview3D from '@/components/cad/CADPreview3D';
 import { CADModelData } from '@/lib/cad-parser';
 
 export default function CADPreviewDemoPage() {

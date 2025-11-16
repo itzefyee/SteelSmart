@@ -4,7 +4,7 @@ SteelSmart is an AI-enhanced metal & steel parts marketplace built for engineers
 
 ## Core Features
 
-- **AI-Powered CAD Analysis**: Google Gemini 1.5 Flash analyzes technical drawings (PDF, PNG, JPG) to extract specifications and recommend compatible products
+- **AI-Powered CAD Analysis**: Google Gemini 2.5 Flash analyzes technical drawings (PDF, PNG, JPG) to extract specifications and recommend compatible products
 - **CAD Generation**: Zoo Dev API integration for generating 3D CAD models from text prompts
 - **Product Catalog**: 20+ products across 4 categories (Robotic Components, Structural Steel, Fasteners, Custom Parts)
 - **Smart Recommendations**: AI-driven product matching based on extracted specs and compatibility matrices

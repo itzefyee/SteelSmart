@@ -6,16 +6,17 @@ export async function proxy(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
 
-  // Get session
+  // Refresh session if expired
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // API routes that don't require authentication
+  // Public API routes (no auth required)
   const publicApiRoutes = [
     '/api/auth',
-    '/api/generate-cad', // Allow public CAD generation (consider changing in production)
-    '/api/analyze-drawing', // Allow public drawing analysis (consider changing in production)
+    '/api/products',
+    '/api/categories',
+    '/api/webhooks',
   ];
 
   const isPublicApiRoute = publicApiRoutes.some((route) =>
@@ -32,20 +33,30 @@ export async function proxy(req: NextRequest) {
     }
   }
 
+  // Protected page routes that require authentication
+  const protectedPaths = [
+    '/account',
+    '/cad-generator',
+    '/cad-analyzer',
+    '/rfq',
+    '/reports',
+  ];
+
+  const isProtectedPath = protectedPaths.some((path) =>
+    req.nextUrl.pathname.startsWith(path)
+  );
+
+  // Redirect to login if accessing protected route without session
+  if (isProtectedPath && !session) {
+    const redirectUrl = new URL('/login', req.url);
+    redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
   // Redirect authenticated users away from login/signup pages
   if (session && (req.nextUrl.pathname === '/login' || req.nextUrl.pathname === '/signup')) {
     return NextResponse.redirect(new URL('/', req.url));
   }
-
-  // For protected routes, redirect to login if not authenticated
-  // Uncomment below if you want to protect certain pages
-  /*
-  if (!session && !isPublicRoute) {
-    const redirectUrl = new URL('/login', req.url);
-    redirectUrl.searchParams.set('redirect', req.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
-  */
 
   return res;
 }

@@ -326,3 +326,76 @@ export const sampleTextGenerations = [
     }
   }
 ];
+
+
+// ML Prompt Templates
+// Predefined templates for text-to-CAD generation
+// Last updated: 2025-11-16T08:56:01.731Z
+
+export interface MLPromptTemplate {
+  id: string;
+  title: string;
+  description: string;
+  prompt: string;
+  category?: string;
+  tags?: string[];
+  example_output?: string;
+}
+
+export const mlPromptTemplates: MLPromptTemplate[] = [
+  {
+    "id": "template-1",
+    "title": "I-Beam",
+    "description": "Standard structural I-beam with specified dimensions",
+    "prompt": "I-beam, 12 in long, 4 in high, 2.66 x 0.29 in flange, 0.19 in web, 0.46 in root radius",
+    "category": "structural",
+    "tags": [
+      "beam",
+      "structural",
+      "i-beam",
+      "steel"
+    ]
+  },
+  {
+    "id": "template-2",
+    "title": "Drill Guide",
+    "description": "Surgical drill guide with multiple bit sizes and rotating grips",
+    "prompt": "Surgical drill guide, 150 mm handle, Ø2 & Ø3.2 mm bits, twin bit mounts with rotating grips",
+    "category": "medical",
+    "tags": [
+      "surgical",
+      "drill",
+      "guide",
+      "medical",
+      "precision"
+    ]
+  },
+  {
+    "id": "template-3",
+    "title": "Gallows Frame",
+    "description": "Large structural frame with brackets and angle iron construction",
+    "prompt": "Gallows frame, 2400x1250x450 mm, 6 brackets, angle iron",
+    "category": "structural",
+    "tags": [
+      "frame",
+      "structural",
+      "brackets",
+      "angle-iron",
+      "large-scale"
+    ]
+  },
+  {
+    "id": "template-4",
+    "title": "Brake Rotor",
+    "description": "Vented automotive brake rotor with bolt pattern",
+    "prompt": "A 320mm vented brake rotor with 5 M12 holes on 114.3mm PCD",
+    "category": "automotive",
+    "tags": [
+      "brake",
+      "rotor",
+      "automotive",
+      "vented",
+      "disc"
+    ]
+  }
+];

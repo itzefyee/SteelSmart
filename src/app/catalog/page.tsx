@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import CatalogContent from '@/components/CatalogContent';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
+import CatalogContent from '@/components/products/CatalogContent';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 function CatalogFallback() {

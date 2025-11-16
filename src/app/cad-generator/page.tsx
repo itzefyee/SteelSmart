@@ -1,7 +1,7 @@
 import React from 'react';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import CADGenerator from '@/components/CADGenerator';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
+import CADGenerator from '@/components/cad/CADGenerator';
 
 export const metadata = {
   title: 'CAD Drawing Generator - SteelSmart AI Marketplace',

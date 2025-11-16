@@ -36,8 +36,8 @@ export const filterProductsBySearch = (products: Product[], query: string) => {
   const lowercaseQuery = query.toLowerCase();
   return products.filter(product => 
     product.name.toLowerCase().includes(lowercaseQuery) ||
-    product.description.toLowerCase().includes(lowercaseQuery) ||
-    product.technicalDetails.toLowerCase().includes(lowercaseQuery)
+    (product.description && product.description.toLowerCase().includes(lowercaseQuery)) ||
+    (product.technical_details && product.technical_details.toLowerCase().includes(lowercaseQuery))
   );
 };
 

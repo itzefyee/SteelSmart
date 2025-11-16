@@ -1,7 +1,7 @@
 import React from 'react';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import ReportsManager from '@/components/ReportsManager';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
+import ReportsManager from '@/components/reports/ReportsManager';
 
 export const metadata = {
   title: 'Reports Manager - SteelSmart AI Marketplace',
@@ -28,6 +28,9 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+
+
 
 
 

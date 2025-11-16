@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import ProductCard from '@/components/ProductCard';
-import ProductRecommendations from '@/components/ProductRecommendations';
+import ProductCard from '@/components/products/ProductCard';
+import ProductRecommendations from '@/components/products/ProductRecommendations';
 import Button from '@/components/ui/Button';
-import ProductImagePlaceholder from '@/components/ProductImagePlaceholder';
-import { Product } from '@/types';
+import ProductImagePlaceholder from '@/components/products/ProductImagePlaceholder';
+import type { Product } from '@/lib/supabase';
 import { formatPrice } from '@/lib/utils';
 
 interface ProductDetailClientProps {
@@ -84,9 +84,9 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
                 {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
               </span>
               <div className="flex items-center">
-                <div className={`w-2 h-2 rounded-full mr-2 ${product.inStock ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <div className={`w-2 h-2 rounded-full mr-2 ${product.in_stock ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 <span className="text-sm text-gray-600">
-                  {product.inStock ? 'In Stock' : 'Out of Stock'} • {product.leadTime}
+                  {product.in_stock ? 'In Stock' : 'Out of Stock'}{product.lead_time && ` • ${product.lead_time}`}
                 </span>
               </div>
             </div>
@@ -104,34 +104,40 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
             <div className="bg-gray-50 rounded-lg p-6">
               <h3 className="font-semibold text-gray-900 mb-4">Key Specifications</h3>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <dt className="font-medium text-gray-700">Dimensions</dt>
-                  <dd className="text-gray-900">{product.specifications.dimensions}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-gray-700">Weight</dt>
-                  <dd className="text-gray-900">{product.specifications.weight}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-gray-700">Material</dt>
-                  <dd className="text-gray-900">{product.material}</dd>
-                </div>
-                {product.specifications.loadCapacity && (
+                {typeof product.specifications === 'object' && product.specifications !== null && 'dimensions' in product.specifications && (
+                  <div>
+                    <dt className="font-medium text-gray-700">Dimensions</dt>
+                    <dd className="text-gray-900">{(product.specifications as any).dimensions}</dd>
+                  </div>
+                )}
+                {typeof product.specifications === 'object' && product.specifications !== null && 'weight' in product.specifications && (
+                  <div>
+                    <dt className="font-medium text-gray-700">Weight</dt>
+                    <dd className="text-gray-900">{(product.specifications as any).weight}</dd>
+                  </div>
+                )}
+                {product.material && (
+                  <div>
+                    <dt className="font-medium text-gray-700">Material</dt>
+                    <dd className="text-gray-900">{product.material}</dd>
+                  </div>
+                )}
+                {typeof product.specifications === 'object' && product.specifications !== null && 'loadCapacity' in product.specifications && (
                   <div>
                     <dt className="font-medium text-gray-700">Load Capacity</dt>
-                    <dd className="text-gray-900">{product.specifications.loadCapacity}</dd>
+                    <dd className="text-gray-900">{(product.specifications as any).loadCapacity}</dd>
                   </div>
                 )}
-                {product.specifications.tolerance && (
+                {typeof product.specifications === 'object' && product.specifications !== null && 'tolerance' in product.specifications && (
                   <div>
                     <dt className="font-medium text-gray-700">Tolerance</dt>
-                    <dd className="text-gray-900">{product.specifications.tolerance}</dd>
+                    <dd className="text-gray-900">{(product.specifications as any).tolerance}</dd>
                   </div>
                 )}
-                {product.specifications.operatingTemp && (
+                {typeof product.specifications === 'object' && product.specifications !== null && 'operatingTemp' in product.specifications && (
                   <div>
                     <dt className="font-medium text-gray-700">Operating Temperature</dt>
-                    <dd className="text-gray-900">{product.specifications.operatingTemp}</dd>
+                    <dd className="text-gray-900">{(product.specifications as any).operatingTemp}</dd>
                   </div>
                 )}
               </dl>
@@ -173,16 +179,16 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Technical Details</h2>
           <div className="prose max-w-none">
             <p className="text-gray-600 leading-relaxed">
-              {product.technicalDetails}
+              {product.technical_details}
             </p>
           </div>
 
           {/* Compatibility */}
-          {product.compatibleWith.length > 0 && (
+          {product.compatible_with && product.compatible_with.length > 0 && (
             <div className="mt-8 pt-8 border-t border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Compatible Products</h3>
               <div className="flex flex-wrap gap-2">
-                {product.compatibleWith.map((compatibleId) => (
+                {product.compatible_with.map((compatibleId) => (
                   <span
                     key={compatibleId}
                     className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"

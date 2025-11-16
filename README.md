@@ -1,11 +1,11 @@
 # SteelSmart AI Marketplace
 
-An AI-enhanced metal & steel parts marketplace built with Next.js 15, featuring CAD drawing analysis powered by Google Gemini AI. A comprehensive platform for engineers and manufacturers to discover, analyze, and source metal & steel components with intelligent AI assistance.
+An AI-enhanced metal & steel parts marketplace built with Next.js 16, featuring CAD drawing analysis powered by Google Gemini AI. A comprehensive platform for engineers and manufacturers to discover, analyze, and source metal & steel components with intelligent AI assistance.
 
 ## Features
 
 ### 🤖 **AI-Powered CAD Analysis**
-- **Real AI Integration**: Google Gemini 1.5 Flash for technical drawing analysis
+- **Real AI Integration**: Google Gemini 2.5 Flash for technical drawing analysis
 - **Multi-Format Support**: PDF, PNG, JPG files up to 10MB
 - **Smart Fallback**: Mock analysis for demo when API not configured
 - **Dual Experience**: Quick homepage analyzer + comprehensive full-page analyzer
@@ -55,7 +55,7 @@ An AI-enhanced metal & steel parts marketplace built with Next.js 15, featuring 
 - **Runtime**: React 19.1.0 with modern hooks and patterns
 
 ### **AI & Data**
-- **AI Integration**: Google Gemini 1.5 Flash API (@google/generative-ai)
+- **AI Integration**: Google Gemini 2.5 Flash API (@google/generative-ai)
 - **Data Storage**: JSON-based catalog (ready for database migration)
 - **File Handling**: React Dropzone for uploads
 - **Image Processing**: Custom SVG illustrations and placeholders
@@ -183,7 +183,7 @@ steal_smart/
 ### 🤖 **CAD Analyzer System**
 - **Dual Interface**: Homepage quick analyzer + full-page comprehensive analyzer
 - **File Support**: PDF, PNG, JPG up to 10MB with drag-and-drop
-- **Real AI**: Google Gemini 1.5 Flash for actual technical drawing analysis
+- **Real AI**: Google Gemini 2.5 Flash for actual technical drawing analysis
 - **Smart Fallback**: Intelligent mock analysis when API not configured
 - **Sample Drawings**: Pre-loaded servo motor, bracket, and steel beam examples
 - **Results Flow**: Redirects to full analyzer page to avoid UI clutter
@@ -347,7 +347,7 @@ This project is licensed under the **MIT License** - see the LICENSE file for de
 
 ## 🌟 **Acknowledgments**
 
-- **Google AI**: For the powerful Gemini 1.5 Flash API
+- **Google AI**: For the powerful Gemini 2.5 Flash API
 - **Vercel**: For excellent Next.js hosting and deployment
 - **Tailwind CSS**: For the utility-first CSS framework
 - **Next.js Team**: For the amazing React framework
