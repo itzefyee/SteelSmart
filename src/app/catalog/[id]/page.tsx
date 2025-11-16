@@ -1,57 +1,108 @@
-import React from 'react';
-import { notFound } from 'next/navigation';
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ProductDetailClient from '@/components/products/ProductDetailClient';
-import { getSupabaseServer } from '@/lib/supabase-server';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { getSupabaseClient } from '@/lib/supabase';
 import type { Product } from '@/lib/supabase';
 
-interface ProductDetailPageProps {
-  params: Promise<{
-    id: string;
-  }>;
-}
-
-export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
-  const { id } = await params;
+export default function ProductDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const id = params?.id as string;
   
-  // Load product data from Supabase
-  try {
-    const supabase = await getSupabaseServer();
-    
-    // Fetch the product
-    const { data: product, error: productError } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', id)
-      .single();
-    
-    if (productError || !product) {
-      console.error('Error loading product:', productError);
-      notFound();
-    }
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    // Get related products (same category, excluding current product)
-    const { data: relatedProducts, error: relatedError } = await supabase
-      .from('products')
-      .select('*')
-      .eq('category', product.category)
-      .neq('id', product.id)
-      .limit(4);
-    
-    if (relatedError) {
-      console.error('Error loading related products:', relatedError);
-    }
+  useEffect(() => {
+    const loadProduct = async () => {
+      if (!id) return;
 
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const supabase = getSupabaseClient();
+        
+        // Fetch the product
+        const { data: productData, error: productError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (productError || !productData) {
+          throw new Error('Product not found');
+        }
+
+        const typedProduct = productData as Product;
+        setProduct(typedProduct);
+
+        // Get related products (same category, excluding current product)
+        const { data: relatedData, error: relatedError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('category', typedProduct.category)
+          .neq('id', typedProduct.id)
+          .limit(4);
+        
+        if (!relatedError && relatedData) {
+          setRelatedProducts(relatedData as Product[]);
+        }
+      } catch (err) {
+        console.error('Error loading product:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load product');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProduct();
+  }, [id]);
+
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <ProductDetailClient product={product} relatedProducts={relatedProducts || []} />
+        <div className="flex-1 flex items-center justify-center">
+          <LoadingSpinner size="lg" />
+        </div>
         <Footer />
       </div>
     );
-  } catch (error) {
-    console.error('Error loading product:', error);
-    notFound();
   }
+
+  if (error || !product) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Product Not Found</h1>
+            <p className="text-gray-600 mb-6">{error || 'The product you are looking for does not exist.'}</p>
+            <button
+              onClick={() => router.push('/catalog')}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Back to Catalog
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <ProductDetailClient product={product} relatedProducts={relatedProducts} />
+      <Footer />
+    </div>
+  );
 }
