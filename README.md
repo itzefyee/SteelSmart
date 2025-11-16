@@ -289,72 +289,131 @@ Metalyze/
     └── .env.local                  # Environment variables
 ```
 
-## 🔧 **Key Components**
+## 🔧 **Key Components & Systems**
 
-### 🤖 **CAD Analyzer System**
-- **Dual Interface**: Homepage quick analyzer + full-page comprehensive analyzer
-- **File Support**: PDF, PNG, JPG up to 10MB with drag-and-drop
-- **Real AI**: Google Gemini 2.5 Flash for actual technical drawing analysis
-- **Smart Fallback**: Intelligent mock analysis when API not configured
-- **Sample Drawings**: Pre-loaded servo motor, bracket, and steel beam examples
-- **Results Flow**: Redirects to full analyzer page to avoid UI clutter
+### 🎨 **CAD Generator** (`/cad-generator`)
+- **Text-to-CAD**: Natural language to 3D model conversion using Zoo Dev API
+- **Multiple Formats**: Export to STEP, STL, OBJ, DXF, glTF
+- **Real-time Progress**: Live generation status updates
+- **Generation History**: Track all generated models with metadata
+- **Download Management**: Easy access to all generated files
+- **Template Support**: Pre-built templates for common components
 
-### 📦 **Product Catalog System**
-- **Comprehensive Inventory**: 20+ products across 4 main categories
+### 🤖 **CAD Analyzer** (`/cad-analyzer`)
+- **AI Analysis**: Google Gemini 2.5 Flash for technical drawing analysis
+- **File Support**: PDF, PNG, JPG, STEP, STL up to 10MB with drag-and-drop
+- **Comprehensive Analysis**: Dimensions, materials, tolerances, manufacturability
+- **Standards Compliance**: Check against industry standards (ASTM, ISO, ASME)
+- **Alternative Suggestions**: AI-powered alternative product recommendations
+- **Manufacturing Insights**: Feasibility assessment and cost estimation
+- **Report Generation**: Detailed analysis reports with recommendations
+
+### 🔮 **3D CAD Preview** (`/cad-preview-demo`)
+- **Interactive Viewer**: Three.js-based 3D model visualization
+- **File Support**: STEP, STL, OBJ, glTF formats
+- **OpenCascade.js**: WASM-based STEP file parsing
+- **Controls**: Rotate, zoom, pan with mouse/touch
+- **Analysis**: Face count, edge count, bounding box display
+- **Performance**: Optimized rendering for large models
+
+### 💡 **Product Recommender** (`/product-recommender`)
+- **AI-Driven Matching**: Intelligent product suggestions based on specifications
+- **Compatibility Analysis**: Cross-product compatibility scoring
+- **Confidence Scoring**: Reliability indicators for each suggestion
+- **Alternative Products**: Standards-compliant alternatives with supplier info
+- **Contextual Reasoning**: Detailed explanations for recommendations
+- **Supplier Information**: Suggested suppliers, pricing, lead times
+
+### 📦 **Product Catalog** (`/catalog`)
+- **Supabase Database**: PostgreSQL-backed product catalog
+- **20+ Products**: Comprehensive inventory across 4 categories
 - **Rich Data**: Specifications, materials, pricing, compatibility, lead times
-- **Visual Design**: Custom SVG illustrations for all products
-- **Smart Filtering**: Category, material, price range, text search
-- **Product Pages**: Individual detail pages with full specs and recommendations
+- **Advanced Filtering**: Category, material, price range, text search
+- **Product Pages**: Individual detail pages with full specs
 - **Mobile Optimized**: Responsive grid layouts and touch-friendly interfaces
 
-### 💡 **AI Recommendation Engine**
-- **Specification Matching**: Analyzes extracted specs against product database
-- **Compatibility Logic**: Cross-references product compatibility matrices
-- **Confidence Scoring**: Provides reliability indicators for each suggestion
-- **Intelligent Fallback**: Ensures recommendations even with partial matches
-- **Limited Display**: Shows top 3 recommendations to maintain clean UI
-- **Contextual Reasoning**: Explains why products are recommended
-
-### 📋 **RFQ (Request for Quote) System**
+### 📋 **RFQ System** (`/rfq`)
 - **Multi-Step Workflow**: Contact → Requirements → Files → Review → Submit
 - **Smart Validation**: Real-time form validation with helpful error messages
 - **File Upload**: Technical drawings and specification documents
-- **Professional Output**: Generates structured quote requests
-- **Email Integration**: Mailto functionality (expandable to SMTP)
+- **Database Storage**: Persistent RFQ tracking with Supabase
+- **User Association**: RFQs linked to authenticated users
 - **Progress Tracking**: Clear step indicators and navigation
+
+### 🔐 **Authentication System**
+- **Supabase Auth**: Secure email/password authentication
+- **Protected Routes**: Middleware-based route protection
+- **User Profiles**: Company information and contact details
+- **Row Level Security**: User-scoped data access with RLS policies
+- **Account Management**: Profile editing at `/account`
+
+### 📊 **Reports & History**
+- **CAD History**: Track all CAD generations and analyses
+- **Analysis Reports**: Detailed manufacturability and compliance reports
+- **User Activity**: Monitor patterns and usage
+- **Export Options**: Download reports and generated files
 
 ## 🌐 **API Endpoints**
 
+### **CAD Generation**
+- `POST /api/generate-cad` - Generate 3D CAD models from text
+  - **Input**: `{ prompt: string, format: 'step' | 'stl' | 'obj' | 'dxf' | 'gltf' }`
+  - **Processing**: Zoo Dev API integration with progress tracking
+  - **Output**: Generated model URL, metadata, download links
+
 ### **CAD Analysis**
-- `POST /api/analyze-drawing` - Upload and analyze technical drawings
-  - **Input**: FormData with file (PDF/PNG/JPG)
-  - **AI Processing**: Google Gemini vision analysis or intelligent mock
-  - **Output**: Extracted specs, confidence score, product recommendations
+- `POST /api/analyze-drawing` - Analyze technical drawings with AI
+  - **Input**: FormData with file (PDF/PNG/JPG/STEP/STL)
+  - **AI Processing**: Google Gemini vision analysis + OpenCascade.js parsing
+  - **Output**: Extracted specs, manufacturability assessment, product recommendations, alternative suggestions
 
 ### **Product Recommendations**
 - `GET /api/recommendations?productId={id}` - Get compatible products
   - **Logic**: Compatibility matrix + category matching
   - **Output**: Scored recommendations with reasoning
 
+### **Alternative Suggestions**
+- `POST /api/alternative-suggestions` - Get alternative product suggestions
+  - **Input**: Specifications and requirements
+  - **Processing**: AI-powered matching with standards compliance
+  - **Output**: Alternative products with supplier info and standards
+
 ### **Quote Requests**
 - `POST /api/submit-rfq` - Submit request for quote
   - **Input**: Contact info, requirements, files
-  - **Processing**: Validation + email formatting
-  - **Output**: Confirmation + email integration
+  - **Processing**: Validation + Supabase storage
+  - **Output**: Confirmation + RFQ ID
+
+### **Authentication**
+- Handled by Supabase Auth with Next.js middleware
+- Protected routes automatically redirect to `/login`
 
 ## 🔐 **Security & Environment**
 
 ### **Environment Variables**
 
+**Required:**
 ```bash
-# Google Gemini AI (Optional - app works without it)
-GEMINI_API_KEY=your_gemini_api_key_here
+# Supabase (Required for auth & database)
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
 
-# App Configuration (Optional)
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+# Application
+NEXTAUTH_URL=http://localhost:3000
 ```
 
-**Note**: All environment variables are optional. The app provides intelligent fallbacks for demo and development use.
+**Optional:**
+```bash
+# Google Gemini AI (Optional - fallback available)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Zoo Dev API (Optional - for CAD generation)
+ZOO_API_TOKEN=your_zoo_dev_token_here
+
+# App Configuration
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
 
 ### **Security Best Practices**
 
@@ -380,33 +439,51 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ### **Available Scripts**
 ```bash
-# Development server with Turbopack (fast refresh)
+# Development server with webpack (WASM support)
 npm run dev
 
 # Production build
 npm run build
 
 # Start production server
-npm run start
+npm start
 
 # Code linting with ESLint 9
 npm run lint
+
+# Run tests
+npm test
+
+# Run tests with UI
+npm run test:ui
+
+# Test coverage
+npm run test:coverage
+
+# Migrate products to Supabase
+npx tsx scripts/migrate-products.ts
 ```
 
 ### **Development Features**
-- **Hot Reload**: Instant updates with Turbopack
+- **Hot Reload**: Instant updates with webpack
 - **TypeScript**: Full type checking and IntelliSense
 - **ESLint**: Code quality and consistency checking
+- **Vitest**: Fast unit and integration testing
+- **WASM Support**: OpenCascade.js for CAD file parsing
+- **Path Aliases**: Use `@/` for imports from `src/`
 - **Responsive Testing**: Built-in mobile viewport testing
-- **API Testing**: Test all endpoints locally
+- **API Testing**: Test all endpoints locally with Supabase local dev
 
 ## 🚀 **Deployment**
 
 ### **Vercel (Recommended)**
 1. **Connect Repository**: Link your GitHub/GitLab repo to Vercel
-2. **Environment Variables**: Add `GEMINI_API_KEY` in Vercel dashboard (optional)
+2. **Environment Variables**: Add all required environment variables in Vercel dashboard:
+   - Supabase credentials (required)
+   - API keys for Gemini and Zoo Dev (optional)
 3. **Auto Deploy**: Automatic deployments on push to main branch
-4. **PWA Support**: Includes web manifest and service worker ready
+4. **Edge Functions**: Optimized API routes with edge runtime
+5. **PWA Support**: Includes web manifest and service worker ready
 
 ### **Other Platforms**
 - **Netlify**: Full Next.js 15 support with edge functions
@@ -431,10 +508,12 @@ We welcome contributions! Here's how to get started:
 
 ### **Contribution Guidelines**
 - **TypeScript**: All new code must be properly typed
-- **Components**: Follow existing component patterns
+- **Components**: Follow existing component patterns in `src/components/`
 - **Styling**: Use Tailwind CSS classes consistently
-- **Testing**: Test all new features thoroughly
-- **Documentation**: Update README if adding new features
+- **Testing**: Write tests for new features using Vitest
+- **Documentation**: Update README and component docs if adding new features
+- **Database**: Create migrations for schema changes in `supabase/migrations/`
+- **Security**: Never commit `.env` files or sensitive credentials
 
 ## 📄 **License**
 
@@ -451,23 +530,32 @@ This project is licensed under the **MIT License** - see the LICENSE file for de
 
 ### **Phase 1: Core Platform (✅ Complete)**
 - [x] AI-powered CAD analysis with Google Gemini
+- [x] Text-to-CAD generation with Zoo Dev API
+- [x] 3D model viewer with Three.js and OpenCascade.js
+- [x] Supabase authentication and database
 - [x] Comprehensive product catalog (20+ products)
-- [x] Smart recommendation engine
+- [x] Smart recommendation engine with alternatives
+- [x] Manufacturing analysis and compliance checking
 - [x] Professional UI/UX with responsive design
-- [x] RFQ system with multi-step forms
+- [x] RFQ system with database storage
+- [x] User account management
 
-### **Phase 2: Enhanced Features (🚧 Planned)**
-- [ ] **Database Integration**: PostgreSQL with Prisma ORM
-- [ ] **User Authentication**: NextAuth.js with multiple providers
-- [ ] **Advanced Search**: Elasticsearch for complex queries
-- [ ] **Real-time Features**: WebSocket integration for live updates
+### **Phase 2: Enhanced Features (🚧 In Progress)**
+- [x] **Database Integration**: Supabase PostgreSQL with migrations
+- [x] **User Authentication**: Supabase Auth with email/password
+- [x] **3D Model Viewer**: Three.js-based CAD preview
+- [x] **CAD Generation**: Zoo Dev API integration
+- [ ] **Advanced Search**: Full-text search with Supabase
+- [ ] **Real-time Features**: Supabase Realtime for live updates
 - [ ] **Payment Integration**: Stripe for secure transactions
+- [ ] **Email Notifications**: Transactional emails for RFQs
 
-### **Phase 3: Advanced AI (🔮 Future)**
-- [ ] **Multi-format CAD Support**: DWG, STEP, IGES files
-- [ ] **3D Model Viewer**: Interactive 3D product visualization
+### **Phase 3: Advanced AI (🔮 Planned)**
+- [ ] **Enhanced CAD Formats**: DWG, IGES, Parasolid support
 - [ ] **ML Recommendations**: Machine learning-enhanced suggestions
 - [ ] **Automated Quoting**: AI-powered price estimation
+- [ ] **Batch Processing**: Multiple file analysis
+- [ ] **Custom Training**: Fine-tuned models for specific industries
 - [ ] **Mobile App**: React Native cross-platform app
 
 ### **Phase 4: Enterprise (🏢 Vision)**
@@ -475,12 +563,30 @@ This project is licensed under the **MIT License** - see the LICENSE file for de
 - [ ] **API Marketplace**: Third-party integrations
 - [ ] **Advanced Analytics**: Business intelligence dashboard
 - [ ] **Supply Chain Integration**: ERP system connections
+- [ ] **Team Collaboration**: Shared workspaces and projects
+- [ ] **Audit Logs**: Comprehensive activity tracking
 
 ---
+
+## 📚 **Documentation**
+
+Comprehensive documentation is available in the `/documentation` directory:
+
+- **Architecture**: System design and patterns
+- **Components**: Component documentation and usage
+- **CAD Generation**: Text-to-CAD implementation details
+- **CAD Preview**: 3D visualization implementation
+- **Alternative Products**: Alternative suggestion system
+- **Migration Guide**: Database migration instructions
+- **PRD**: Product requirements and specifications
 
 ## 🌟 **Acknowledgments**
 
 - **Google AI**: For the powerful Gemini 2.5 Flash API
+- **Zoo Dev**: For the text-to-CAD generation API
+- **Supabase**: For authentication, database, and storage
+- **Three.js**: For 3D visualization capabilities
+- **OpenCascade.js**: For WASM-based CAD file parsing
 - **Vercel**: For excellent Next.js hosting and deployment
 - **Tailwind CSS**: For the utility-first CSS framework
 - **Next.js Team**: For the amazing React framework
