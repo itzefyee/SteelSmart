@@ -9,7 +9,9 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import CADPreview3D from '@/components/CADPreview3D';
 import { DrawingAnalysis, FileUploadState, APIResponse } from '@/types';
 import { formatFileSize } from '@/lib/utils';
-import { sampleManufacturabilityResults, sampleSpecificationResults, sampleAnalysisReport } from '@/data/sample-data';
+import { sampleAnalysisReport } from '@/data/sample-data';
+import { CADModelData, getCADParser } from '@/lib/cad-parser';
+import { ComplianceChecker, convertCADModelToGeometry } from '@/lib/compliance-checker';
 
 const CADAnalyzerFull: React.FC = () => {
   const [uploadState, setUploadState] = useState<FileUploadState>({
@@ -20,6 +22,7 @@ const CADAnalyzerFull: React.FC = () => {
   });
   
   const [analysis, setAnalysis] = useState<DrawingAnalysis | null>(null);
+  const [cadModelData, setCADModelData] = useState<CADModelData | null>(null);
   const [sampleLoadSuccess, setSampleLoadSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'analysis' | 'validation' | 'verification' | 'report'>('analysis');
   const [manufacturabilityResults, setManufacturabilityResults] = useState<any[]>([]);
@@ -29,6 +32,9 @@ const CADAnalyzerFull: React.FC = () => {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
+  const [isAnalyzingManufacturing, setIsAnalyzingManufacturing] = useState(false);
+  const [analysisStage, setAnalysisStage] = useState<string | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
 
   // Check for stored analysis results on component mount
   useEffect(() => {
@@ -116,6 +122,24 @@ const CADAnalyzerFull: React.FC = () => {
       const formData = new FormData();
       formData.append('file', uploadState.file);
 
+      // Include CAD model data if available (for enhanced analysis)
+      if (cadModelData) {
+        // Create a clean copy without internal data to reduce payload size
+        const cleanedCADData = {
+          boundingBox: cadModelData.boundingBox,
+          boundingBoxWithTolerance: cadModelData.boundingBoxWithTolerance,
+          faceCount: cadModelData.faceCount,
+          edgeCount: cadModelData.edgeCount,
+          vertexCount: cadModelData.vertexCount,
+          holeAnalysis: cadModelData.holeAnalysis,
+          thicknessAnalysis: cadModelData.thicknessAnalysis,
+          edgeAnalysis: cadModelData.edgeAnalysis,
+          weldJointAnalysis: cadModelData.weldJointAnalysis,
+          bendAnalysis: cadModelData.bendAnalysis,
+        };
+        formData.append('cadModelData', JSON.stringify(cleanedCADData));
+      }
+
       // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadState(prev => ({
@@ -156,6 +180,10 @@ const CADAnalyzerFull: React.FC = () => {
       error: undefined
     });
     setAnalysis(null);
+    setCADModelData(null);
+    setManufacturabilityResults([]);
+    setSpecificationResults([]);
+    setReportGenerated(false);
     setSampleLoadSuccess(null);
   };
 
@@ -179,59 +207,707 @@ const CADAnalyzerFull: React.FC = () => {
     setTimeout(() => setSampleLoadSuccess(null), 3000); // Hide after 3 seconds
   };
 
-  const validateManufacturability = async () => {
-    if (!analysis) return;
-    
-    setIsValidating(true);
-    
-    // Simulate validation process
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setManufacturabilityResults(sampleManufacturabilityResults);
-    setIsValidating(false);
+  // Run manufacturing analysis with stage-by-stage progress
+  const runManufacturingAnalysis = async () => {
+    if (!cadModelData) return;
+
+    setIsAnalyzingManufacturing(true);
+    setAnalysisProgress(0);
+
+    try {
+      // Stage 1: Initialize
+      setAnalysisStage('Initializing analysis...');
+      setAnalysisProgress(10);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 2: Parse geometry
+      setAnalysisStage('Parsing 3D geometry...');
+      setAnalysisProgress(20);
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      // Stage 3: Run manufacturing analysis
+      setAnalysisStage('Analyzing manufacturing features...');
+      setAnalysisProgress(35);
+
+      const parser = getCADParser();
+      const analyzedData = await parser.analyzeManufacturing(cadModelData, 'A36');
+
+      // Stage 4: Detect holes
+      setAnalysisStage('Detecting holes and fastener locations...');
+      setAnalysisProgress(50);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 5: Measure thickness
+      setAnalysisStage('Measuring material thickness...');
+      setAnalysisProgress(60);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 6: Analyze edges
+      setAnalysisStage('Analyzing edges and corners...');
+      setAnalysisProgress(70);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 7: Check welds
+      setAnalysisStage('Evaluating weld joints...');
+      setAnalysisProgress(80);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 8: Validate bends
+      setAnalysisStage('Validating bend radii...');
+      setAnalysisProgress(90);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Stage 9: Complete
+      setAnalysisStage('Finalizing analysis...');
+      setAnalysisProgress(100);
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Update state with analyzed data
+      setCADModelData(analyzedData);
+
+      // Generate results for both tabs
+      const mfgResults = convertManufacturingDataToUI(analyzedData);
+      const specResults = convertSpecificationDataToUI(analyzedData);
+
+      setManufacturabilityResults(mfgResults);
+      setSpecificationResults(specResults);
+
+      setAnalysisStage('Analysis complete!');
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+    } catch (error) {
+      console.error('Error during manufacturing analysis:', error);
+      setAnalysisStage('Analysis failed');
+
+      // Set error messages
+      setManufacturabilityResults([
+        {
+          check: 'Manufacturing Analysis Error',
+          value: 'Failed',
+          requirement: 'N/A',
+          status: 'Invalid',
+          message: 'Unable to complete manufacturing analysis. Ensure file is a STEP format.',
+        },
+      ]);
+    } finally {
+      setIsAnalyzingManufacturing(false);
+      setAnalysisStage(null);
+      setAnalysisProgress(0);
+    }
+  };
+
+  // Convert manufacturing analysis data to UI format
+  const convertManufacturingDataToUI = (modelData: CADModelData) => {
+    const results: any[] = [];
+
+    // Bounding box dimensions
+    if (modelData.boundingBoxWithTolerance) {
+      const bbox = modelData.boundingBoxWithTolerance;
+      results.push({
+        check: 'Dimensional Tolerance (AISC 303)',
+        value: `±${bbox.tolerance.toFixed(3)}"`,
+        requirement: 'AISC 303 Section 6',
+        status: 'Valid',
+        message: `Tolerance calculated for ${Math.max(bbox.length, bbox.width, bbox.height).toFixed(1)}" maximum dimension`,
+      });
+    }
+
+    // Material thickness analysis
+    if (modelData.thicknessAnalysis) {
+      const thickness = modelData.thicknessAnalysis;
+      const status = thickness.isStandardGauge ? 'Valid' : 'Warning';
+      results.push({
+        check: 'Material Thickness',
+        value: `${thickness.estimatedThickness.toFixed(3)}"`,
+        requirement: 'Standard gauge sizes',
+        status: status,
+        message: thickness.isStandardGauge
+          ? 'Material thickness matches standard gauge'
+          : 'Non-standard thickness - may require special material ordering',
+        suggestion: thickness.isStandardGauge
+          ? undefined
+          : 'Consider using standard gauge thickness to reduce cost and lead time',
+      });
+
+      // Weld size requirements
+      results.push({
+        check: 'Minimum Weld Size (AISC 360 J2.4)',
+        value: `${thickness.minWeldSize.toFixed(3)}"`,
+        requirement: `${thickness.maxWeldSize.toFixed(3)}" max`,
+        status: 'Valid',
+        message: `For ${thickness.estimatedThickness.toFixed(3)}" material thickness`,
+      });
+
+      // Preheat requirements
+      if (thickness.requiresPreheat) {
+        results.push({
+          check: 'Preheat Requirement (AWS D1.1)',
+          value: 'Required',
+          requirement: '>1" thickness',
+          status: 'Warning',
+          message: 'Material thickness requires preheating before welding',
+          suggestion: 'Preheat to minimum 150°F per AWS D1.1 Table 3.2',
+        });
+      }
+    }
+
+    // Hole analysis
+    if (modelData.holeAnalysis && modelData.holeAnalysis.count > 0) {
+      const holes = modelData.holeAnalysis;
+
+      // Non-standard sizes
+      holes.nonStandardSizes.forEach((ns) => {
+        results.push({
+          check: `Hole #${ns.holeIndex + 1} - Standard Size`,
+          value: `${ns.actual.toFixed(4)}"`,
+          requirement: `Nearest: ${ns.nearest}"`,
+          status: 'Warning',
+          message: 'Non-standard drill size detected - requires special tooling',
+          suggestion: `Consider changing to standard size ${ns.nearest}" to reduce cost`,
+        });
+      });
+
+      // Edge distance violations
+      holes.edgeDistances.forEach((ed) => {
+        const status = ed.compliance.sheared ? 'Valid' : 'Invalid';
+        if (!ed.compliance.sheared) {
+          results.push({
+            check: `Hole #${ed.holeIndex + 1} - Edge Distance (AISC 360 J3.4)`,
+            value: `${ed.minEdgeDistance.toFixed(3)}"`,
+            requirement: `${ed.compliance.requiredSheared.toFixed(3)}" (sheared)`,
+            status: 'Invalid',
+            message: `Edge distance too small - violates AISC 360 Table J3.4`,
+            suggestion: `Increase edge distance by at least ${Math.abs(ed.compliance.margin).toFixed(3)}"`,
+          });
+        }
+      });
+
+      // Spacing violations
+      holes.spacingViolations.forEach((sv) => {
+        results.push({
+          check: `Holes #${sv.hole1 + 1} & #${sv.hole2 + 1} - Spacing (AISC 360 J3.3)`,
+          value: `${sv.actual.toFixed(3)}"`,
+          requirement: `${sv.minimum.toFixed(3)}" minimum`,
+          status: 'Invalid',
+          message: 'Hole spacing violates AISC 360 Section J3.3 minimum requirements',
+          suggestion: `Increase spacing to at least ${sv.preferred.toFixed(3)}" (preferred)`,
+        });
+      });
+
+      // If no violations, add success message
+      if (
+        holes.nonStandardSizes.length === 0 &&
+        holes.spacingViolations.length === 0 &&
+        holes.edgeDistances.every((ed) => ed.compliance.sheared)
+      ) {
+        results.push({
+          check: `Hole Analysis (${holes.count} holes detected)`,
+          value: 'All compliant',
+          requirement: 'AISC 360 J3.3, J3.4',
+          status: 'Valid',
+          message: 'All holes meet edge distance and spacing requirements',
+        });
+      }
+    }
+
+    // Edge analysis
+    if (modelData.edgeAnalysis && modelData.edgeAnalysis.sharpCorners.length > 0) {
+      results.push({
+        check: 'Sharp Corner Detection',
+        value: `${modelData.edgeAnalysis.sharpCorners.length} found`,
+        requirement: '≥1/8" radius recommended',
+        status: 'Warning',
+        message: 'Sharp corners detected - may cause stress concentrations',
+        suggestion: 'Consider adding fillet radius ≥1/8" to reduce stress concentrations',
+      });
+    }
+
+    // Weld joint analysis
+    if (modelData.weldJointAnalysis && modelData.weldJointAnalysis.totalJoints > 0) {
+      const welds = modelData.weldJointAnalysis;
+      const accessible = welds.totalJoints - welds.accessibilityIssues;
+      const status = welds.accessibilityIssues === 0 ? 'Valid' : 'Warning';
+
+      results.push({
+        check: 'Weld Accessibility (AWS D1.1)',
+        value: `${accessible}/${welds.totalJoints} accessible`,
+        requirement: 'AWS D1.1 accessibility',
+        status: status,
+        message:
+          welds.accessibilityIssues === 0
+            ? 'All weld joints are accessible'
+            : `${welds.accessibilityIssues} joint(s) may be difficult to weld`,
+        suggestion:
+          welds.accessibilityIssues > 0
+            ? 'Consider redesign or special fixturing for inaccessible joints'
+            : undefined,
+      });
+    }
+
+    // Bend analysis
+    if (modelData.bendAnalysis && modelData.bendAnalysis.violations > 0) {
+      results.push({
+        check: `Bend Radius (${modelData.bendAnalysis.materialGrade})`,
+        value: `${modelData.bendAnalysis.violations} violation(s)`,
+        requirement: `≥${modelData.bendAnalysis.minBendRadius.toFixed(3)}"`,
+        status: 'Invalid',
+        message: 'Bend radius below minimum for material grade',
+        suggestion: `Increase bend radius to ≥${modelData.bendAnalysis.minBendRadius.toFixed(3)}" for ${modelData.bendAnalysis.materialGrade}`,
+      });
+    }
+
+    // If no data, return message
+    if (results.length === 0) {
+      results.push({
+        check: 'Manufacturing Analysis',
+        value: 'No data',
+        requirement: 'N/A',
+        status: 'Warning',
+        message: 'No manufacturing analysis data available for this model',
+        suggestion: 'Ensure the file format supports detailed geometry analysis (e.g., STEP files)',
+      });
+    }
+
+    return results;
+  };
+
+  const validateManufacturability = () => {
+    // Simply switch to validation tab
+    // Analysis must be run explicitly via the button
     setActiveTab('validation');
   };
 
-  const verifySpecifications = async () => {
-    if (!analysis) return;
-    
-    setIsVerifying(true);
-    
-    // Simulate verification process
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setSpecificationResults(sampleSpecificationResults);
-    setIsVerifying(false);
+  // Convert compliance data to UI format
+  const convertSpecificationDataToUI = (modelData: CADModelData) => {
+    const results: any[] = [];
+
+    // Run compliance checking
+    try {
+      const checker = ComplianceChecker.fromCADModel(modelData, {
+        materialGrade: 'A36',
+        edgeType: 'sheared',
+        ambientTemp: 70,
+      });
+
+      const complianceResults = checker.checkAll();
+      const report = checker.generateReport();
+
+      // Add overall summary
+      results.push({
+        specification: 'Overall Compliance',
+        verified: report.summary.criticalViolations === 0,
+        value: report.summary.overallStatus,
+        standard: 'AISC/AWS/ASTM Standards',
+        status: report.summary.criticalViolations === 0 ? 'Valid' : 'Invalid',
+        notes: report.summary.statusMessage,
+      });
+
+      // Add violations
+      complianceResults.violations.forEach((v) => {
+        results.push({
+          specification: v.code,
+          verified: false,
+          value: v.message,
+          standard: v.standard || 'Manufacturing Standard',
+          status: 'Invalid',
+          notes: v.recommendation || v.message,
+        });
+      });
+
+      // Add warnings as specification checks
+      complianceResults.warnings.forEach((w) => {
+        results.push({
+          specification: w.code,
+          verified: true,
+          value: w.message,
+          standard: w.standard || 'Best Practice',
+          status: 'Warning',
+          notes: w.recommendation || w.message,
+        });
+      });
+
+      // Add sample passes
+      if (complianceResults.passes.length > 0) {
+        const samplePasses = complianceResults.passes.slice(0, 3);
+        samplePasses.forEach((p) => {
+          results.push({
+            specification: p.code,
+            verified: true,
+            value: 'Compliant',
+            standard: p.standard || 'Manufacturing Standard',
+            status: 'Valid',
+            notes: p.message,
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error running compliance check:', error);
+      results.push({
+        specification: 'Compliance Check Error',
+        verified: false,
+        value: 'Analysis failed',
+        standard: 'N/A',
+        status: 'Missing',
+        notes: 'Unable to perform compliance checking on this model',
+      });
+    }
+
+    // Add manufacturing data summaries
+    if (modelData.holeAnalysis && modelData.holeAnalysis.count > 0) {
+      results.push({
+        specification: 'Hole Count',
+        verified: true,
+        value: `${modelData.holeAnalysis.count} holes detected`,
+        standard: 'AISC 360 J3.3, J3.4',
+        status: 'Valid',
+        notes: 'Hole geometry extracted for compliance checking',
+      });
+    }
+
+    if (modelData.thicknessAnalysis) {
+      results.push({
+        specification: 'Material Thickness',
+        verified: modelData.thicknessAnalysis.isStandardGauge,
+        value: `${modelData.thicknessAnalysis.estimatedThickness.toFixed(3)}"`,
+        standard: 'Standard Gauge Sizes',
+        status: modelData.thicknessAnalysis.isStandardGauge ? 'Valid' : 'Warning',
+        notes: modelData.thicknessAnalysis.isStandardGauge
+          ? 'Standard gauge thickness'
+          : 'Non-standard thickness',
+      });
+    }
+
+    if (modelData.weldJointAnalysis && modelData.weldJointAnalysis.totalJoints > 0) {
+      const compliantJoints = modelData.weldJointAnalysis.joints.filter(
+        (j) => j.meetsAWSRequirement
+      ).length;
+      results.push({
+        specification: 'Weld Joint Compliance',
+        verified: compliantJoints === modelData.weldJointAnalysis.totalJoints,
+        value: `${compliantJoints}/${modelData.weldJointAnalysis.totalJoints} compliant`,
+        standard: 'AWS D1.1',
+        status:
+          compliantJoints === modelData.weldJointAnalysis.totalJoints ? 'Valid' : 'Warning',
+        notes:
+          compliantJoints === modelData.weldJointAnalysis.totalJoints
+            ? 'All joints meet AWS D1.1 requirements'
+            : `${modelData.weldJointAnalysis.totalJoints - compliantJoints} joint(s) below 60° minimum angle`,
+      });
+    }
+
+    if (results.length === 0) {
+      results.push({
+        specification: 'Specification Verification',
+        verified: false,
+        value: 'No data',
+        standard: 'N/A',
+        status: 'Missing',
+        notes: 'No specification data available for verification',
+      });
+    }
+
+    return results;
+  };
+
+  const verifySpecifications = () => {
+    // Simply switch to verification tab
+    // Analysis must be run explicitly via the button
     setActiveTab('verification');
   };
 
+  const generateComprehensiveReport = () => {
+    const timestamp = new Date().toLocaleString();
+    const fileName = uploadState.file?.name || 'Unknown File';
+
+    let report = '';
+
+    // Header
+    report += '═══════════════════════════════════════════════════════════════\n';
+    report += '              CAD MODEL ANALYSIS REPORT\n';
+    report += '═══════════════════════════════════════════════════════════════\n\n';
+    report += `File Name: ${fileName}\n`;
+    report += `Analysis Date: ${timestamp}\n`;
+    report += `Analysis ID: ${analysis?.analysisId || 'N/A'}\n\n`;
+
+    // 1. Executive Summary
+    report += '───────────────────────────────────────────────────────────────\n';
+    report += '1. EXECUTIVE SUMMARY\n';
+    report += '───────────────────────────────────────────────────────────────\n\n';
+
+    if (analysis) {
+      report += `Confidence Level: ${Math.round(analysis.confidence * 100)}%\n`;
+      report += `Component Type: ${analysis.extractedSpecs.componentType || 'Not specified'}\n`;
+      report += `Analysis: ${analysis.reasoning}\n\n`;
+    }
+
+    // Overall status
+    const totalChecks = manufacturabilityResults.length + specificationResults.length;
+    const validChecks = [
+      ...manufacturabilityResults.filter(r => r.status === 'Valid'),
+      ...specificationResults.filter(r => r.status === 'Valid')
+    ].length;
+    const warningChecks = [
+      ...manufacturabilityResults.filter(r => r.status === 'Warning'),
+      ...specificationResults.filter(r => r.status === 'Warning' || r.status === 'Missing')
+    ].length;
+    const invalidChecks = [
+      ...manufacturabilityResults.filter(r => r.status === 'Invalid'),
+      ...specificationResults.filter(r => r.status === 'Invalid')
+    ].length;
+
+    report += `Overall Status: ${invalidChecks === 0 ? (warningChecks === 0 ? 'PASS' : 'PASS WITH WARNINGS') : 'FAIL'}\n`;
+    report += `Total Checks: ${totalChecks}\n`;
+    report += `  ✓ Valid: ${validChecks}\n`;
+    report += `  ⚠ Warnings: ${warningChecks}\n`;
+    report += `  ✗ Issues: ${invalidChecks}\n\n`;
+
+    // 2. Technical Specifications
+    report += '───────────────────────────────────────────────────────────────\n';
+    report += '2. TECHNICAL SPECIFICATIONS\n';
+    report += '───────────────────────────────────────────────────────────────\n\n';
+
+    if (analysis?.extractedSpecs) {
+      const specs = analysis.extractedSpecs;
+      if (specs.dimensions) report += `Dimensions: ${specs.dimensions}\n`;
+      if (specs.material) report += `Material: ${specs.material}\n`;
+      if (specs.tolerance) report += `Tolerance: ${specs.tolerance}\n`;
+      if (specs.loadRequirements) report += `Load Requirements: ${specs.loadRequirements}\n`;
+      report += '\n';
+    }
+
+    if (cadModelData?.boundingBox) {
+      const bbox = cadModelData.boundingBox;
+      report += `Bounding Box:\n`;
+      if (bbox.length != null) report += `  Length: ${bbox.length.toFixed(3)}" (${(bbox.length * 25.4).toFixed(1)}mm)\n`;
+      if (bbox.width != null) report += `  Width: ${bbox.width.toFixed(3)}" (${(bbox.width * 25.4).toFixed(1)}mm)\n`;
+      if (bbox.height != null) report += `  Height: ${bbox.height.toFixed(3)}" (${(bbox.height * 25.4).toFixed(1)}mm)\n`;
+      if (bbox.volume != null) report += `  Volume: ${bbox.volume.toFixed(2)} cubic inches\n`;
+      report += '\n';
+    }
+
+    if (cadModelData) {
+      report += `Geometry Complexity:\n`;
+      if (cadModelData.faceCount) report += `  Faces: ${cadModelData.faceCount}\n`;
+      if (cadModelData.edgeCount) report += `  Edges: ${cadModelData.edgeCount}\n`;
+      if (cadModelData.vertexCount) report += `  Vertices: ${cadModelData.vertexCount}\n`;
+      report += '\n';
+    }
+
+    // 3. Manufacturing Analysis
+    if (manufacturabilityResults.length > 0) {
+      report += '───────────────────────────────────────────────────────────────\n';
+      report += '3. MANUFACTURABILITY VALIDATION\n';
+      report += '───────────────────────────────────────────────────────────────\n\n';
+
+      manufacturabilityResults.forEach((result, index) => {
+        const icon = result.status === 'Valid' ? '✓' : result.status === 'Warning' ? '⚠' : '✗';
+        report += `${index + 1}. ${icon} ${result.check}\n`;
+        report += `   Status: ${result.status}\n`;
+        report += `   Current: ${result.value}\n`;
+        report += `   Required: ${result.requirement}\n`;
+        report += `   ${result.message}\n`;
+        if (result.suggestion) {
+          report += `   Suggestion: ${result.suggestion}\n`;
+        }
+        report += '\n';
+      });
+    }
+
+    // 4. Specification Verification
+    if (specificationResults.length > 0) {
+      report += '───────────────────────────────────────────────────────────────\n';
+      report += '4. SPECIFICATION VERIFICATION\n';
+      report += '───────────────────────────────────────────────────────────────\n\n';
+
+      specificationResults.forEach((result, index) => {
+        const icon = result.verified ? '✓' : '✗';
+        report += `${index + 1}. ${icon} ${result.specification}\n`;
+        report += `   Status: ${result.status}\n`;
+        report += `   Standard: ${result.standard}\n`;
+        report += `   Value: ${result.value}\n`;
+        report += `   Notes: ${result.notes}\n\n`;
+      });
+    }
+
+    // 5. Detailed Features
+    report += '───────────────────────────────────────────────────────────────\n';
+    report += '5. DETAILED FEATURE ANALYSIS\n';
+    report += '───────────────────────────────────────────────────────────────\n\n';
+
+    if (cadModelData?.holeAnalysis && cadModelData.holeAnalysis.count > 0) {
+      const holes = cadModelData.holeAnalysis;
+      report += `Hole Analysis (${holes.count} holes detected):\n`;
+      holes.holes?.forEach((hole, idx) => {
+        report += `  Hole #${idx + 1}:\n`;
+        if (hole.diameter != null) report += `    Diameter: ${hole.diameter.toFixed(4)}"\n`;
+        report += `    Standard Size: ${hole.isStandardSize ? 'Yes' : 'No'}\n`;
+        if (hole.center?.x != null && hole.center?.y != null && hole.center?.z != null) {
+          report += `    Center: (${hole.center.x.toFixed(2)}, ${hole.center.y.toFixed(2)}, ${hole.center.z.toFixed(2)})\n`;
+        }
+      });
+      if (holes.nonStandardSizes?.length > 0) {
+        report += `  Non-Standard Sizes: ${holes.nonStandardSizes.length}\n`;
+      }
+      if (holes.spacingViolations?.length > 0) {
+        report += `  Spacing Violations: ${holes.spacingViolations.length}\n`;
+      }
+      report += '\n';
+    }
+
+    if (cadModelData?.thicknessAnalysis) {
+      const thickness = cadModelData.thicknessAnalysis;
+      report += `Material Thickness Analysis:\n`;
+      if (thickness.estimatedThickness != null) report += `  Estimated Thickness: ${thickness.estimatedThickness.toFixed(3)}"\n`;
+      report += `  Standard Gauge: ${thickness.isStandardGauge ? 'Yes' : 'No'}\n`;
+      if (thickness.minWeldSize != null) report += `  Min Weld Size (AISC 360 J2.4): ${thickness.minWeldSize.toFixed(3)}"\n`;
+      if (thickness.maxWeldSize != null) report += `  Max Weld Size: ${thickness.maxWeldSize.toFixed(3)}"\n`;
+      report += `  Preheat Required (AWS D1.1): ${thickness.requiresPreheat ? 'Yes' : 'No'}\n\n`;
+    }
+
+    if (cadModelData?.edgeAnalysis) {
+      const edges = cadModelData.edgeAnalysis;
+      report += `Edge Analysis:\n`;
+      report += `  Total Edges: ${edges.totalEdges}\n`;
+      if (edges.sharpCorners?.length > 0) {
+        report += `  Sharp Corners Detected: ${edges.sharpCorners.length}\n`;
+        edges.sharpCorners.forEach((corner, idx) => {
+          if (corner.radius != null) {
+            report += `    Corner #${idx + 1}: Radius ${corner.radius.toFixed(4)}" - ${corner.warning || 'N/A'}\n`;
+          }
+        });
+      }
+      report += '\n';
+    }
+
+    if (cadModelData?.weldJointAnalysis && cadModelData.weldJointAnalysis.totalJoints > 0) {
+      const welds = cadModelData.weldJointAnalysis;
+      report += `Weld Joint Analysis:\n`;
+      report += `  Total Joints: ${welds.totalJoints}\n`;
+      report += `  Accessibility Issues: ${welds.accessibilityIssues}\n`;
+      const compliantJoints = welds.joints?.filter(j => j.meetsAWSRequirement).length || 0;
+      report += `  AWS D1.1 Compliant: ${compliantJoints}/${welds.totalJoints}\n\n`;
+    }
+
+    if (cadModelData?.bendAnalysis && cadModelData.bendAnalysis.totalBends > 0) {
+      const bends = cadModelData.bendAnalysis;
+      report += `Bend Analysis:\n`;
+      report += `  Total Bends: ${bends.totalBends}\n`;
+      if (bends.materialGrade) report += `  Material Grade: ${bends.materialGrade}\n`;
+      if (bends.minBendRadius != null) report += `  Min Bend Radius: ${bends.minBendRadius.toFixed(3)}"\n`;
+      report += `  Violations: ${bends.violations || 0}\n\n`;
+    }
+
+    // 6. Recommendations
+    report += '───────────────────────────────────────────────────────────────\n';
+    report += '6. RECOMMENDATIONS\n';
+    report += '───────────────────────────────────────────────────────────────\n\n';
+
+    const suggestions = [
+      ...manufacturabilityResults.filter(r => r.suggestion).map(r => r.suggestion),
+      ...specificationResults.filter(r => r.status === 'Invalid' || r.status === 'Warning').map(r => r.notes)
+    ];
+
+    if (suggestions.length > 0) {
+      suggestions.forEach((suggestion, index) => {
+        report += `${index + 1}. ${suggestion}\n`;
+      });
+    } else {
+      report += 'No critical recommendations. Component meets all requirements.\n';
+    }
+
+    report += '\n';
+
+    // 7. Compliance Summary
+    report += '───────────────────────────────────────────────────────────────\n';
+    report += '7. COMPLIANCE SUMMARY\n';
+    report += '───────────────────────────────────────────────────────────────\n\n';
+
+    report += 'Standards Referenced:\n';
+    report += '  - AISC 303: Dimensional Tolerances\n';
+    report += '  - AISC 360: Structural Steel Specifications\n';
+    report += '  - AWS D1.1: Structural Welding Code\n';
+    report += '  - ASTM: Material Standards\n\n';
+
+    if (invalidChecks === 0) {
+      report += 'CONCLUSION: Component is COMPLIANT with all checked standards.\n';
+    } else {
+      report += `CONCLUSION: Component has ${invalidChecks} CRITICAL ISSUE(S) that must be addressed.\n`;
+    }
+
+    report += '\n';
+    report += '═══════════════════════════════════════════════════════════════\n';
+    report += '                    END OF REPORT\n';
+    report += '═══════════════════════════════════════════════════════════════\n';
+
+    return report;
+  };
+
   const generateReport = async () => {
-    if (!analysis) return;
-    
+    if (!analysis && !cadModelData) return;
+
     setIsGeneratingReport(true);
-    
+
     // Simulate report generation
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
+
     setReportGenerated(true);
     setIsGeneratingReport(false);
     setShowReportModal(true);
   };
 
   const downloadReport = (format: 'pdf' | 'txt') => {
-    // Simulate download
-    const content = format === 'pdf' ? 'PDF Report Content' : 'Text Report Content';
-    const blob = new Blob([content], { 
-      type: format === 'pdf' ? 'application/pdf' : 'text/plain' 
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `analysis_report_${Date.now()}.${format}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const reportContent = generateComprehensiveReport();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const fileName = uploadState.file?.name.split('.')[0] || 'analysis';
+
+    if (format === 'txt') {
+      // Download as text file
+      const blob = new Blob([reportContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${fileName}_report_${timestamp}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else {
+      // Download as PDF (using HTML and print)
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>CAD Analysis Report - ${fileName}</title>
+            <style>
+              body {
+                font-family: 'Courier New', monospace;
+                padding: 20mm;
+                line-height: 1.6;
+                font-size: 11pt;
+              }
+              pre {
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                margin: 0;
+              }
+              @media print {
+                body { margin: 0; padding: 15mm; }
+              }
+            </style>
+          </head>
+          <body>
+            <pre>${reportContent}</pre>
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      }
+    }
   };
 
   return (
@@ -534,10 +1210,138 @@ const CADAnalyzerFull: React.FC = () => {
                     ) && (
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">3D Model Preview</h3>
-                        <CADPreview3D 
+                        <CADPreview3D
                           file={uploadState.file}
                           showStats={true}
+                          onModelDataParsed={(data) => {
+                            setCADModelData(data);
+                            console.log('Manufacturing data received:', {
+                              holes: data.holeAnalysis?.count,
+                              thickness: data.thicknessAnalysis?.estimatedThickness,
+                              edges: data.edgeAnalysis?.totalEdges,
+                              welds: data.weldJointAnalysis?.totalJoints,
+                              bends: data.bendAnalysis?.totalBends,
+                            });
+                          }}
                         />
+                      </div>
+                    )}
+
+                    {/* Manufacturing Analysis Control - For CAD files */}
+                    {uploadState.file && ['step', 'stp', 'stl', 'obj', 'dxf', 'gltf', 'glb'].includes(
+                      uploadState.file.name.split('.').pop()?.toLowerCase() || ''
+                    ) && cadModelData && (
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                              Manufacturing Analysis
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              {manufacturabilityResults.length > 0
+                                ? 'Analysis complete! View results in Manufacturability and Specifications tabs.'
+                                : 'Run detailed manufacturing analysis to check dimensions, holes, welds, and compliance.'}
+                            </p>
+                          </div>
+                          {manufacturabilityResults.length > 0 && (
+                            <div className="flex items-center space-x-2 bg-green-100 px-3 py-1 rounded-full">
+                              <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              <span className="text-sm font-medium text-green-800">Complete</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {isAnalyzingManufacturing ? (
+                          <div className="space-y-4">
+                            {/* Progress Bar */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium text-gray-700">{analysisStage}</span>
+                                <span className="text-gray-600">{analysisProgress}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                                <div
+                                  className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-300 ease-out"
+                                  style={{ width: `${analysisProgress}%` }}
+                                >
+                                  <div className="w-full h-full bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Stage Indicators */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                              {[
+                                { name: 'Geometry', progress: 20 },
+                                { name: 'Holes', progress: 50 },
+                                { name: 'Thickness', progress: 60 },
+                                { name: 'Edges', progress: 70 },
+                                { name: 'Welds', progress: 80 },
+                                { name: 'Bends', progress: 90 },
+                                { name: 'Validate', progress: 100 }
+                              ].map((stage) => (
+                                <div
+                                  key={stage.name}
+                                  className={`flex items-center space-x-2 px-2 py-1 rounded ${
+                                    analysisProgress >= stage.progress
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : 'bg-gray-100 text-gray-400'
+                                  }`}
+                                >
+                                  {analysisProgress >= stage.progress ? (
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  ) : (
+                                    <div className="w-3 h-3 border-2 border-current rounded-full"></div>
+                                  )}
+                                  <span className="font-medium">{stage.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : manufacturabilityResults.length > 0 ? (
+                          <div className="flex items-center space-x-3">
+                            <Button
+                              onClick={runManufacturingAnalysis}
+                              variant="outline"
+                              size="sm"
+                            >
+                              Re-run Analysis
+                            </Button>
+                            <Button
+                              onClick={() => setActiveTab('validation')}
+                              size="sm"
+                            >
+                              View Manufacturability Results
+                            </Button>
+                            <Button
+                              onClick={() => setActiveTab('verification')}
+                              size="sm"
+                              variant="outline"
+                            >
+                              View Specifications
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-3">
+                            <Button
+                              onClick={runManufacturingAnalysis}
+                              size="lg"
+                              className="flex items-center space-x-2"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                              </svg>
+                              <span>Run Manufacturing Analysis</span>
+                            </Button>
+                            <div className="text-sm text-gray-600">
+                              <span className="font-medium">Checks:</span> Dimensions, Holes, Edges, Welds, Bends, Compliance
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -660,13 +1464,8 @@ const CADAnalyzerFull: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-gray-900">Manufacturability Validation</h3>
-                      {manufacturabilityResults.length === 0 && (
-                        <Button onClick={validateManufacturability} disabled={isValidating} size="sm">
-                          {isValidating ? <LoadingSpinner size="sm" /> : 'Run Validation'}
-                        </Button>
-                      )}
                     </div>
-                    
+
                     {manufacturabilityResults.length > 0 ? (
                       <div className="space-y-4">
                         {manufacturabilityResults.map((result, index) => (
@@ -710,12 +1509,32 @@ const CADAnalyzerFull: React.FC = () => {
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p>No manufacturability validation results yet.</p>
-                        <p className="text-sm mt-1">Click "Validate Manufacturability" to check manufacturing feasibility.</p>
+                      <div className="text-center py-12 text-gray-500">
+                        <div className="bg-blue-50 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                          </svg>
+                        </div>
+                        <p className="text-lg font-medium text-gray-900 mb-2">Manufacturing Analysis Not Run</p>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Run the manufacturing analysis to check dimensions, tolerances,<br />
+                          hole spacing, edge distances, and manufacturing feasibility.
+                        </p>
+                        <Button onClick={runManufacturingAnalysis} disabled={isAnalyzingManufacturing}>
+                          {isAnalyzingManufacturing ? (
+                            <>
+                              <LoadingSpinner size="sm" />
+                              <span className="ml-2">Analyzing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                              </svg>
+                              Run Manufacturing Analysis
+                            </>
+                          )}
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -725,13 +1544,8 @@ const CADAnalyzerFull: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-gray-900">Specification Verification</h3>
-                      {specificationResults.length === 0 && (
-                        <Button onClick={verifySpecifications} disabled={isVerifying} size="sm">
-                          {isVerifying ? <LoadingSpinner size="sm" /> : 'Run Verification'}
-                        </Button>
-                      )}
                     </div>
-                    
+
                     {specificationResults.length > 0 ? (
                       <div className="space-y-4">
                         {specificationResults.map((result, index) => (
@@ -785,12 +1599,32 @@ const CADAnalyzerFull: React.FC = () => {
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p>No specification verification results yet.</p>
-                        <p className="text-sm mt-1">Click "Verify Specifications" to check drawing specifications against standards.</p>
+                      <div className="text-center py-12 text-gray-500">
+                        <div className="bg-purple-50 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                          <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <p className="text-lg font-medium text-gray-900 mb-2">Specification Verification Not Run</p>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Run the manufacturing analysis to verify specifications against<br />
+                          AISC 360, AWS D1.1, and ASTM standards.
+                        </p>
+                        <Button onClick={runManufacturingAnalysis} disabled={isAnalyzingManufacturing}>
+                          {isAnalyzingManufacturing ? (
+                            <>
+                              <LoadingSpinner size="sm" />
+                              <span className="ml-2">Analyzing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                              </svg>
+                              Run Manufacturing Analysis
+                            </>
+                          )}
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -813,41 +1647,102 @@ const CADAnalyzerFull: React.FC = () => {
                           <h4 className="font-medium text-gray-900 mb-3">Report Summary</h4>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
-                              <span className="font-medium text-gray-700">Drawing:</span>
-                              <p className="text-gray-900">{sampleAnalysisReport.drawingName}</p>
+                              <span className="font-medium text-gray-700">File Name:</span>
+                              <p className="text-gray-900">{uploadState.file?.name || 'Unknown'}</p>
                             </div>
                             <div>
-                              <span className="font-medium text-gray-700">Status:</span>
-                              <p className="text-gray-900">{sampleAnalysisReport.overallStatus}</p>
+                              <span className="font-medium text-gray-700">Overall Status:</span>
+                              <p className={`font-semibold ${
+                                manufacturabilityResults.filter(r => r.status === 'Invalid').length === 0 &&
+                                specificationResults.filter(r => r.status === 'Invalid').length === 0
+                                  ? 'text-green-600'
+                                  : 'text-red-600'
+                              }`}>
+                                {manufacturabilityResults.filter(r => r.status === 'Invalid').length === 0 &&
+                                specificationResults.filter(r => r.status === 'Invalid').length === 0
+                                  ? 'PASS'
+                                  : 'FAIL'}
+                              </p>
                             </div>
                             <div>
-                              <span className="font-medium text-gray-700">Manufacturability:</span>
-                              <p className="text-gray-900">{sampleAnalysisReport.manufacturability}%</p>
+                              <span className="font-medium text-gray-700">Confidence:</span>
+                              <p className="text-gray-900">{analysis ? `${Math.round(analysis.confidence * 100)}%` : 'N/A'}</p>
                             </div>
                             <div>
-                              <span className="font-medium text-gray-700">Cost Estimate:</span>
-                              <p className="text-gray-900">{sampleAnalysisReport.costEstimate}</p>
+                              <span className="font-medium text-gray-700">Total Checks:</span>
+                              <p className="text-gray-900">
+                                {manufacturabilityResults.length + specificationResults.length}
+                              </p>
                             </div>
+                            {cadModelData?.boundingBox && (
+                              <>
+                                <div>
+                                  <span className="font-medium text-gray-700">Dimensions:</span>
+                                  <p className="text-gray-900 text-xs">
+                                    {(cadModelData.boundingBox.length * 25.4).toFixed(1)}mm × {(cadModelData.boundingBox.width * 25.4).toFixed(1)}mm × {(cadModelData.boundingBox.height * 25.4).toFixed(1)}mm
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-700">Features:</span>
+                                  <p className="text-gray-900 text-xs">
+                                    {cadModelData.holeAnalysis?.count || 0} holes, {cadModelData.weldJointAnalysis?.totalJoints || 0} welds
+                                  </p>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
-                        
-                        <div className="bg-blue-50 p-4 rounded-lg">
-                          <h4 className="font-medium text-gray-900 mb-2">Recommendations</h4>
+
+                        {/* Preview of report content */}
+                        <div className="bg-white border rounded-lg p-4 max-h-96 overflow-y-auto">
+                          <h4 className="font-medium text-gray-900 mb-2">Report Preview</h4>
+                          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">
+                            {generateComprehensiveReport().substring(0, 1500)}...
+                            {'\n\n[Download full report for complete details]'}
+                          </pre>
+                        </div>
+
+                        <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                          <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                            <svg className="w-5 h-5 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Key Findings
+                          </h4>
                           <ul className="text-sm text-gray-700 space-y-1">
-                            {sampleAnalysisReport.recommendations.map((rec, index) => (
+                            {[
+                              ...manufacturabilityResults
+                                .filter(r => r.status === 'Invalid' || r.status === 'Warning')
+                                .slice(0, 3)
+                                .map(r => r.message),
+                              ...specificationResults
+                                .filter(r => r.status === 'Invalid' || r.status === 'Warning')
+                                .slice(0, 2)
+                                .map(r => r.notes)
+                            ].map((finding, index) => (
                               <li key={index} className="flex items-start">
-                                <span className="text-blue-600 mr-2">•</span>
-                                {rec}
+                                <span className="text-amber-600 mr-2">•</span>
+                                {finding}
                               </li>
                             ))}
+                            {manufacturabilityResults.filter(r => r.status === 'Invalid' || r.status === 'Warning').length === 0 &&
+                            specificationResults.filter(r => r.status === 'Invalid' || r.status === 'Warning').length === 0 && (
+                              <li className="text-green-700">All checks passed. Component meets all requirements.</li>
+                            )}
                           </ul>
                         </div>
-                        
+
                         <div className="flex space-x-3">
                           <Button onClick={() => downloadReport('pdf')} className="flex-1">
+                            <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
                             Download PDF
                           </Button>
                           <Button onClick={() => downloadReport('txt')} variant="outline" className="flex-1">
+                            <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
                             Download Text
                           </Button>
                         </div>

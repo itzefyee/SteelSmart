@@ -8,12 +8,23 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    
+    const cadDataJson = formData.get('cadModelData') as string;
+
     if (!file) {
       return NextResponse.json<APIResponse<null>>({
         success: false,
         error: 'No file provided'
       }, { status: 400 });
+    }
+
+    // Parse CAD model data if provided
+    let cadModelData = null;
+    if (cadDataJson) {
+      try {
+        cadModelData = JSON.parse(cadDataJson);
+      } catch (e) {
+        console.warn('Failed to parse CAD model data:', e);
+      }
     }
 
     // Validate file type and size
@@ -56,10 +67,15 @@ export async function POST(request: NextRequest) {
         
         // Convert file to buffer
         const fileBuffer = Buffer.from(await file.arrayBuffer());
-        
-        // Call Gemini API
-        const geminiResponse = await geminiClient.analyzeDrawing(fileBuffer, file.type, file.name);
-        
+
+        // Call Gemini API with CAD data
+        const geminiResponse = await geminiClient.analyzeDrawing(
+          fileBuffer,
+          file.type,
+          file.name,
+          cadModelData
+        );
+
         // Create DrawingAnalysis from Gemini response, converting null to undefined
         analysis = {
           extractedSpecs: {
@@ -75,15 +91,15 @@ export async function POST(request: NextRequest) {
           reasoning: geminiResponse.reasoning,
           analysisId: `analysis_${Date.now()}`
         };
-        
+
       } catch (geminiError) {
         console.error('Gemini API failed, falling back to mock:', geminiError);
         // Fallback to mock analysis if Gemini fails
-        analysis = getFallbackAnalysis(file.name);
+        analysis = getFallbackAnalysis(file.name, cadModelData);
       }
     } else {
       // Use mock analysis if API not configured
-      analysis = getFallbackAnalysis(file.name);
+      analysis = getFallbackAnalysis(file.name, cadModelData);
     }
 
     // Use product matcher to find relevant products
@@ -163,7 +179,67 @@ export async function POST(request: NextRequest) {
 }
 
 // Fallback mock analysis function
-function getFallbackAnalysis(filename: string): DrawingAnalysis {
+function getFallbackAnalysis(filename: string, cadModelData?: any): DrawingAnalysis {
+  // If we have CAD model data, use it for more accurate analysis
+  if (cadModelData) {
+    // Calculate dimensions from bounding box (may have length/width/height OR min/max)
+    let dimensions: string | undefined = undefined;
+    if (cadModelData.boundingBox?.length && cadModelData.boundingBox?.width && cadModelData.boundingBox?.height) {
+      // Manufacturing analysis has been run, use calculated dimensions
+      dimensions = `${(cadModelData.boundingBox.length * 25.4).toFixed(1)}mm x ${(cadModelData.boundingBox.width * 25.4).toFixed(1)}mm x ${(cadModelData.boundingBox.height * 25.4).toFixed(1)}mm`;
+    } else if (cadModelData.boundingBox?.min && cadModelData.boundingBox?.max) {
+      // Only basic geometry extraction, calculate dimensions from min/max
+      const length = Math.abs(cadModelData.boundingBox.max.x - cadModelData.boundingBox.min.x);
+      const width = Math.abs(cadModelData.boundingBox.max.y - cadModelData.boundingBox.min.y);
+      const height = Math.abs(cadModelData.boundingBox.max.z - cadModelData.boundingBox.min.z);
+      dimensions = `${(length * 25.4).toFixed(1)}mm x ${(width * 25.4).toFixed(1)}mm x ${(height * 25.4).toFixed(1)}mm`;
+    }
+
+    const material = cadModelData.thicknessAnalysis?.estimatedThickness
+      ? `Steel (${cadModelData.thicknessAnalysis.estimatedThickness.toFixed(3)}" thick)`
+      : 'Steel (material analysis pending)';
+
+    const componentType = cadModelData.holeAnalysis?.count > 0
+      ? 'Mounting bracket or structural component'
+      : (cadModelData.faceCount ? 'Structural component' : '3D CAD Model');
+
+    const tolerance = cadModelData.boundingBoxWithTolerance?.tolerance
+      ? `±${cadModelData.boundingBoxWithTolerance.tolerance.toFixed(3)}"`
+      : '±0.005" (standard)';
+
+    const thicknessInfo = cadModelData.thicknessAnalysis?.estimatedThickness
+      ? `Material thickness: ${cadModelData.thicknessAnalysis.estimatedThickness.toFixed(3)}".`
+      : '';
+
+    const hasManufacturingAnalysis = !!(cadModelData.holeAnalysis || cadModelData.thicknessAnalysis || cadModelData.weldJointAnalysis);
+
+    console.log('Using CAD model data for analysis:', {
+      hasBoundingBox: !!cadModelData.boundingBox,
+      hasDimensions: !!dimensions,
+      hasManufacturingAnalysis,
+      faceCount: cadModelData.faceCount || 0,
+      holeCount: cadModelData.holeAnalysis?.count || 0,
+    });
+
+    return {
+      extractedSpecs: {
+        dimensions,
+        material,
+        loadRequirements: undefined,
+        componentType,
+        tolerance
+      },
+      recommendedProducts: [],
+      totalRecommendations: 0,
+      confidence: hasManufacturingAnalysis ? 0.92 : 0.75,
+      reasoning: hasManufacturingAnalysis
+        ? `Analysis based on parsed 3D CAD model data with detailed manufacturing analysis. Detected ${cadModelData.faceCount || 0} faces, ${cadModelData.holeAnalysis?.count || 0} holes, and ${cadModelData.weldJointAnalysis?.totalJoints || 0} potential weld joints. ${thicknessInfo}`
+        : `Analysis based on 3D CAD geometry. Detected ${cadModelData.faceCount || 0} faces. Run manufacturing analysis for detailed hole, thickness, and weld information.`,
+      analysisId: `analysis_${Date.now()}`
+    };
+  }
+
+  // Original sample-based analysis
   if (filename.includes('bracket')) {
     return {
       extractedSpecs: {

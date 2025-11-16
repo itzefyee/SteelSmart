@@ -14,6 +14,7 @@ interface CADPreview3DProps {
   onParsingStart?: () => void;
   onParsingComplete?: (ok: boolean) => void;
   onPreviewLoaded?: (ok: boolean) => void;
+  onModelDataParsed?: (data: CADModelData) => void;
 }
 
 const CADPreview3D: React.FC<CADPreview3DProps> = ({
@@ -24,6 +25,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
   onParsingStart,
   onParsingComplete,
   onPreviewLoaded,
+  onModelDataParsed,
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -71,6 +73,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
       setModelData(data);
       setIsLoading(false);
       if (onParsingComplete) onParsingComplete(true);
+      if (onModelDataParsed) onModelDataParsed(data);
     } catch (err: any) {
       console.error('Error parsing CAD file:', err);
       setError(`Failed to parse file: ${err.message}`);

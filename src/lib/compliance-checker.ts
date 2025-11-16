@@ -9,6 +9,7 @@ import {
     type EdgeType,
     type MaterialGrade
 } from './standards-database';
+import type { CADModelData } from './cad-parser';
 
 // Type definitions
 export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
@@ -69,6 +70,37 @@ export interface ComplianceReport {
 }
 
 /**
+ * Convert CADModelData to Geometry format for compliance checking
+ */
+export function convertCADModelToGeometry(cadModel: CADModelData): Geometry {
+    const bbox = cadModel.boundingBox;
+    const width = bbox.max.x - bbox.min.x;
+    const height = bbox.max.y - bbox.min.y;
+
+    // Convert holes from CADModelData format to Geometry format
+    const holes = cadModel.holeAnalysis?.holes.map(hole => ({
+        center: { x: hole.center.x, y: hole.center.y },
+        diameter: hole.diameter,
+        radius: hole.radius
+    })) || [];
+
+    return {
+        holes: holes,
+        bounds: {
+            minX: bbox.min.x,
+            maxX: bbox.max.x,
+            minY: bbox.min.y,
+            maxY: bbox.max.y
+        },
+        dimensions: {
+            width: width,
+            height: height,
+            area: width * height
+        }
+    };
+}
+
+/**
  * Comprehensive standards compliance checker
  */
 export class ComplianceChecker {
@@ -93,6 +125,20 @@ export class ComplianceChecker {
             passes: [],
             score: 100
         };
+    }
+
+    /**
+     * Create ComplianceChecker from CADModelData
+     */
+    static fromCADModel(cadModel: CADModelData, specifications: Specifications = {}): ComplianceChecker {
+        const geometry = convertCADModelToGeometry(cadModel);
+
+        // Use thickness from analysis if available
+        if (cadModel.thicknessAnalysis && !specifications.materialThickness) {
+            specifications.materialThickness = cadModel.thicknessAnalysis.estimatedThickness;
+        }
+
+        return new ComplianceChecker(geometry, specifications);
     }
 
     /**
