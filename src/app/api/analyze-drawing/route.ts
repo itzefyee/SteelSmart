@@ -142,15 +142,15 @@ export async function POST(request: NextRequest) {
             file_path: filePath,
             file_type: file.type,
             file_size: file.size,
-            extracted_specs: analysis.extractedSpecs,
+            extracted_specs: analysis.extractedSpecs as any,
             recommended_products: analysis.recommendedProducts.map(p => ({
               id: p.id,
               name: p.name,
               category: p.category
-            })),
+            })) as any,
             confidence: analysis.confidence,
             reasoning: analysis.reasoning,
-            gemini_response: analysis // Store full analysis
+            gemini_response: analysis as any // Store full analysis as JSON
           });
 
           console.log(`Saved drawing analysis for user ${user.id}`);

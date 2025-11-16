@@ -128,9 +128,9 @@ const CADAnalyzerFull: React.FC = () => {
         const cleanedCADData = {
           boundingBox: cadModelData.boundingBox,
           boundingBoxWithTolerance: cadModelData.boundingBoxWithTolerance,
-          faceCount: cadModelData.faceCount,
-          edgeCount: cadModelData.edgeCount,
-          vertexCount: cadModelData.vertexCount,
+          faceCount: cadModelData.faces,
+          edgeCount: cadModelData.edges,
+          vertexCount: cadModelData.vertices_count,
           holeAnalysis: cadModelData.holeAnalysis,
           thicknessAnalysis: cadModelData.thicknessAnalysis,
           edgeAnalysis: cadModelData.edgeAnalysis,
@@ -677,19 +677,24 @@ const CADAnalyzerFull: React.FC = () => {
 
     if (cadModelData?.boundingBox) {
       const bbox = cadModelData.boundingBox;
+      const length = bbox.max.x - bbox.min.x;
+      const width = bbox.max.y - bbox.min.y;
+      const height = bbox.max.z - bbox.min.z;
+      const volume = length * width * height;
+      
       report += `Bounding Box:\n`;
-      if (bbox.length != null) report += `  Length: ${bbox.length.toFixed(3)}" (${(bbox.length * 25.4).toFixed(1)}mm)\n`;
-      if (bbox.width != null) report += `  Width: ${bbox.width.toFixed(3)}" (${(bbox.width * 25.4).toFixed(1)}mm)\n`;
-      if (bbox.height != null) report += `  Height: ${bbox.height.toFixed(3)}" (${(bbox.height * 25.4).toFixed(1)}mm)\n`;
-      if (bbox.volume != null) report += `  Volume: ${bbox.volume.toFixed(2)} cubic inches\n`;
+      report += `  Length: ${length.toFixed(3)}" (${(length * 25.4).toFixed(1)}mm)\n`;
+      report += `  Width: ${width.toFixed(3)}" (${(width * 25.4).toFixed(1)}mm)\n`;
+      report += `  Height: ${height.toFixed(3)}" (${(height * 25.4).toFixed(1)}mm)\n`;
+      report += `  Volume: ${volume.toFixed(2)} cubic inches\n`;
       report += '\n';
     }
 
     if (cadModelData) {
       report += `Geometry Complexity:\n`;
-      if (cadModelData.faceCount) report += `  Faces: ${cadModelData.faceCount}\n`;
-      if (cadModelData.edgeCount) report += `  Edges: ${cadModelData.edgeCount}\n`;
-      if (cadModelData.vertexCount) report += `  Vertices: ${cadModelData.vertexCount}\n`;
+      if (cadModelData.faces) report += `  Faces: ${cadModelData.faces}\n`;
+      if (cadModelData.edges) report += `  Edges: ${cadModelData.edges}\n`;
+      if (cadModelData.vertices_count) report += `  Vertices: ${cadModelData.vertices_count}\n`;
       report += '\n';
     }
 
@@ -1679,7 +1684,7 @@ const CADAnalyzerFull: React.FC = () => {
                                 <div>
                                   <span className="font-medium text-gray-700">Dimensions:</span>
                                   <p className="text-gray-900 text-xs">
-                                    {(cadModelData.boundingBox.length * 25.4).toFixed(1)}mm × {(cadModelData.boundingBox.width * 25.4).toFixed(1)}mm × {(cadModelData.boundingBox.height * 25.4).toFixed(1)}mm
+                                    {((cadModelData.boundingBox.max.x - cadModelData.boundingBox.min.x) * 25.4).toFixed(1)}mm × {((cadModelData.boundingBox.max.y - cadModelData.boundingBox.min.y) * 25.4).toFixed(1)}mm × {((cadModelData.boundingBox.max.z - cadModelData.boundingBox.min.z) * 25.4).toFixed(1)}mm
                                   </p>
                                 </div>
                                 <div>

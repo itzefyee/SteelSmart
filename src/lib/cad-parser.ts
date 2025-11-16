@@ -1050,6 +1050,7 @@ export class CADParser {
     // Detect actual format from content
     const detectedFormat = this.detectFileFormat(arrayBuffer, declaredExtension);
     
+    let modelData: CADModelData;
     
     // Log first few bytes for debugging
     const preview = new Uint8Array(arrayBuffer.slice(0, 100));
