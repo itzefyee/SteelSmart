@@ -1,4 +1,4 @@
-// Utility functions for SteelSmart application
+// Utility functions for Metalyze application
 import { Product } from '@/types';
 
 export const formatPrice = (price: number): string => {

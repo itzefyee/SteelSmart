@@ -8,8 +8,11 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="space-y-4">
-            <div className="flex items-center">
-              <img src="/images/logo-white.svg" alt="SteelSmart" className="h-10 w-auto" />
+            <div className="flex items-center space-x-2">
+              <img src="/images/metalyze_logo.png" alt="Metalyze" className="h-12 w-auto" />
+              <span className="text-lg font-bold tracking-wider bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+                METALYZE
+              </span>
             </div>
             <p className="text-gray-400 text-sm">
               AI-powered marketplace for metal and steel parts, serving engineers and manufacturers worldwide.
@@ -93,8 +96,8 @@ const Footer: React.FC = () => {
             <ul className="space-y-2 text-sm text-gray-400">
               <li>
                 <span className="block">Email:</span>
-                <a href="mailto:info@steelsmart.com" className="hover:text-white transition-colors">
-                  info@steelsmart.com
+                <a href="mailto:info@metalyze.com" className="hover:text-white transition-colors">
+                  info@metalyze.com
                 </a>
               </li>
               <li>
@@ -114,7 +117,7 @@ const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <div className="text-gray-400 text-sm space-y-1">
-            <p>© 2025 SteelSmart. All rights reserved.</p>
+            <p>© 2025 Metalyze. All rights reserved.</p>
             <p>
               Designed by Efye Ching & Tan Ja Man, licensed under{' '}
               <a 

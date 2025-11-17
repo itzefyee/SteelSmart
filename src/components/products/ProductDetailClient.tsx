@@ -162,8 +162,8 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
                 Our technical experts are here to help you find the right solution.
               </p>
               <div className="flex flex-col sm:flex-row gap-2 text-sm">
-                <a href="mailto:info@steelsmart.com" className="text-blue-600 hover:text-blue-800">
-                  info@steelsmart.com
+                <a href="mailto:info@metalyze.com" className="text-blue-600 hover:text-blue-800">
+                  info@metalyze.com
                 </a>
                 <span className="hidden sm:inline text-blue-400">•</span>
                 <a href="tel:+1-555-0123" className="text-blue-600 hover:text-blue-800">

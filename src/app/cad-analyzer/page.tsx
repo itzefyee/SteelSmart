@@ -4,7 +4,7 @@ import Footer from '@/components/layout/Footer';
 import CADAnalyzerFull from '@/components/cad/CADAnalyzerFull';
 
 export const metadata = {
-  title: 'CAD Drawing Analyzer - SteelSmart AI Marketplace',
+  title: 'CAD Drawing Analyzer - Metalyze AI Marketplace',
   description: 'Upload your technical drawings and get AI-powered product recommendations with detailed analysis.',
 };
 
