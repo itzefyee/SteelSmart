@@ -1,10 +1,10 @@
 import React from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import ProductRecommender from '@/components/products/ProductRecommender';
+import ProductRecommenderNew from '@/components/products/ProductRecommenderNew';
 
 export const metadata = {
-  title: 'Product Recommender - SteelSmart AI Marketplace',
+  title: 'Product Recommender - Metalyze AI Marketplace',
   description: 'Get AI-powered product recommendations based on your CAD drawings and component requirements.',
 };
 
@@ -22,7 +22,7 @@ export default function ProductRecommenderPage() {
             </p>
           </div>
           
-          <ProductRecommender />
+          <ProductRecommenderNew />
         </div>
       </main>
       <Footer />

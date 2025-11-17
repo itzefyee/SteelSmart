@@ -4,7 +4,7 @@ import Footer from '@/components/layout/Footer';
 import CADGenerator from '@/components/cad/CADGenerator';
 
 export const metadata = {
-  title: 'CAD Drawing Generator - SteelSmart AI Marketplace',
+  title: 'CAD Drawing Generator - Metalyze AI Marketplace',
   description: 'Generate technical drawings from text descriptions or templates with AI-powered CAD generation.',
 };
 

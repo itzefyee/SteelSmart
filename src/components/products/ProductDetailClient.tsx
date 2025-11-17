@@ -150,9 +150,17 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
                   Request Quote
                 </Button>
               </Link>
-              <Button variant="outline" className="flex-1">
-                Add to Favorites
-              </Button>
+              <Link 
+                href={`/cad-generator?prompt=${encodeURIComponent(`Generate a technical drawing for ${product.name}. Material: ${product.material || 'steel'}. ${typeof product.specifications === 'object' && product.specifications !== null && 'dimensions' in product.specifications ? `Dimensions: ${(product.specifications as any).dimensions}` : ''}`)}`}
+                className="flex-1"
+              >
+                <Button variant="outline" className="w-full flex items-center justify-center space-x-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                  </svg>
+                  <span>Generate Drawing</span>
+                </Button>
+              </Link>
             </div>
 
             {/* Contact Information */}
@@ -162,8 +170,8 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
                 Our technical experts are here to help you find the right solution.
               </p>
               <div className="flex flex-col sm:flex-row gap-2 text-sm">
-                <a href="mailto:info@steelsmart.com" className="text-blue-600 hover:text-blue-800">
-                  info@steelsmart.com
+                <a href="mailto:info@metalyze.com" className="text-blue-600 hover:text-blue-800">
+                  info@metalyze.com
                 </a>
                 <span className="hidden sm:inline text-blue-400">•</span>
                 <a href="tel:+1-555-0123" className="text-blue-600 hover:text-blue-800">

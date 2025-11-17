@@ -140,24 +140,74 @@ export async function POST(request: NextRequest) {
     // Store drawing and analysis in Supabase (if user is authenticated)
     try {
       const supabase = await getSupabaseServer();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      console.log('Auth check result:', { 
+        hasUser: !!user, 
+        userId: user?.id,
+        authError: authError?.message 
+      });
 
       if (user) {
         const fileBuffer = Buffer.from(await file.arrayBuffer());
         const filePath = `${user.id}/${Date.now()}_${file.name}`;
 
+        // Determine proper content type based on file extension
+        const fileExt = file.name.split('.').pop()?.toLowerCase();
+        const contentTypeMap: Record<string, string> = {
+          'pdf': 'application/pdf',
+          'png': 'image/png',
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'step': 'application/step',
+          'stp': 'application/step',
+          'stl': 'application/vnd.ms-pki.stl',
+          'obj': 'model/obj',
+          'dxf': 'application/dxf',
+        };
+        
+        const contentType = contentTypeMap[fileExt || ''] || file.type || 'application/octet-stream';
+
         // Upload drawing to storage
         const { error: uploadError } = await supabase.storage
           .from('technical-drawings')
           .upload(filePath, fileBuffer, {
-            contentType: file.type,
+            contentType: contentType,
             upsert: false
           });
 
         if (uploadError) {
-          console.error('Failed to upload drawing:', uploadError);
+          console.error('Failed to upload drawing:', {
+            error: uploadError,
+            fileName: file.name,
+            fileType: file.type,
+            contentType: contentType,
+            fileSize: file.size,
+            filePath: filePath
+          });
+          
+          // Still save analysis to database even if file upload fails
+          // Use null for file_path since upload failed
+          await supabase.from('drawing_analyses').insert({
+            user_id: user.id,
+            file_name: file.name,
+            file_path: null, // No file stored
+            file_type: file.type,
+            file_size: file.size,
+            extracted_specs: analysis.extractedSpecs as any,
+            recommended_products: analysis.recommendedProducts.map(p => ({
+              id: p.id,
+              name: p.name,
+              category: p.category
+            })) as any,
+            confidence: analysis.confidence,
+            reasoning: analysis.reasoning,
+            gemini_response: analysis as any // Store full analysis as JSON
+          });
+
+          console.log(`Saved drawing analysis for user ${user.id} (file upload failed, analysis saved without file)`);
         } else {
-          // Save analysis to database
+          // Save analysis to database with file path
           await supabase.from('drawing_analyses').insert({
             user_id: user.id,
             file_name: file.name,
@@ -175,7 +225,7 @@ export async function POST(request: NextRequest) {
             gemini_response: analysis as any // Store full analysis as JSON
           });
 
-          console.log(`Saved drawing analysis for user ${user.id}`);
+          console.log(`Saved drawing analysis for user ${user.id} with file at ${filePath}`);
         }
       } else {
         console.log('User not authenticated, skipping drawing storage');

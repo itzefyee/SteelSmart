@@ -10,11 +10,13 @@ interface CADHistoryItem {
   category: string;
   format: string;
   units: string;
-  model_data: string;
+  model_data: string; // Base64 model data (loaded on demand)
+  model_data_url?: string; // Public URL to Supabase Storage
+  file_path?: string; // Storage bucket path
   generated_at: string;
   status: 'completed' | 'failed';
   error?: string;
-  conversation_id?: string;
+  zoo_operation_id?: string; // For reference only
 }
 
 interface CADHistoryProps {
@@ -34,40 +36,31 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
     try {
       setIsLoading(true);
       
-      // First try to fetch from Zoo Dev API
-      // Note: no_models=true to exclude model data for faster loading (will load on demand)
-      const zooResponse = await fetch('/api/zoo-parts?limit=5&sort_by=created_at_descending&no_models=true');
-      const zooResult = await zooResponse.json();
+      // Fetch from Supabase cad_history table
+      const response = await fetch('/api/cad-history?limit=20');
+      const result = await response.json();
       
-      if (zooResult.success && zooResult.data?.items?.length > 0) {
-        // Convert Zoo Dev format to our format
-        // Don't load model data here - it will be loaded on demand when "View Drawing" is clicked
-        const convertedHistory = zooResult.data.items.map((item: any) => ({
+      if (result.success) {
+        // Map the data to include model_data_url from Supabase Storage
+        const historyItems = (result.data || []).map((item: any) => ({
           id: item.id,
           prompt: item.prompt || 'No prompt available',
-          category: 'custom', // Zoo Dev doesn't provide category
-          format: item.format || 'step', // Use format from API if available
-          units: item.units || 'mm', // Use units from API if available
-          model_data: '', // Don't load model data initially - load on demand
-          generated_at: item.created_at,
-          status: item.status === 'completed' ? 'completed' : 'failed',
+          category: item.category || 'custom',
+          format: item.format || 'step',
+          units: item.units || 'mm',
+          model_data: '', // Will be loaded on demand from model_data_url
+          model_data_url: item.model_data_url, // Public URL to download from Supabase Storage
+          file_path: item.file_path, // Storage path
+          generated_at: item.generated_at,
+          status: item.status || 'completed',
           error: item.error,
-          conversation_id: item.conversation_id
+          zoo_operation_id: item.zoo_operation_id
         }));
         
-        setHistory(convertedHistory);
+        setHistory(historyItems);
         setError('');
       } else {
-        // Fallback to local history
-        const localResponse = await fetch('/api/cad-history?limit=20');
-        const localResult = await localResponse.json();
-        
-        if (localResult.success) {
-          setHistory(localResult.data || []);
-          setError('');
-        } else {
-          setError(localResult.error || 'Failed to load history');
-        }
+        setError(result.error || 'Failed to load history');
       }
     } catch (err: any) {
       setError(`Failed to fetch history: ${err.message}`);
@@ -166,101 +159,133 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
 
   const viewDrawing = async (item: CADHistoryItem) => {
     
-    // Always fetch model data from Zoo Dev API when viewing (for consistency and to ensure latest data)
-    if (item.id && item.status === 'completed') {
+    // Load model data from Supabase Storage if not already loaded
+    if (item.status === 'completed' && !item.model_data && item.file_path) {
       // Set loading state
       setLoadingModelIds(prev => new Set(prev).add(item.id));
       
       try {
-        const response = await fetch(`/api/zoo-parts/${item.id}`);
-        const result = await response.json();
+        // Use Supabase client to get public URL (bucket must be public)
+        const { supabase } = await import('@/lib/supabase');
         
+        const { data: publicUrlData } = supabase.storage
+          .from('cad-models')
+          .getPublicUrl(item.file_path);
         
-        // Check for API errors first
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to fetch model data');
+        if (!publicUrlData?.publicUrl) {
+          throw new Error('No public URL returned from Supabase');
         }
         
-        // Try multiple possible locations for model data
-        let modelData = null;
+        // Fetch the file using the public URL
+        const response = await fetch(publicUrlData.publicUrl, {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache',
+          headers: {
+            'Accept': 'application/octet-stream, model/step, application/step, */*'
+          }
+        });
         
-        if (result.data?.model_data) {
-          modelData = result.data.model_data;
-        } else if (result.data?.outputs) {
-          // Model data might be in outputs object
-          const outputValues = Object.values(result.data.outputs);
-          if (outputValues.length > 0) {
-            modelData = outputValues[0];
-          }
-        } else if (result.data?.data?.model_data) {
-          modelData = result.data.data.model_data;
-        } else if (result.data?.data?.outputs) {
-          const outputValues = Object.values(result.data.data.outputs);
-          if (outputValues.length > 0) {
-            modelData = outputValues[0];
-          }
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
         }
         
-        if (modelData) {
-          // Update the item with model data
-          const updatedItem = {
-            ...item,
-            model_data: modelData
-          };
-          
-          // Update in history state
-          setHistory(prev => prev.map(h => h.id === item.id ? updatedItem : h));
-          
-          // Clear loading state
-          setLoadingModelIds(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(item.id);
-            return newSet;
-          });
-          
-          if (onSelectHistory) {
-            onSelectHistory(updatedItem);
-          }
-          return;
-        } else {
-          // Clear loading state on error
-          setLoadingModelIds(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(item.id);
-            return newSet;
-          });
-          
-          console.error('Model data not found in response:', result);
-          alert(`Could not load model data. The API response did not contain model data. ${result.error ? `Error: ${result.error}` : 'Please check the console for details.'}`);
-          return;
+        // Get the file as array buffer
+        const arrayBuffer = await response.arrayBuffer();
+        
+        // Convert to base64
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
         }
+        const modelData = btoa(binary);
+        
+        // Update the item with model data
+        const updatedItem = {
+          ...item,
+          model_data: modelData
+        };
+        
+        // Update in history state
+        setHistory(prev => prev.map(h => h.id === item.id ? updatedItem : h));
+        
+        // Clear loading state
+        setLoadingModelIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(item.id);
+          return newSet;
+        });
+        
+        if (onSelectHistory) {
+          onSelectHistory(updatedItem);
+        }
+        return;
       } catch (error: any) {
-        console.error('Failed to fetch model data:', error);
         // Clear loading state on error
         setLoadingModelIds(prev => {
           const newSet = new Set(prev);
           newSet.delete(item.id);
           return newSet;
         });
-        alert(`Could not load model data: ${error.message || 'Unknown error'}. Please check the browser console for more details.`);
+        
+        // Show user-friendly error message
+        alert(`Failed to load model: ${error.message || 'Unknown error'}. Please try again or contact support if the issue persists.`);
+        setLoadingModelIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(item.id);
+          return newSet;
+        });
+        
+        // Show detailed error message
+        const errorDetails = [
+          `Error: ${error.message}`,
+          '',
+          'Troubleshooting steps:',
+          '1. Open the URL in a new browser tab to test direct access:',
+          `   ${item.model_data_url}`,
+          '',
+          '2. Check Supabase Dashboard → Storage → cad-models',
+          `   Verify file exists at: ${item.file_path}`,
+          '',
+          '3. Verify bucket is public:',
+          '   Dashboard → Storage → cad-models → Settings → Public bucket = ON',
+          '',
+          '4. Check browser console for detailed error logs',
+          '',
+          'If the file exists but still fails, this may be a CORS or RLS policy issue.'
+        ].join('\n');
+        
+        alert(errorDetails);
         return;
       }
     }
     
-    // If we reach here and model data still doesn't exist, show error
-    if (!item.model_data) {
-      console.error('Model data still not available after fetch attempt');
-      alert('Could not load model data. The drawing may not be available or the API request failed.');
+    // If model data already exists, use it directly
+    if (item.model_data) {
+      if (onSelectHistory) {
+        onSelectHistory(item);
+      }
       return;
     }
     
-    // Use the model data (either from fetch or existing)
-    if (onSelectHistory) {
-      onSelectHistory(item);
-    } else {
-      console.error('onSelectHistory callback is not defined!');
-      alert('Error: Cannot load drawing. The history callback is not configured.');
-    }
+    // If we reach here, no model data is available
+    const errorDetails = [
+      'Could not load model data.',
+      '',
+      'Possible causes:',
+      '1. File was not saved during generation (check if model_data_url exists)',
+      '2. Storage upload failed (check API logs for upload errors)',
+      '3. This is an old generation from before storage was implemented',
+      '',
+      'Item details:',
+      `- ID: ${item.id}`,
+      `- Has URL: ${!!item.model_data_url}`,
+      `- Has Path: ${!!item.file_path}`,
+      `- Status: ${item.status}`
+    ].join('\n');
+    
+    alert(errorDetails);
   };
 
   useEffect(() => {
@@ -475,12 +500,20 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
                         </div>
                       </div>
 
-                      {/* Conversation ID (from Zoo Dev) */}
-                      {item.conversation_id && (
+                      {/* Storage Info */}
+                      {item.file_path && (
                         <div className="pt-2 border-t border-gray-200">
-                          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Conversation ID</span>
+                          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Storage Path</span>
                           <p className="text-xs text-gray-500 font-mono mt-1 bg-gray-50 p-2 rounded border border-gray-200 break-all">
-                            {item.conversation_id}
+                            {item.file_path}
+                          </p>
+                        </div>
+                      )}
+                      {item.zoo_operation_id && (
+                        <div className="pt-2 border-t border-gray-200">
+                          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Generation ID</span>
+                          <p className="text-xs text-gray-500 font-mono mt-1 bg-gray-50 p-2 rounded border border-gray-200 break-all">
+                            {item.zoo_operation_id}
                           </p>
                         </div>
                       )}
@@ -521,16 +554,48 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
                             )}
                           </Button>
                           {hasModel && (
-                            <Button
-                              variant="outline"
-                              onClick={() => downloadModel(item)}
-                              className="flex items-center space-x-2"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              <span>Download</span>
-                            </Button>
+                            <>
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  if (!item.model_data) return;
+                                  
+                                  try {
+                                    // Store file data in sessionStorage for the analyzer
+                                    const fileData = {
+                                      name: `${item.prompt.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '_')}.${item.format}`,
+                                      data: item.model_data.startsWith('data:') ? item.model_data : `data:application/octet-stream;base64,${item.model_data}`,
+                                      type: item.format,
+                                      timestamp: Date.now()
+                                    };
+                                    
+                                    sessionStorage.setItem('cadFileToAnalyze', JSON.stringify(fileData));
+                                    
+                                    // Redirect to analyzer
+                                    window.location.href = '/cad-analyzer?autoAnalyze=true';
+                                  } catch (error) {
+                                    console.error('Error preparing file for analysis:', error);
+                                    alert('Failed to prepare file for analysis. Please try downloading and uploading manually.');
+                                  }
+                                }}
+                                className="flex items-center space-x-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                <span>Analyze Drawing</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => downloadModel(item)}
+                                className="flex items-center space-x-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span>Download</span>
+                              </Button>
+                            </>
                           )}
                         </div>
                       )}
@@ -543,14 +608,21 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
-                              <span>Model data available ({Math.round(item.model_data.length / 1024)} KB)</span>
+                              <span>Model data loaded ({Math.round(item.model_data.length / 1024)} KB)</span>
                             </div>
-                          ) : (
+                          ) : item.model_data_url ? (
                             <div className="flex items-center space-x-2 text-xs text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
-                              <span>Click "View Drawing" to load model data from Zoo Dev API</span>
+                              <span>Click "View Drawing" to load model from Supabase Storage</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2 text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              <span>Model file not available (may have failed to upload)</span>
                             </div>
                           )}
                         </div>

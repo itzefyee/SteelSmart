@@ -35,6 +35,50 @@ const CADGenerator: React.FC = () => {
   const [conversationId, setConversationId] = useState<string>('');
   const [cadFileForPreview, setCadFileForPreview] = useState<File | null>(null);
 
+  // Check for URL parameters on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const promptParam = params.get('prompt');
+    if (promptParam) {
+      setTextInput(decodeURIComponent(promptParam));
+      
+      // Auto-scroll to the text input after a short delay to ensure DOM is ready
+      setTimeout(() => {
+        const textInputElement = document.getElementById('textInput');
+        if (textInputElement) {
+          // Scroll to show the prompt at the top with some padding
+          textInputElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          });
+          
+          // Add extra scroll offset to show the prompt fully (account for header)
+          setTimeout(() => {
+            window.scrollBy({ 
+              top: -100, // Scroll up 100px to add padding above the prompt
+              behavior: 'smooth' 
+            });
+          }, 400);
+          
+          // Focus the input for better UX
+          textInputElement.focus();
+          
+          // Add a subtle highlight animation
+          const container = textInputElement.closest('.bg-white.rounded-2xl');
+          if (container) {
+            container.classList.add('ring-2', 'ring-blue-400', 'ring-opacity-50');
+            setTimeout(() => {
+              container.classList.remove('ring-2', 'ring-blue-400', 'ring-opacity-50');
+            }, 2000);
+          }
+        }
+      }, 300);
+      
+      // Clean up URL to remove the prompt parameter
+      window.history.replaceState({}, '', '/cad-generator');
+    }
+  }, []);
+
   // Debug step management
   const addDebugStep = (id: string, title: string, status: 'pending' | 'in_progress' | 'completed' | 'failed', details?: string, error?: string) => {
     const timestamp = new Date().toISOString();
@@ -614,7 +658,7 @@ const CADGenerator: React.FC = () => {
                         Just describe what you need, and I'll create precise CAD drawings with proper dimensions and specifications.
                       </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2 ml-4">SteelSmart AI</p>
+                    <p className="text-xs text-gray-500 mt-2 ml-4">Metalyze AI</p>
                   </div>
                 </div>
 
@@ -742,7 +786,7 @@ const CADGenerator: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-2 ml-4">SteelSmart AI • Powered by Zoo Dev</p>
+                      <p className="text-xs text-gray-500 mt-2 ml-4">Metalyze AI • Powered by Zoo Dev</p>
                     </div>
                   </div>
                 )}
@@ -760,7 +804,7 @@ const CADGenerator: React.FC = () => {
                         <p className="text-red-800 text-sm">{errorMessage}</p>
                         <p className="text-red-600 text-xs mt-2">Don't worry - we've loaded a sample drawing for you to explore the interface.</p>
                       </div>
-                      <p className="text-xs text-gray-500 mt-2 ml-4">SteelSmart AI</p>
+                      <p className="text-xs text-gray-500 mt-2 ml-4">Metalyze AI</p>
                     </div>
                   </div>
                 )}
@@ -849,6 +893,37 @@ const CADGenerator: React.FC = () => {
               <p className="text-gray-600">{generatedDrawing.description}</p>
             </div>
             <div className="flex space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  if (!generatedDrawing) return;
+                  
+                  try {
+                    // Store file data in sessionStorage for the analyzer
+                    const format = generatedDrawing.parameters?.format || 'step';
+                    const fileData = {
+                      name: `${generatedDrawing.name.replace(/\s+/g, '_')}.${format}`,
+                      data: generatedDrawing.dxf, // Base64 data
+                      type: format,
+                      timestamp: Date.now()
+                    };
+                    
+                    sessionStorage.setItem('cadFileToAnalyze', JSON.stringify(fileData));
+                    
+                    // Redirect to analyzer
+                    window.location.href = '/cad-analyzer?autoAnalyze=true';
+                  } catch (error) {
+                    console.error('Error preparing file for analysis:', error);
+                    alert('Failed to prepare file for analysis. Please try downloading and uploading manually.');
+                  }
+                }}
+                className="flex items-center space-x-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span>Analyze Drawing</span>
+              </Button>
               <Button variant="outline" onClick={handleEditDrawing}>
                 Edit Drawing
               </Button>

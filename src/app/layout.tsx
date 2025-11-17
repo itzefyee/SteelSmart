@@ -11,32 +11,33 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL('http://localhost:3000'),
-  title: 'SteelSmart - AI-Powered Metal & Steel Parts Marketplace',
+  title: 'Metalyze - AI-Powered Metal & Steel Parts Marketplace',
   description: 'Discover and source robotic components, structural steel, and custom fabricated parts with AI-powered CAD drawing analysis.',
   keywords: 'steel parts, robotic components, structural steel, CAD analysis, manufacturing, engineering',
-  authors: [{ name: 'SteelSmart Team' }],
-  creator: 'SteelSmart',
-  publisher: 'SteelSmart',
-  applicationName: 'SteelSmart Marketplace',
+  authors: [{ name: 'Metalyze Team' }],
+  creator: 'Metalyze',
+  publisher: 'Metalyze',
+  applicationName: 'Metalyze Marketplace',
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' }
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/images/metalyze_logo.png', type: 'image/png', sizes: '32x32' }
     ],
-    apple: '/images/logo.svg',
-    shortcut: '/favicon.svg'
+    apple: '/images/metalyze_logo.png',
+    shortcut: '/favicon.ico'
   },
   manifest: '/site.webmanifest',
   openGraph: {
-    title: 'SteelSmart - AI-Powered Metal & Steel Parts Marketplace',
+    title: 'Metalyze - AI-Powered Metal & Steel Parts Marketplace',
     description: 'Discover and source robotic components, structural steel, and custom fabricated parts with AI-powered CAD drawing analysis.',
-    url: 'https://steelsmart.com',
-    siteName: 'SteelSmart',
+    url: 'https://Metalyze.com',
+    siteName: 'Metalyze',
     images: [
       {
-        url: '/images/logo.svg',
+        url: '/images/metalyze_logo.png',
         width: 120,
         height: 40,
-        alt: 'SteelSmart Logo'
+        alt: 'Metalyze Logo'
       }
     ],
     locale: 'en_US',
@@ -44,9 +45,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SteelSmart - AI-Powered Metal & Steel Parts Marketplace',
+    title: 'Metalyze - AI-Powered Metal & Steel Parts Marketplace',
     description: 'Discover and source robotic components, structural steel, and custom fabricated parts with AI-powered CAD drawing analysis.',
-    images: ['/images/logo.svg']
+    images: ['/images/metalyze_logo.png']
   },
   robots: {
     index: true,
