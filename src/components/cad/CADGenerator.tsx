@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { sampleDrawings, cadTemplates, sampleTextGenerations } from '@/data/sample-data';
+import { sampleDrawings, cadTemplates, sampleTextGenerations, mlPromptTemplates } from '@/data/sample-data';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -618,26 +618,43 @@ const CADGenerator: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Suggested Prompts */}
+                {/* ML Prompt Templates */}
                 <div className="space-y-3">
-                  <p className="text-sm font-medium text-gray-600 ml-12">Try asking me to:</p>
-                  <div className="ml-12 space-y-2">
-                    {[
-                      "Generate a 200mm x 100mm steel I-beam with 10mm thickness",
-                      "Create a servo motor mounting bracket for SG90",
-                      "Design a rectangular steel plate with 6 bolt holes",
-                      "Make an L-bracket for wall mounting"
-                    ].map((example, index) => (
+                  <p className="text-sm font-medium text-gray-600 ml-12">Try these professional templates:</p>
+                  <div className="ml-12 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {mlPromptTemplates.map((template) => (
                       <button
-                        key={index}
-                        onClick={() => setTextInput(example)}
-                        className="block w-full text-left p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all text-sm text-gray-700 hover:bg-gray-50"
+                        key={template.id}
+                        onClick={() => setTextInput(template.prompt)}
+                        className="text-left p-4 bg-white rounded-lg border border-gray-200 hover:border-primary hover:shadow-md transition-all group"
                       >
-                        <div className="flex items-center space-x-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                          <span>"{example}"</span>
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-colors">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h4 className="font-semibold text-gray-900 text-sm">{template.title}</h4>
+                              {template.category && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 capitalize">
+                                  {template.category}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-600 mb-2">{template.description}</p>
+                            <p className="text-xs text-gray-500 line-clamp-2 italic">"{template.prompt}"</p>
+                            {template.tags && template.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {template.tags.slice(0, 3).map((tag, idx) => (
+                                  <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-50 text-gray-500">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </button>
                     ))}
