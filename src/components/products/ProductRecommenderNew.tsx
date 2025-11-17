@@ -56,85 +56,153 @@ const ProductRecommenderNew: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'direct' | 'alternatives' | 'ranked'>('direct');
   const [sortBy, setSortBy] = useState<'score' | 'price'>('score');
   const [analysisData, setAnalysisData] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
-  // Check for analysis data from CAD Analyzer
+  // Check for analysis data from CAD Analyzer (only once on mount)
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('fromAnalysis') === 'true') {
-      const storedAnalysis = sessionStorage.getItem('analysisForRecommendation');
-      if (storedAnalysis) {
-        try {
-          const data = JSON.parse(storedAnalysis);
-          setAnalysisData(data);
-          
-          // Auto-populate requirements from analysis
-          if (data.extractedSpecs) {
-            setRequirements({
-              material: data.extractedSpecs.material || '',
-              dimensions: data.extractedSpecs.dimensions || '',
-              loadCapacity: data.extractedSpecs.loadRequirements || '',
-              category: data.extractedSpecs.componentType || 'all'
-            });
+    let isMounted = true;
+    
+    const loadAnalysisData = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('fromAnalysis') === 'true') {
+        const storedAnalysis = sessionStorage.getItem('analysisForRecommendation');
+        if (storedAnalysis && isMounted) {
+          try {
+            const data = JSON.parse(storedAnalysis);
+            setAnalysisData(data);
+            
+            // Auto-populate requirements from analysis
+            if (data.extractedSpecs) {
+              const specs = {
+                material: data.extractedSpecs.material || '',
+                dimensions: data.extractedSpecs.dimensions || '',
+                loadCapacity: data.extractedSpecs.loadRequirements || '',
+                category: data.extractedSpecs.componentType || 'all'
+              };
+              setRequirements(specs);
+              
+              // Auto-run recommendations with the specs
+              await handleFindRecommendations(specs);
+            }
+            
+            // Clean up
+            sessionStorage.removeItem('analysisForRecommendation');
+            window.history.replaceState({}, '', '/product-recommender');
+          } catch (error) {
+            console.error('Error parsing analysis data:', error);
           }
-          
-          // Auto-run recommendations
-          handleFindRecommendations(data.extractedSpecs);
-          sessionStorage.removeItem('analysisForRecommendation');
-        } catch (error) {
-          console.error('Error parsing analysis data:', error);
         }
       }
-    }
-  }, []);
+    };
+    
+    loadAnalysisData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Empty dependency array - only run once on mount
 
   const handleFindRecommendations = async (specs?: any) => {
+    console.log('🔍 Starting recommendations search...');
     setIsLoading(true);
+    setDebugInfo('Starting search...');
     
     try {
       const searchSpecs = specs || requirements;
+      console.log('📋 Search specs:', searchSpecs);
       
       // Step 1: Search catalog for direct matches
-      const catalogResults = await searchCatalog(searchSpecs);
-      setCatalogMatches(catalogResults);
+      let catalogResults: Product[] = [];
+      try {
+        setDebugInfo('Searching catalog...');
+        console.log('🏪 Searching catalog...');
+        catalogResults = await searchCatalog(searchSpecs);
+        console.log('✅ Catalog results:', catalogResults.length);
+        setCatalogMatches(catalogResults);
+        setDebugInfo(`Found ${catalogResults.length} catalog matches`);
+      } catch (error) {
+        console.error('❌ Catalog search error:', error);
+        setDebugInfo('Catalog search failed');
+        setCatalogMatches([]);
+      }
       
       // Step 2: Get alternative suggestions from AI
-      const alternativeResults = await getAlternativeSuggestions(searchSpecs);
-      setAlternatives(alternativeResults);
+      let alternativeResults: AlternativeProduct[] = [];
+      try {
+        setDebugInfo('Getting AI alternatives...');
+        console.log('🤖 Getting AI alternatives...');
+        alternativeResults = await getAlternativeSuggestions(searchSpecs);
+        console.log('✅ AI alternatives:', alternativeResults.length);
+        setAlternatives(alternativeResults);
+        setDebugInfo(`Found ${alternativeResults.length} AI alternatives`);
+      } catch (error) {
+        console.error('❌ Alternative suggestions error:', error);
+        setDebugInfo('AI alternatives failed');
+        setAlternatives([]);
+      }
       
       // Step 3: Combine and rank all recommendations
-      const ranked = combineAndRank(catalogResults, alternativeResults, searchSpecs);
-      setRankedRecommendations(ranked);
+      try {
+        setDebugInfo('Ranking results...');
+        console.log('⭐ Ranking results...');
+        const ranked = combineAndRank(catalogResults, alternativeResults, searchSpecs);
+        console.log('✅ Ranked:', ranked.length);
+        setRankedRecommendations(ranked);
+        setDebugInfo(`Complete! ${ranked.length} total recommendations`);
+      } catch (error) {
+        console.error('❌ Ranking error:', error);
+        setDebugInfo('Ranking failed');
+        setRankedRecommendations([]);
+      }
       
     } catch (error) {
-      console.error('Error finding recommendations:', error);
+      console.error('❌ Error finding recommendations:', error);
+      setDebugInfo(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Ensure we reset states even on error
+      setCatalogMatches([]);
+      setAlternatives([]);
+      setRankedRecommendations([]);
     } finally {
+      console.log('✅ Search complete');
       setIsLoading(false);
     }
   };
 
   const searchCatalog = async (specs: any): Promise<Product[]> => {
-    const supabase = getSupabaseClient();
-    
-    let query = supabase.from('products').select('*');
-    
-    // Filter by category if specified
-    if (specs.category && specs.category !== 'all') {
-      query = query.eq('category', specs.category);
-    }
-    
-    // Filter by material if specified
-    if (specs.material) {
-      query = query.ilike('material', `%${specs.material}%`);
-    }
-    
-    const { data, error } = await query.limit(20);
-    
-    if (error) {
-      console.error('Catalog search error:', error);
+    try {
+      const supabase = getSupabaseClient();
+      
+      let query = supabase.from('products').select('*');
+      
+      // Filter by category if specified
+      if (specs.category && specs.category !== 'all') {
+        query = query.eq('category', specs.category);
+      }
+      
+      // Filter by material if specified
+      if (specs.material) {
+        query = query.ilike('material', `%${specs.material}%`);
+      }
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Catalog search timeout')), 20000);
+      });
+      
+      const queryPromise = query.limit(20);
+      
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+      
+      if (error) {
+        console.error('Catalog search error:', error);
+        return [];
+      }
+      
+      return (data as Product[]) || [];
+    } catch (error) {
+      console.error('Catalog search exception:', error);
       return [];
     }
-    
-    return (data as Product[]) || [];
   };
 
   const getAlternativeSuggestions = async (specs: any): Promise<AlternativeProduct[]> => {
@@ -267,6 +335,18 @@ const ProductRecommenderNew: React.FC = () => {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Debug Info (remove in production) */}
+      {debugInfo && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm text-yellow-800 font-medium">Debug: {debugInfo}</span>
           </div>
         </div>
       )}

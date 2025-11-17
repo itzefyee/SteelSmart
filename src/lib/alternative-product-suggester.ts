@@ -54,10 +54,10 @@ export class AlternativeProductSuggester {
   private geminiModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
 
   constructor() {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_BACKUP_API_KEY;
     if (apiKey) {
       this.geminiClient = new GoogleGenerativeAI(apiKey);
-      this.geminiModel = this.geminiClient.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+      this.geminiModel = this.geminiClient.getGenerativeModel({ model: 'gemini-2.0-flash' });
     }
   }
 
