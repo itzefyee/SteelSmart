@@ -36,9 +36,11 @@ const CADAnalyzerFull: React.FC = () => {
   const [analysisStage, setAnalysisStage] = useState<string | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
 
-  // Check for stored analysis results on component mount
+  // Check for stored analysis results or file to analyze on component mount
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    
+    // Check for stored analysis results
     if (urlParams.get('showResults') === 'true') {
       const storedResult = sessionStorage.getItem('cadAnalysisResult');
       if (storedResult) {
@@ -53,6 +55,67 @@ const CADAnalyzerFull: React.FC = () => {
           setSampleLoadSuccess('Analysis results loaded successfully!');
         } catch (error) {
           console.error('Error parsing stored analysis result:', error);
+        }
+      }
+    }
+    
+    // Check for file to auto-analyze
+    if (urlParams.get('autoAnalyze') === 'true') {
+      const storedFile = sessionStorage.getItem('cadFileToAnalyze');
+      if (storedFile) {
+        try {
+          const fileData = JSON.parse(storedFile);
+          
+          // Convert base64 data to File object
+          let base64Data = fileData.data;
+          if (base64Data.startsWith('data:')) {
+            const parts = base64Data.split(',');
+            base64Data = parts.length > 1 ? parts[1] : base64Data.replace(/^data:.*;base64,/, '');
+          }
+          
+          // Decode base64 to binary
+          const binaryString = atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          // Determine MIME type
+          const mimeTypes: Record<string, string> = {
+            'step': 'application/step',
+            'stp': 'application/step',
+            'stl': 'model/stl',
+            'obj': 'model/obj',
+            'dxf': 'application/dxf',
+            'gltf': 'model/gltf+json',
+            'glb': 'model/gltf-binary',
+          };
+          
+          const mimeType = mimeTypes[fileData.type.toLowerCase()] || 'application/octet-stream';
+          
+          // Create File object
+          const file = new File([bytes], fileData.name, { type: mimeType });
+          
+          // Set the file in upload state
+          setUploadState({
+            file,
+            progress: 0,
+            status: 'idle',
+            error: undefined
+          });
+          
+          // Clear the stored file
+          sessionStorage.removeItem('cadFileToAnalyze');
+          
+          // Clean up URL
+          window.history.replaceState({}, '', '/cad-analyzer');
+          
+          // Show success message
+          setSampleLoadSuccess('File loaded from CAD Generator. Click "Analyze Drawing" to proceed.');
+          
+        } catch (error) {
+          console.error('Error loading file from storage:', error);
+          sessionStorage.removeItem('cadFileToAnalyze');
         }
       }
     }

@@ -19,18 +19,22 @@ export default function AccountPage() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (authLoading) return;
+      // Wait for auth to finish loading
+      if (authLoading) {
+        return;
+      }
       
+      // If no user after auth loads, redirect to home
       if (!user) {
-        // Don't redirect immediately - let the Header handle logout redirect
-        // Only redirect if we're sure this is an initial page load without auth
         const isLogout = sessionStorage.getItem('isLoggingOut');
         if (!isLogout) {
           router.push('/');
         }
+        setLoading(false);
         return;
       }
 
+      // Fetch profile data
       try {
         const supabase = getSupabaseClient();
         const { data, error } = await supabase

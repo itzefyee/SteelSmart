@@ -1,16 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from './database.types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // Client-side Supabase client (for use in browser and client components)
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+// Using SSR package for better cookie handling
+export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
 
 // For client components (uses cookies automatically)
 export function getSupabaseClient() {
-  return createClientComponentClient<Database>();
+  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
 }
 
 // Server-side admin client (bypasses RLS, use with caution)

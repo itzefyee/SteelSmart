@@ -1,39 +1,41 @@
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from './database.types';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // For server components and API routes (requires cookies)
 // This creates a Supabase client that respects the user's session from cookies
 export async function getSupabaseServer() {
   const cookieStore = await cookies();
   
-  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      storage: {
-        getItem: async (key: string) => {
-          const cookie = cookieStore.get(key);
-          return cookie?.value ?? null;
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
         },
-        setItem: async (key: string, value: string) => {
+        set(name: string, value: string, options: CookieOptions) {
           try {
-            cookieStore.set(key, value);
-          } catch {
-            // Ignore errors from Server Components
+            cookieStore.set(name, value, options);
+          } catch (error) {
+            // The `set` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
           }
         },
-        removeItem: async (key: string) => {
+        remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.delete(key);
-          } catch {
-            // Ignore errors from Server Components
+            cookieStore.set(name, '', options);
+          } catch (error) {
+            // The `delete` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
           }
         },
       },
-    },
-  });
+    }
+  );
 }
 
 // Re-export Database type for convenience

@@ -98,6 +98,9 @@ const Header: React.FC = () => {
                   </svg>
                   Account
                 </Link>
+                <span className="text-sm text-gray-600">
+                  {user?.email || 'User'}
+                </span>
                 <button
                   onClick={handleLogout}
                   disabled={isLoggingOut}
@@ -120,11 +123,6 @@ const Header: React.FC = () => {
                     </>
                   )}
                 </button>
-                {user?.email && (
-                  <span className="text-sm text-gray-600 ml-2">
-                    {user.email}
-                  </span>
-                )}
               </>
             ) : (
               <>
@@ -208,11 +206,9 @@ const Header: React.FC = () => {
                 ) : user ? (
                   <>
                     {/* Authenticated User Items - Mobile */}
-                    {user?.email && (
-                      <div className="px-4 py-2 text-sm text-gray-600 border-b border-gray-100">
-                        {user.email}
-                      </div>
-                    )}
+                    <div className="px-4 py-2 text-sm text-gray-600 border-b border-gray-100">
+                      {user?.email || 'User'}
+                    </div>
                     <Link 
                       href="/account" 
                       className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg flex items-center"
