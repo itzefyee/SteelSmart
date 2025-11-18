@@ -9,7 +9,9 @@
     "lint": "next lint",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "generate-frames": "node scripts/generate_placeholder_frames.js",
+    "upload-frames": "node scripts/upload_frames_to_supabase.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -20,6 +22,8 @@
     "@types/multer": "^2.0.0",
     "@types/three": "^0.181.0",
     "autoprefixer": "^10.4.21",
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.554.0",
     "next": "^16.0.1",
     "opencascade.js": "^2.0.0-beta.b5ff984",
     "postcss": "^8.5.6",

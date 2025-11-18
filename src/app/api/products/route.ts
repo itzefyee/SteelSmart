@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
  * Public endpoint - no authentication required
  * 
  * Query parameters:
+ * - id: Filter by specific product ID(s) (can be used multiple times: ?id=1&id=2&id=3)
  * - category: Filter by category ID
  * - material: Filter by material (partial match)
  * - inStock: Filter by stock status (true/false)
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     
     // Extract query parameters
+    const ids = searchParams.getAll('id');
     const category = searchParams.get('category');
     const material = searchParams.get('material');
     const inStock = searchParams.get('inStock');
@@ -40,6 +42,11 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact' });
     
     // Apply filters
+    // If specific IDs are requested, filter by those IDs
+    if (ids.length > 0) {
+      query = query.in('id', ids);
+    }
+    
     if (category) {
       query = query.eq('category', category);
     }
@@ -64,10 +71,12 @@ export async function GET(request: NextRequest) {
       query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
     }
     
-    // Apply pagination
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    query = query.range(from, to);
+    // Apply pagination (skip pagination if specific IDs are requested)
+    if (ids.length === 0) {
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+    }
     
     // Order by name
     query = query.order('name', { ascending: true });

@@ -136,19 +136,25 @@ export default function CatalogContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main className="catalog-shell">
+      <div className="catalog-grid-pattern" aria-hidden="true"></div>
+      <div className="catalog-wire-pattern" aria-hidden="true"></div>
+      <div className="catalog-particle-layer" aria-hidden="true"></div>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Product Catalog</h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-sm uppercase tracking-[0.3em] text-blue-200 mb-2">Metalyze Inventory</p>
+          <h1 className="text-3xl font-semibold text-white mb-4">
+            Product Catalog
+          </h1>
+          <p className="text-lg text-slate-300 max-w-3xl">
             Discover our comprehensive selection of robotic components, structural steel, and custom fabricated parts.
           </p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Filters */}
-          <div className="lg:w-1/4">
-            <div className="sticky top-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
+          {/* Sidebar Filters - Separate Glass Container */}
+          <div className="lg:w-1/4 w-full">
+            <div className="catalog-glass-container p-4">
               <ProductFilter
                 filters={filters}
                 onFiltersChange={handleFiltersChange}
@@ -160,58 +166,60 @@ export default function CatalogContent() {
             </div>
           </div>
 
-          {/* Main Content */}
-          <div className="lg:w-3/4">
-            {/* Sort and Results Count */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-              <div className="text-sm text-gray-600">
-                Showing {filteredAndSortedProducts.length} of {products.length} products
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <label htmlFor="sort" className="text-sm font-medium text-gray-700">
-                  Sort by:
-                </label>
-                <select
-                  id="sort"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="name-asc">Name (A-Z)</option>
-                  <option value="name-desc">Name (Z-A)</option>
-                  <option value="price-asc">Price (Low to High)</option>
-                  <option value="price-desc">Price (High to Low)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Products Grid */}
-            {filteredAndSortedProducts.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredAndSortedProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <div className="text-gray-400 mb-4">
-                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.47-.881-6.08-2.33" />
-                  </svg>
+          {/* Main Content - Separate Glass Container */}
+          <div className="lg:w-3/4 w-full">
+            <div className="catalog-glass-container h-full p-8">
+              {/* Sort and Results Count */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div className="text-sm font-medium text-white">
+                  Showing <span className="text-blue-300 font-bold">{filteredAndSortedProducts.length}</span> of {products.length} products
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
-                <p className="text-gray-600 mb-4">
-                  Try adjusting your filters or search terms to find what you&apos;re looking for.
-                </p>
-                <button
-                  onClick={handleClearFilters}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                >
-                  Clear all filters
-                </button>
+                
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="sort" className="text-sm font-medium text-white">
+                    Sort by:
+                  </label>
+                  <select
+                    id="sort"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="border border-white/20 bg-white/5 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm font-medium"
+                  >
+                    <option value="name-asc" className="bg-slate-800">Name (A-Z)</option>
+                    <option value="name-desc" className="bg-slate-800">Name (Z-A)</option>
+                    <option value="price-asc" className="bg-slate-800">Price (Low to High)</option>
+                    <option value="price-desc" className="bg-slate-800">Price (High to Low)</option>
+                  </select>
+                </div>
               </div>
-            )}
+
+              {/* Products Grid */}
+              {filteredAndSortedProducts.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {filteredAndSortedProducts.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-xl">
+                  <div className="text-slate-400 mb-4">
+                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.47-.881-6.08-2.33" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-white mb-2">No products found</h3>
+                  <p className="text-slate-300 mb-4">
+                    Try adjusting your filters or search terms to find what you&apos;re looking for.
+                  </p>
+                  <button
+                    onClick={handleClearFilters}
+                    className="inline-flex items-center px-4 py-2 border border-white/20 text-sm font-medium rounded-md text-white bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-0"
+                  >
+                    Clear all filters
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
