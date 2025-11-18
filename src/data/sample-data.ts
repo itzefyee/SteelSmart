@@ -40,61 +40,64 @@ export const cadTemplates = [
     id: 1,
     name: "I-Beam",
     category: "structural",
-    description: "Standard I-beam with customizable dimensions",
+    description: "Standard structural I-beam with specified dimensions",
     preview: "/images/steel-beam-cad-preview.svg",
+    // Details from image: "12 in long, 4 in high, 2.66 x 0.29 in flange, 0.19 in web, 0.46 in root radius"
     parameters: {
-      height: { label: "Height", value: "200", unit: "mm", min: 100, max: 500 },
-      width: { label: "Flange Width", value: "100", unit: "mm", min: 50, max: 300 },
-      webThickness: { label: "Web Thickness", value: "8", unit: "mm", min: 5, max: 20 },
-      flangeThickness: { label: "Flange Thickness", value: "12", unit: "mm", min: 8, max: 25 },
-      length: { label: "Length", value: "1000", unit: "mm", min: 500, max: 6000 },
-      material: { label: "Material", value: "SS304", options: ["SS304", "SS316", "Carbon Steel", "Aluminum"] }
+      length: { label: "Length", value: "12", unit: "in", min: 5, max: 100 },
+      height: { label: "Height", value: "4", unit: "in", min: 1, max: 20 },
+      flangeWidth: { label: "Flange Width", value: "2.66", unit: "in", min: 1, max: 10 },
+      flangeThickness: { label: "Flange Thickness", value: "0.29", unit: "in", min: 0.1, max: 1 },
+      webThickness: { label: "Web Thickness", value: "0.19", unit: "in", min: 0.1, max: 1 },
+      rootRadius: { label: "Root Radius", value: "0.46", unit: "in", min: 0.1, max: 1 },
+      material: { label: "Material", value: "Steel", options: ["Steel", "Aluminum", "Carbon Fiber"] }
     }
   },
   {
     id: 2,
-    name: "Rectangular Plate",
-    category: "structural", 
-    description: "Flat plate with optional holes",
+    name: "Drill Guide",
+    category: "medical", 
+    description: "Surgical drill guide with multiple bit sizes and rotating grips",
     preview: "/images/sample-cad-preview.svg",
+    // Details from image: "150 mm handle, Ø2 & Ø3.2 mm bits, twin bit mounts"
     parameters: {
-      length: { label: "Length", value: "300", unit: "mm", min: 100, max: 2000 },
-      width: { label: "Width", value: "200", unit: "mm", min: 50, max: 1000 },
-      thickness: { label: "Thickness", value: "10", unit: "mm", min: 3, max: 50 },
-      holeCount: { label: "Number of Holes", value: "4", unit: "", min: 0, max: 20 },
-      holeDiameter: { label: "Hole Diameter", value: "8", unit: "mm", min: 3, max: 25 },
-      material: { label: "Material", value: "SS304", options: ["SS304", "SS316", "Carbon Steel", "Aluminum"] }
+      handleLength: { label: "Handle Length", value: "150", unit: "mm", min: 50, max: 300 },
+      bitSize1: { label: "Bit Size 1", value: "2", unit: "mm", min: 1, max: 10 },
+      bitSize2: { label: "Bit Size 2", value: "3.2", unit: "mm", min: 1, max: 10 },
+      gripType: { label: "Grip Type", value: "Rotating", options: ["Rotating", "Fixed", "Ergonomic"] },
+      material: { label: "Material", value: "Surgical Steel", options: ["Surgical Steel", "Titanium", "PEEK"] }
     }
   },
   {
     id: 3,
-    name: "L-Bracket",
-    category: "custom",
-    description: "Right-angle bracket with mounting holes",
+    name: "Gallows Frame",
+    category: "structural",
+    description: "Large structural frame with brackets and angle iron construction",
     preview: "/images/bracket-cad-preview.svg",
+    // Details from image: "2400x1250x450 mm, 6 brackets, angle iron"
     parameters: {
-      height: { label: "Height", value: "150", unit: "mm", min: 50, max: 500 },
-      width: { label: "Width", value: "100", unit: "mm", min: 50, max: 300 },
-      thickness: { label: "Thickness", value: "5", unit: "mm", min: 2, max: 20 },
-      holeCount: { label: "Mounting Holes", value: "4", unit: "", min: 2, max: 12 },
-      holeDiameter: { label: "Hole Diameter", value: "6", unit: "mm", min: 3, max: 15 },
-      bendRadius: { label: "Bend Radius", value: "5", unit: "mm", min: 2, max: 15 },
-      material: { label: "Material", value: "Aluminum", options: ["Aluminum", "SS304", "Carbon Steel"] }
+      height: { label: "Height", value: "2400", unit: "mm", min: 1000, max: 5000 },
+      width: { label: "Width", value: "1250", unit: "mm", min: 500, max: 3000 },
+      depth: { label: "Depth", value: "450", unit: "mm", min: 200, max: 1000 },
+      bracketCount: { label: "Brackets", value: "6", unit: "", min: 2, max: 20 },
+      profileType: { label: "Profile", value: "Angle Iron", options: ["Angle Iron", "Box Section", "C-Channel"] },
+      material: { label: "Material", value: "Steel", options: ["Steel", "Galvanized Steel"] }
     }
   },
   {
     id: 4,
-    name: "Servo Mount",
-    category: "robotic",
-    description: "Servo motor mounting bracket",
+    name: "Brake Rotor",
+    category: "automotive",
+    description: "Vented automotive brake rotor with bolt pattern",
     preview: "/images/fastener-cad-preview.svg",
+    // Details from image: "320mm vented brake rotor with 5 M12 holes on 114.3mm PCD"
     parameters: {
-      servoType: { label: "Servo Type", value: "SG90", options: ["SG90", "MG996R", "DS3218", "Custom"] },
-      mountingHoles: { label: "Mounting Holes", value: "4", unit: "", min: 2, max: 8 },
-      thickness: { label: "Bracket Thickness", value: "3", unit: "mm", min: 2, max: 10 },
-      height: { label: "Mount Height", value: "25", unit: "mm", min: 15, max: 50 },
-      cableManagement: { label: "Cable Management", value: "true", options: ["true", "false"] },
-      material: { label: "Material", value: "Aluminum", options: ["Aluminum", "ABS Plastic", "Carbon Fiber"] }
+      diameter: { label: "Rotor Diameter", value: "320", unit: "mm", min: 200, max: 450 },
+      holeCount: { label: "Bolt Holes", value: "5", unit: "", min: 3, max: 8 },
+      holeType: { label: "Hole Type", value: "M12", options: ["M10", "M12", "M14"] },
+      pcd: { label: "PCD", value: "114.3", unit: "mm", min: 90, max: 150 },
+      type: { label: "Type", value: "Vented", options: ["Vented", "Solid", "Slotted"] },
+      material: { label: "Material", value: "Cast Iron", options: ["Cast Iron", "Carbon Ceramic", "Steel"] }
     }
   }
 ];
@@ -103,33 +106,33 @@ export const cadTemplates = [
 export const sampleRecommendations = [
   { 
     id: 1, 
-    name: "Steel Beam A", 
-    material: "SS304", 
-    price: 50, 
-    compatibility: 95,
-    description: "High-grade stainless steel I-beam",
-    supplier: "SteelCorp Ltd",
-    leadTime: "5-7 days"
+    name: "Standard I-Beam", 
+    material: "Steel", 
+    price: 150, 
+    compatibility: 95, 
+    description: "Standard structural I-beam with specified dimensions", 
+    supplier: "SteelCorp Ltd", 
+    leadTime: "5-7 days" 
   },
   { 
     id: 2, 
-    name: "Aluminum Beam X", 
-    material: "Aluminum 6061", 
-    price: 40, 
-    compatibility: 85,
-    description: "Lightweight aluminum alternative",
-    supplier: "AlumTech Inc",
-    leadTime: "3-5 days"
+    name: "Surgical Drill Guide", 
+    material: "Surgical Steel", 
+    price: 320, 
+    compatibility: 88, 
+    description: "Surgical drill guide with multiple bit sizes and rotating grips", 
+    supplier: "MedTech Solutions", 
+    leadTime: "3-5 days" 
   },
   { 
     id: 3, 
-    name: "Carbon Steel Beam", 
-    material: "AISI 1045", 
-    price: 35, 
-    compatibility: 90,
-    description: "Standard carbon steel beam",
-    supplier: "MetalWorks Co",
-    leadTime: "7-10 days"
+    name: "Gallows Frame", 
+    material: "Galvanized Steel", 
+    price: 450, 
+    compatibility: 92, 
+    description: "Large structural frame with brackets and angle iron construction", 
+    supplier: "BuildRight Industries", 
+    leadTime: "7-10 days" 
   }
 ];
 
@@ -137,7 +140,7 @@ export const sampleRecommendations = [
 export const sampleRFQs = [
   { 
     id: 1, 
-    drawing: "Steel Beam", 
+    drawing: "Standard I-Beam", 
     quantity: 10, 
     status: "Submitted",
     submittedDate: "2024-01-15",
@@ -146,7 +149,7 @@ export const sampleRFQs = [
   },
   { 
     id: 2, 
-    drawing: "Steel Plate", 
+    drawing: "Surgical Drill Guide", 
     quantity: 5, 
     status: "Approved",
     submittedDate: "2024-01-10",
@@ -155,7 +158,7 @@ export const sampleRFQs = [
   },
   { 
     id: 3, 
-    drawing: "Mounting Bracket", 
+    drawing: "Gallows Frame", 
     quantity: 25, 
     status: "In Review",
     submittedDate: "2024-01-18",

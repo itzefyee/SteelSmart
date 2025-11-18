@@ -330,16 +330,16 @@ const CADGenerator: React.FC = () => {
 
     switch (template.id) {
       case 1: // I-Beam
-        return `Generate an I-beam with the following specifications: height ${params.height?.value}${params.height?.unit}, flange width ${params.width?.value}${params.width?.unit}, web thickness ${params.webThickness?.value}${params.webThickness?.unit}, flange thickness ${params.flangeThickness?.value}${params.flangeThickness?.unit}, length ${params.length?.value}${params.length?.unit}, material ${params.material?.value}`;
+        return `Generate a standard structural I-beam with length ${params.length?.value}${params.length?.unit}, height ${params.height?.value}${params.height?.unit}, flange width ${params.flangeWidth?.value}${params.flangeWidth?.unit}, flange thickness ${params.flangeThickness?.value}${params.flangeThickness?.unit}, web thickness ${params.webThickness?.value}${params.webThickness?.unit}, and root radius ${params.rootRadius?.value}${params.rootRadius?.unit}`;
 
-      case 2: // Rectangular Plate
-        return `Generate a rectangular steel plate with dimensions ${params.length?.value}${params.length?.unit} x ${params.width?.value}${params.width?.unit} x ${params.thickness?.value}${params.thickness?.unit}, with ${params.holeCount?.value} holes of ${params.holeDiameter?.value}${params.holeDiameter?.unit} diameter, material ${params.material?.value}`;
+      case 2: // Drill Guide
+        return `Generate a surgical drill guide with a ${params.handleLength?.value}${params.handleLength?.unit} handle, compatible with ${params.bitSize1?.value}${params.bitSize1?.unit} and ${params.bitSize2?.value}${params.bitSize2?.unit} bits, featuring twin bit mounts and rotating grips`;
 
-      case 3: // L-Bracket
-        return `Generate an L-bracket with height ${params.height?.value}${params.height?.unit}, width ${params.width?.value}${params.width?.unit}, thickness ${params.thickness?.value}${params.thickness?.unit}, ${params.holeCount?.value} mounting holes of ${params.holeDiameter?.value}${params.holeDiameter?.unit} diameter, bend radius ${params.bendRadius?.value}${params.bendRadius?.unit}, material ${params.material?.value}`;
+      case 3: // Gallows Frame
+        return `Generate a large structural Gallows frame constructed from angle iron, with dimensions ${params.height?.value}x${params.width?.value}x${params.depth?.value} ${params.height?.unit}, including ${params.bracketCount?.value} brackets`;
 
-      case 4: // Servo Mount
-        return `Generate a servo motor mounting bracket for ${params.servoType?.value} servo, with ${params.mountingHoles?.value} mounting holes, bracket thickness ${params.thickness?.value}${params.thickness?.unit}, mount height ${params.height?.value}${params.height?.unit}, cable management: ${params.cableManagement?.value}, material ${params.material?.value}`;
+      case 4: // Brake Rotor
+        return `Generate a vented automotive brake rotor with a diameter of ${params.diameter?.value}${params.diameter?.unit}, featuring ${params.holeCount?.value} ${params.holeType?.value} holes on a ${params.pcd?.value}${params.pcd?.unit} PCD`;
 
       default:
         return `Generate a ${template.name} with the default parameters`;
