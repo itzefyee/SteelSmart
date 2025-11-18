@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-
+import { supabase } from '@/lib/supabase';
 import { RFQFormData, ValidationErrors, APIResponse } from '@/types';
 import { validateEmail, formatFileSize, isValidFileType, isValidFileSize } from '@/lib/utils';
 import { sampleDrawings, cadTemplates } from '@/data/sample-data';
@@ -238,21 +238,30 @@ const RFQForm: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      // Check authentication first
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        throw new Error('You must be logged in to submit an RFQ. Please log in and try again.');
+      }
+      
       const formDataToSubmit = new FormData();
       
       // Add contact info
       Object.entries(formData.contactInfo).forEach(([key, value]) => {
-        formDataToSubmit.append(key, value);
+        const cleanValue = value?.trim() || '';
+        formDataToSubmit.append(key, cleanValue);
       });
 
       // Add requirements
       Object.entries(formData.requirements).forEach(([key, value]) => {
-        formDataToSubmit.append(key, value.toString());
+        const cleanValue = value?.toString().trim() || '';
+        formDataToSubmit.append(key, cleanValue);
       });
 
       // Add files
       formData.files.forEach((file, index) => {
-        formDataToSubmit.append(`file_${index}`, file);
+        formDataToSubmit.append('files', file);
       });
 
       const response = await fetch('/api/submit-rfq', {
@@ -260,12 +269,21 @@ const RFQForm: React.FC = () => {
         body: formDataToSubmit,
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
       const result: APIResponse<{ rfqId: string }> = await response.json();
 
       if (result.success && result.data) {
         setRfqId(result.data.rfqId);
         setCurrentStep(4);
       } else {
+        // Handle authentication errors specifically
+        if (response.status === 401) {
+          throw new Error('Please log in to submit an RFQ. You need to be authenticated to save your request.');
+        }
         throw new Error(result.error || 'Failed to submit RFQ');
       }
     } catch (error) {

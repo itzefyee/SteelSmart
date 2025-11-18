@@ -1,25 +1,70 @@
 'use client';
 
-import React, { useState } from 'react';
-import { sampleRFQs } from '@/data/sample-data';
+import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface RFQ {
-  id: number;
+  id: string;
   drawing: string;
   quantity: number;
   status: 'Submitted' | 'In Review' | 'Approved' | 'Rejected' | 'Completed';
   submittedDate: string;
   expectedDelivery: string;
   priority: 'Low' | 'Medium' | 'High';
+  contactInfo?: {
+    name: string;
+    email: string;
+    company: string;
+    phone: string;
+  };
+  requirements?: {
+    projectDescription: string;
+    quantity: number;
+    material: string;
+    specifications: string;
+    deadline: string;
+    budget: string;
+  };
+  attachedFiles?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 const RFQTracking: React.FC = () => {
-  const [rfqs, setRfqs] = useState<RFQ[]>(sampleRFQs as RFQ[]);
+  const [rfqs, setRfqs] = useState<RFQ[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedRFQ, setSelectedRFQ] = useState<RFQ | null>(null);
+
+  // Fetch RFQs from database
+  useEffect(() => {
+    fetchRFQs();
+  }, []);
+
+  const fetchRFQs = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await fetch('/api/rfq-list');
+      const result = await response.json();
+      
+      if (result.success) {
+        setRfqs(result.data || []);
+      } else {
+        setError(result.error || 'Failed to fetch RFQs');
+      }
+    } catch (err) {
+      console.error('Error fetching RFQs:', err);
+      setError('Failed to load RFQs. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -51,11 +96,9 @@ const RFQTracking: React.FC = () => {
     }
   };
 
-  // Status updates are handled by admin, removed user ability to update status
-
   const filteredRFQs = rfqs.filter(rfq => {
     const matchesSearch = rfq.drawing.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         rfq.id.toString().includes(searchTerm);
+                         rfq.id.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || rfq.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -86,7 +129,7 @@ const RFQTracking: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow border p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input
             label="Search RFQs"
             value={searchTerm}
@@ -110,12 +153,45 @@ const RFQTracking: React.FC = () => {
               <option value="Completed">Completed</option>
             </select>
           </div>
+          <div className="flex items-end">
+            <Button
+              onClick={fetchRFQs}
+              variant="outline"
+              disabled={loading}
+              className="w-full"
+            >
+              {loading ? <LoadingSpinner size="sm" /> : 'Refresh'}
+            </Button>
+          </div>
         </div>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-red-800">{error}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="bg-white rounded-lg shadow border p-12">
+          <div className="flex flex-col items-center justify-center">
+            <LoadingSpinner size="lg" />
+            <p className="text-gray-600 mt-4">Loading your RFQs...</p>
+          </div>
+        </div>
+      )}
+
       {/* RFQ List */}
-      <div className="bg-white rounded-lg shadow border overflow-hidden">
-        {filteredRFQs.length > 0 ? (
+      {!loading && (
+        <div className="bg-white rounded-lg shadow border overflow-hidden">
+          {filteredRFQs.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -143,7 +219,7 @@ const RFQTracking: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
-                          RFQ #{rfq.id.toString().padStart(4, '0')}
+                          RFQ #{rfq.id.slice(-8).toUpperCase()}
                         </div>
                         <div className="text-sm text-gray-500">{rfq.drawing}</div>
                         <div className="text-xs text-gray-400">Qty: {rfq.quantity}</div>
@@ -207,7 +283,8 @@ const RFQTracking: React.FC = () => {
             </Button>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {/* RFQ Details Modal */}
       {selectedRFQ && (
@@ -216,7 +293,7 @@ const RFQTracking: React.FC = () => {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">
-                  RFQ #{selectedRFQ.id.toString().padStart(4, '0')} Details
+                  RFQ #{selectedRFQ.id.slice(-8).toUpperCase()} Details
                 </h3>
                 <button
                   onClick={() => setSelectedRFQ(null)}
@@ -256,37 +333,124 @@ const RFQTracking: React.FC = () => {
                 </div>
               </div>
 
-              {/* RFQ Information */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              {/* Contact Information */}
+              {selectedRFQ.contactInfo && (
                 <div>
-                  <span className="font-medium text-gray-700">Drawing:</span>
-                  <p className="text-gray-900">{selectedRFQ.drawing}</p>
+                  <h4 className="font-medium text-gray-900 mb-3">Contact Information</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">Name:</span>
+                      <p className="text-gray-900">{selectedRFQ.contactInfo.name}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Email:</span>
+                      <p className="text-gray-900">{selectedRFQ.contactInfo.email}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Company:</span>
+                      <p className="text-gray-900">{selectedRFQ.contactInfo.company}</p>
+                    </div>
+                    {selectedRFQ.contactInfo.phone && (
+                      <div>
+                        <span className="font-medium text-gray-700">Phone:</span>
+                        <p className="text-gray-900">{selectedRFQ.contactInfo.phone}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
+              )}
+
+              {/* Project Requirements */}
+              {selectedRFQ.requirements && (
                 <div>
-                  <span className="font-medium text-gray-700">Quantity:</span>
-                  <p className="text-gray-900">{selectedRFQ.quantity}</p>
+                  <h4 className="font-medium text-gray-900 mb-3">Project Requirements</h4>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-700">Description:</span>
+                      <p className="text-gray-900 mt-1">{selectedRFQ.requirements.projectDescription}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="font-medium text-gray-700">Quantity:</span>
+                        <p className="text-gray-900">{selectedRFQ.requirements.quantity}</p>
+                      </div>
+                      {selectedRFQ.requirements.material && (
+                        <div>
+                          <span className="font-medium text-gray-700">Material:</span>
+                          <p className="text-gray-900">{selectedRFQ.requirements.material}</p>
+                        </div>
+                      )}
+                      {selectedRFQ.requirements.deadline && (
+                        <div>
+                          <span className="font-medium text-gray-700">Deadline:</span>
+                          <p className="text-gray-900">{selectedRFQ.requirements.deadline}</p>
+                        </div>
+                      )}
+                      {selectedRFQ.requirements.budget && (
+                        <div>
+                          <span className="font-medium text-gray-700">Budget:</span>
+                          <p className="text-gray-900">{selectedRFQ.requirements.budget}</p>
+                        </div>
+                      )}
+                    </div>
+                    {selectedRFQ.requirements.specifications && (
+                      <div>
+                        <span className="font-medium text-gray-700">Specifications:</span>
+                        <p className="text-gray-900 mt-1">{selectedRFQ.requirements.specifications}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium text-gray-700">Priority:</span>
-                  <p className={`font-medium ${getPriorityColor(selectedRFQ.priority)}`}>
-                    {selectedRFQ.priority}
-                  </p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Status:</span>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedRFQ.status)}`}>
-                    {selectedRFQ.status}
-                  </span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Submitted:</span>
-                  <p className="text-gray-900">{selectedRFQ.submittedDate}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Expected Delivery:</span>
-                  <p className="text-gray-900">{selectedRFQ.expectedDelivery}</p>
+              )}
+
+              {/* RFQ Summary */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-3">RFQ Summary</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-700">RFQ ID:</span>
+                    <p className="text-gray-900">#{selectedRFQ.id.slice(-8).toUpperCase()}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Priority:</span>
+                    <p className={`font-medium ${getPriorityColor(selectedRFQ.priority)}`}>
+                      {selectedRFQ.priority}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Status:</span>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedRFQ.status)}`}>
+                      {selectedRFQ.status}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Submitted:</span>
+                    <p className="text-gray-900">{selectedRFQ.submittedDate}</p>
+                  </div>
                 </div>
               </div>
+
+              {/* Attached Files */}
+              {selectedRFQ.attachedFiles && selectedRFQ.attachedFiles.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-3">Attached Files</h4>
+                  <div className="space-y-2">
+                    {selectedRFQ.attachedFiles.map((filePath, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center">
+                          <svg className="w-5 h-5 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span className="text-sm text-gray-900">{filePath.split('/').pop()}</span>
+                        </div>
+                        <Button size="sm" variant="outline">
+                          Download
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex space-x-3 pt-4 border-t border-gray-200">

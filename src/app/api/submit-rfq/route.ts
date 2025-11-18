@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { APIResponse } from '@/types';
 import { getSupabaseServer } from '@/lib/supabase-server';
+import { parseDeadlineToDate } from '@/lib/deadline-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,14 +15,19 @@ export async function POST(request: NextRequest) {
       phone: formData.get('phone') as string,
     };
 
+    const quantityStr = formData.get('quantity') as string;
+    const quantity = parseInt(quantityStr) || 1; // Default to 1 if parsing fails
+    
     const requirements = {
       projectDescription: formData.get('projectDescription') as string,
-      quantity: parseInt(formData.get('quantity') as string),
+      quantity: quantity,
       material: formData.get('material') as string,
       specifications: formData.get('specifications') as string,
       deadline: formData.get('deadline') as string,
       budget: formData.get('budget') as string,
     };
+    
+
 
     // Basic validation
     if (!contactInfo.name || !contactInfo.email || !requirements.projectDescription) {
@@ -40,9 +46,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Get authenticated user (optional - RFQs can be submitted anonymously)
+    // Get authenticated user (required for RFQ submission)
     const supabase = await getSupabaseServer();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json<APIResponse<null>>({
+        success: false,
+        error: 'Authentication required. Please log in to submit an RFQ.'
+      }, { status: 401 });
+    }
 
     // Handle file uploads
     const attachedFiles: string[] = [];
@@ -52,8 +65,7 @@ export async function POST(request: NextRequest) {
       if (file instanceof File && file.size > 0) {
         try {
           const fileBuffer = Buffer.from(await file.arrayBuffer());
-          const userId = user?.id || 'anonymous';
-          const filePath = `${userId}/${Date.now()}_${file.name}`;
+          const filePath = `${user.id}/${Date.now()}_${file.name}`;
 
           const { error: uploadError } = await supabase.storage
             .from('rfq-attachments')
@@ -77,7 +89,7 @@ export async function POST(request: NextRequest) {
     const { data: rfqData, error: insertError } = await supabase
       .from('rfq_submissions')
       .insert({
-        user_id: user?.id || null,
+        user_id: user.id,
         contact_name: contactInfo.name,
         contact_email: contactInfo.email,
         contact_company: contactInfo.company || null,
@@ -86,7 +98,7 @@ export async function POST(request: NextRequest) {
         quantity: requirements.quantity,
         material: requirements.material || null,
         specifications: requirements.specifications,
-        deadline: requirements.deadline || null,
+        deadline: parseDeadlineToDate(requirements.deadline),
         budget: requirements.budget || null,
         attached_files: attachedFiles,
         status: 'pending'
@@ -104,14 +116,7 @@ export async function POST(request: NextRequest) {
 
     const rfqId = rfqData.id;
 
-    console.log('RFQ Submitted and saved to database:', {
-      rfqId,
-      user_id: user?.id || 'anonymous',
-      contactInfo,
-      requirements,
-      attachedFilesCount: attachedFiles.length,
-      timestamp: new Date().toISOString()
-    });
+
 
     // TODO: Send confirmation email to user
     // TODO: Notify sales team
