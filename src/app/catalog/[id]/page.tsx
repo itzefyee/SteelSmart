@@ -19,14 +19,29 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Reset state when ID changes
+  useEffect(() => {
+    console.log('[Product Details] ID changed to:', id);
+    setProduct(null);
+    setRelatedProducts([]);
+    setLoading(true);
+    setError(null);
+  }, [id]);
+
   useEffect(() => {
     const loadProduct = async () => {
-      if (!id) return;
+      console.log('[Product Details] loadProduct called, id:', id);
+      if (!id) {
+        console.log('[Product Details] No ID provided');
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
         setError(null);
         
+        console.log('[Product Details] Fetching product from Supabase...');
         const supabase = getSupabaseClient();
         
         // Fetch the product
@@ -36,14 +51,18 @@ export default function ProductDetailPage() {
           .eq('id', id)
           .single();
         
+        console.log('[Product Details] Product fetch result:', { productData, productError });
+        
         if (productError || !productData) {
           throw new Error('Product not found');
         }
 
         const typedProduct = productData as Product;
         setProduct(typedProduct);
+        console.log('[Product Details] Product set successfully');
 
         // Get related products (same category, excluding current product)
+        console.log('[Product Details] Fetching related products...');
         const { data: relatedData, error: relatedError } = await supabase
           .from('products')
           .select('*')
@@ -51,13 +70,16 @@ export default function ProductDetailPage() {
           .neq('id', typedProduct.id)
           .limit(4);
         
+        console.log('[Product Details] Related products result:', { relatedData, relatedError });
+        
         if (!relatedError && relatedData) {
           setRelatedProducts(relatedData as Product[]);
         }
       } catch (err) {
-        console.error('Error loading product:', err);
+        console.error('[Product Details] Error loading product:', err);
         setError(err instanceof Error ? err.message : 'Failed to load product');
       } finally {
+        console.log('[Product Details] Loading complete');
         setLoading(false);
       }
     };
