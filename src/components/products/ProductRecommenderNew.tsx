@@ -58,6 +58,40 @@ const ProductRecommenderNew: React.FC = () => {
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [debugInfo, setDebugInfo] = useState<string>('');
 
+  // Helper function to map componentType to database category
+  const mapComponentTypeToCategory = (componentType: string): string => {
+    if (!componentType) return 'all';
+    
+    const type = componentType.toLowerCase();
+    
+    // Robotic components
+    if (type.includes('servo') || type.includes('motor') || type.includes('actuator') || 
+        type.includes('encoder') || type.includes('sensor') || type.includes('robot')) {
+      return 'robotic';
+    }
+    
+    // Structural components
+    if (type.includes('beam') || type.includes('structural') || type.includes('plate') || 
+        type.includes('angle') || type.includes('channel') || type.includes('column')) {
+      return 'structural';
+    }
+    
+    // Fasteners
+    if (type.includes('bolt') || type.includes('nut') || type.includes('screw') || 
+        type.includes('washer') || type.includes('fastener') || type.includes('rivet')) {
+      return 'fasteners';
+    }
+    
+    // Custom parts (brackets, mounts, adapters, etc.)
+    if (type.includes('bracket') || type.includes('mount') || type.includes('adapter') || 
+        type.includes('custom') || type.includes('fitting') || type.includes('connector')) {
+      return 'custom';
+    }
+    
+    // Default to 'all' if no match
+    return 'all';
+  };
+
   // Check for analysis data from CAD Analyzer (only once on mount)
   useEffect(() => {
     let isMounted = true;
@@ -73,12 +107,22 @@ const ProductRecommenderNew: React.FC = () => {
             
             // Auto-populate requirements from analysis
             if (data.extractedSpecs) {
+              // Map componentType to proper database category
+              const mappedCategory = mapComponentTypeToCategory(data.extractedSpecs.componentType || '');
+              
               const specs = {
                 material: data.extractedSpecs.material || '',
                 dimensions: data.extractedSpecs.dimensions || '',
                 loadCapacity: data.extractedSpecs.loadRequirements || '',
-                category: data.extractedSpecs.componentType || 'all'
+                category: mappedCategory
               };
+              
+              console.log('📊 Mapped analysis data:', {
+                originalComponentType: data.extractedSpecs.componentType,
+                mappedCategory: mappedCategory,
+                specs: specs
+              });
+              
               setRequirements(specs);
               
               // Auto-run recommendations with the specs
@@ -111,49 +155,32 @@ const ProductRecommenderNew: React.FC = () => {
       const searchSpecs = specs || requirements;
       console.log('📋 Search specs:', searchSpecs);
       
-      // Step 1: Search catalog for direct matches
-      let catalogResults: Product[] = [];
-      try {
-        setDebugInfo('Searching catalog...');
-        console.log('🏪 Searching catalog...');
-        catalogResults = await searchCatalog(searchSpecs);
-        console.log('✅ Catalog results:', catalogResults.length);
-        setCatalogMatches(catalogResults);
-        setDebugInfo(`Found ${catalogResults.length} catalog matches`);
-      } catch (error) {
-        console.error('❌ Catalog search error:', error);
-        setDebugInfo('Catalog search failed');
-        setCatalogMatches([]);
-      }
+      // OPTIMIZATION: Run catalog and AI searches in PARALLEL using Promise.all()
+      const [catalogResults, alternativeResults] = await Promise.all([
+        searchCatalog(searchSpecs).catch(error => {
+          console.error('❌ Catalog search error:', error);
+          return [] as Product[];
+        }),
+        getAlternativeSuggestions(searchSpecs).catch(error => {
+          console.error('❌ Alternative suggestions error:', error);
+          return [] as AlternativeProduct[];
+        })
+      ]);
       
-      // Step 2: Get alternative suggestions from AI
-      let alternativeResults: AlternativeProduct[] = [];
-      try {
-        setDebugInfo('Getting AI alternatives...');
-        console.log('🤖 Getting AI alternatives...');
-        alternativeResults = await getAlternativeSuggestions(searchSpecs);
-        console.log('✅ AI alternatives:', alternativeResults.length);
-        setAlternatives(alternativeResults);
-        setDebugInfo(`Found ${alternativeResults.length} AI alternatives`);
-      } catch (error) {
-        console.error('❌ Alternative suggestions error:', error);
-        setDebugInfo('AI alternatives failed');
-        setAlternatives([]);
-      }
+      // Update state with results
+      console.log('✅ Catalog results:', catalogResults.length);
+      console.log('✅ AI alternatives:', alternativeResults.length);
+      setCatalogMatches(catalogResults);
+      setAlternatives(alternativeResults);
+      setDebugInfo(`Found ${catalogResults.length} catalog matches and ${alternativeResults.length} AI alternatives`);
       
-      // Step 3: Combine and rank all recommendations
-      try {
-        setDebugInfo('Ranking results...');
-        console.log('⭐ Ranking results...');
-        const ranked = combineAndRank(catalogResults, alternativeResults, searchSpecs);
-        console.log('✅ Ranked:', ranked.length);
-        setRankedRecommendations(ranked);
-        setDebugInfo(`Complete! ${ranked.length} total recommendations`);
-      } catch (error) {
-        console.error('❌ Ranking error:', error);
-        setDebugInfo('Ranking failed');
-        setRankedRecommendations([]);
-      }
+      // Combine and rank all recommendations
+      setDebugInfo('Ranking results...');
+      console.log('⭐ Ranking results...');
+      const ranked = combineAndRank(catalogResults, alternativeResults, searchSpecs);
+      console.log('✅ Ranked:', ranked.length);
+      setRankedRecommendations(ranked);
+      setDebugInfo(`Complete! ${ranked.length} total recommendations`);
       
     } catch (error) {
       console.error('❌ Error finding recommendations:', error);
@@ -172,7 +199,9 @@ const ProductRecommenderNew: React.FC = () => {
     try {
       const supabase = getSupabaseClient();
       
-      let query = supabase.from('products').select('*');
+      // OPTIMIZATION: Select only required fields instead of '*'
+      const fields = 'id, name, price, category, material, description, in_stock, lead_time, images';
+      let query = supabase.from('products').select(fields);
       
       // Filter by category if specified (not 'all')
       if (specs.category && specs.category !== 'all') {
@@ -204,7 +233,7 @@ const ProductRecommenderNew: React.FC = () => {
       // If no results with filters, try without material filter as fallback
       if (results.length === 0 && specs.material) {
         console.log('No results with material filter, trying without...');
-        let fallbackQuery = supabase.from('products').select('*');
+        let fallbackQuery = supabase.from('products').select(fields);
         
         if (specs.category && specs.category !== 'all') {
           fallbackQuery = fallbackQuery.eq('category', specs.category);
@@ -421,7 +450,7 @@ const ProductRecommenderNew: React.FC = () => {
           </div>
         </div>
         
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center space-y-3">
           <Button 
             onClick={() => handleFindRecommendations()}
             disabled={isLoading}
