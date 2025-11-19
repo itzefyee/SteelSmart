@@ -7,6 +7,7 @@ import ProductCard from '@/components/products/ProductCard';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import CADPreview3D from '@/components/cad/CADPreview3D';
+import CAD2DViewExtractor from '@/components/cad/CAD2DViewExtractor';
 import { DrawingAnalysis, FileUploadState, APIResponse } from '@/types';
 import { formatFileSize } from '@/lib/utils';
 import { sampleAnalysisReport } from '@/data/sample-data';
@@ -1272,6 +1273,31 @@ const CADAnalyzerFull: React.FC = () => {
                       </div>
                     )}
 
+                    {/* 2D View Extraction - Show for CAD file formats */}
+                    {uploadState.file && ['step', 'stp', 'stl', 'obj', 'dxf', 'gltf', 'glb'].includes(
+                      uploadState.file.name.split('.').pop()?.toLowerCase() || ''
+                    ) && (
+                      <CAD2DViewExtractor
+                        cadModelData={cadModelData}
+                        fileName={uploadState.file.name.split('.')[0]}
+                        onAnalysisComplete={(result) => {
+                          // Update the main analysis with AI results from multi-view analysis
+                          setAnalysis({
+                            extractedSpecs: result.extractedSpecs || {},
+                            recommendedProducts: analysis?.recommendedProducts || [],
+                            totalRecommendations: analysis?.totalRecommendations || 0,
+                            confidence: result.confidence || 0,
+                            reasoning: result.reasoning || '',
+                            analysisId: `multiview_${Date.now()}`,
+                          });
+                          
+                          // Show success message
+                          setSampleLoadSuccess('Multi-view AI analysis complete! Results updated.');
+                          setTimeout(() => setSampleLoadSuccess(null), 5000);
+                        }}
+                      />
+                    )}
+
                     {/* Manufacturing Analysis Control - For CAD files */}
                     {uploadState.file && ['step', 'stp', 'stl', 'obj', 'dxf', 'gltf', 'glb'].includes(
                       uploadState.file.name.split('.').pop()?.toLowerCase() || ''
@@ -1404,18 +1430,28 @@ const CADAnalyzerFull: React.FC = () => {
                       
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4 text-sm">
-                          {Object.entries(analysis.extractedSpecs).map(([key, value]) => (
-                            value && (
+                          {Object.entries(analysis.extractedSpecs).map(([key, value]) => {
+                            // Skip if no value
+                            if (!value) return null;
+                            
+                            // Handle nested objects (like features)
+                            const displayValue = typeof value === 'object' && value !== null
+                              ? Object.entries(value)
+                                  .filter(([, v]) => v)
+                                  .map(([k, v]) => `${k}: ${v}`)
+                                  .join(', ')
+                              : String(value);
+                            
+                            return displayValue ? (
                               <div key={key} className="bg-gray-50 p-3 rounded-lg">
                                 <span className="font-medium text-gray-700 capitalize block">
                                   {key.replace(/([A-Z])/g, ' $1').trim()}:
                                 </span>
-                                <span className="text-gray-900">{value}</span>
+                                <span className="text-gray-900">{displayValue}</span>
                               </div>
-                            )
-                          ))}
-                        </div>
-                        
+                            ) : null;
+                          })}
+                        </div>                        
                         <div className="pt-3 border-t border-gray-200">
                           <p className="text-sm text-gray-600">
                             <span className="font-medium">Analysis:</span> {analysis.reasoning}
