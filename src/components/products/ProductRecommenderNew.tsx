@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import ProductCard from '@/components/products/ProductCard';
 import { getSupabaseClient } from '@/lib/supabase';
 import type { Product } from '@/lib/supabase';
+import Link from 'next/link';
 
 interface AlternativeProduct {
   name: string;
@@ -174,13 +174,13 @@ const ProductRecommenderNew: React.FC = () => {
       
       let query = supabase.from('products').select('*');
       
-      // Filter by category if specified
+      // Filter by category if specified (not 'all')
       if (specs.category && specs.category !== 'all') {
         query = query.eq('category', specs.category);
       }
       
-      // Filter by material if specified
-      if (specs.material) {
+      // Filter by material if specified (case-insensitive partial match)
+      if (specs.material && specs.material.trim() !== '') {
         query = query.ilike('material', `%${specs.material}%`);
       }
       
@@ -189,8 +189,9 @@ const ProductRecommenderNew: React.FC = () => {
         setTimeout(() => reject(new Error('Catalog search timeout')), 20000);
       });
       
-      const queryPromise = query.limit(20);
+      const queryPromise = query.limit(50);
       
+      // Execute query with timeout
       const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
       
       if (error) {
@@ -198,7 +199,22 @@ const ProductRecommenderNew: React.FC = () => {
         return [];
       }
       
-      return (data as Product[]) || [];
+      const results = (data as Product[]) || [];
+      
+      // If no results with filters, try without material filter as fallback
+      if (results.length === 0 && specs.material) {
+        console.log('No results with material filter, trying without...');
+        let fallbackQuery = supabase.from('products').select('*');
+        
+        if (specs.category && specs.category !== 'all') {
+          fallbackQuery = fallbackQuery.eq('category', specs.category);
+        }
+        
+        const { data: fallbackData } = await fallbackQuery.limit(50);
+        return (fallbackData as Product[]) || [];
+      }
+      
+      return results;
     } catch (error) {
       console.error('Catalog search exception:', error);
       return [];
@@ -492,10 +508,83 @@ const ProductRecommenderNew: React.FC = () => {
             {activeTab === 'direct' && (
               <div>
                 {catalogMatches.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {catalogMatches.map((product) => (
-                      <ProductCard key={product.id} product={product} />
-                    ))}
+                  <div className="space-y-6">
+                    {catalogMatches.map((product) => {
+                      const score = calculateMatchScore(product, requirements);
+                      const reasoning = generateMatchReasoning(product, requirements, score);
+
+                      return (
+                        <div key={product.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow bg-white">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3 mb-2">
+                                <h3 className="font-semibold text-gray-900 text-lg">{product.name}</h3>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                                  🏪 Catalog Match
+                                </span>
+                                {/* Match Score Badge - Similar to AI Alternatives */}
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(score)}`}>
+                                  {Math.round(score)}% Match
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-3">{product.description}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-lg font-bold text-gray-900">${product.price}</span>
+                            </div>
+                          </div>
+
+                          {/* Specifications Grid */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                            <div>
+                              <span className="text-xs text-gray-600">Material</span>
+                              <p className="font-medium text-gray-900">{product.material || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-gray-600">Category</span>
+                              <p className="font-medium text-gray-900 capitalize">{product.category || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-gray-600">Lead Time</span>
+                              <p className="font-medium text-gray-900">{product.lead_time || 'N/A'}</p>
+                            </div>
+                             <div>
+                              <span className="text-xs text-gray-600">Availability</span>
+                              <p className={`font-medium ${product.in_stock ? 'text-green-600' : 'text-red-600'}`}>
+                                {product.in_stock ? '✓ In Stock' : '✗ Out of Stock'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Reasoning Box */}
+                          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-start space-x-2">
+                              <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <div className="flex-1">
+                                <h4 className="text-xs font-semibold text-blue-900 mb-1">Match Analysis</h4>
+                                <p className="text-xs text-blue-800">{reasoning}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex space-x-3">
+                            <Link href="/rfq" className="flex-1">
+                              <Button size="sm" className="w-full">
+                                Add to Quote
+                              </Button>
+                            </Link>
+                            <Link href={`/catalog/${product.id}`}>
+                              <Button size="sm" variant="outline">
+                                View Details
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-12">
