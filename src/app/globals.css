@@ -20,6 +20,7 @@
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    --hero-blue-gradient: linear-gradient(135deg, #0f1f45 0%, #1d4ed8 38%, #2563eb 70%, #1e3a8a 100%);
   }
 
   * {
@@ -198,6 +199,27 @@
     @apply bg-gradient-to-r from-accent to-orange-500 bg-clip-text text-transparent;
   }
 
+  @keyframes blueprint-float {
+    0% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(var(--idle-x, 18px), var(--idle-y, -24px), 0);
+    }
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  .blueprint-idle-shape {
+    animation-name: blueprint-float;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+    animation-fill-mode: both;
+    will-change: transform;
+  }
+
   /* Layout utilities */
   .center-content {
     @apply flex items-center justify-center;
@@ -226,13 +248,32 @@
     isolation: isolate;
   }
 
+  .hero-gradient-shell,
+  .cad-generator-shell {
+    @apply relative min-h-screen overflow-hidden text-slate-100;
+    background: var(--hero-blue-gradient);
+    isolation: isolate;
+  }
+
+  .hero-gradient-shell::after,
+  .cad-generator-shell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 25%, rgba(96, 165, 250, 0.12), transparent 55%);
+    mix-blend-mode: screen;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+  }
+
   .home-wavy-bg {
     @apply relative overflow-hidden;
     background:
-      radial-gradient(120% 80% at 10% 10%, rgba(54, 128, 218, 0.65), transparent 60%),
-      radial-gradient(90% 70% at 80% 0%, rgba(108, 170, 240, 0.55), transparent 60%),
-      radial-gradient(85% 60% at 50% 30%, rgba(34, 104, 216, 0.25), transparent 70%),
-      linear-gradient(135deg, #60bcfd 0%, #c7e4ff 30%, #82bbf3 60%, #89c3ff 100%);
+      radial-gradient(120% 80% at 10% 10%, rgba(214, 239, 255, 0.45), transparent 55%),
+      radial-gradient(90% 70% at 80% 0%, rgba(224, 244, 255, 0.35), transparent 55%),
+      radial-gradient(85% 60% at 50% 30%, rgba(200, 227, 255, 0.28), transparent 65%),
+      linear-gradient(135deg, rgba(247, 250, 255, 0.95) 0%, rgba(236, 246, 255, 0.9) 32%, rgba(227, 238, 255, 0.88) 60%, rgba(213, 229, 255, 0.86) 100%);
     isolation: isolate;
   }
 
@@ -1112,6 +1153,66 @@
       80% 60%,
       120% 100%;
   }
+}
+
+@keyframes blueprintFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-15px) rotate(2deg);
+  }
+}
+
+@keyframes blueprintFloatAlt {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(-2deg);
+  }
+}
+
+@keyframes blueprintPulse {
+  0%, 100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.28;
+  }
+}
+
+/* Custom opacity utilities for blueprint models */
+.opacity-14 {
+  opacity: 0.14;
+}
+
+.opacity-15 {
+  opacity: 0.15;
+}
+
+.opacity-16 {
+  opacity: 0.16;
+}
+
+.opacity-17 {
+  opacity: 0.17;
+}
+
+.opacity-18 {
+  opacity: 0.18;
+}
+
+.opacity-19 {
+  opacity: 0.19;
+}
+
+.opacity-22 {
+  opacity: 0.22;
+}
+
+.opacity-23 {
+  opacity: 0.23;
 }
 
 /* Custom scrollbar */

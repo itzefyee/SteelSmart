@@ -6,6 +6,7 @@ import Footer from '@/components/layout/Footer';
 import RFQForm from '@/components/rfq/RFQForm';
 import RFQTracking from '@/components/rfq/RFQTracking';
 import FeatureIcon from '@/components/FeatureIcon';
+import PageHero from '@/components/layout/PageHero';
 
 export default function RFQPage() {
   const [activeTab, setActiveTab] = useState<'form' | 'tracking'>('form');
@@ -13,13 +14,23 @@ export default function RFQPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Request for Quote</h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Get competitive quotes for your steel and metal part requirements. Our team will review your specifications and provide a detailed quote within 24 hours.
-            </p>
+      <main className="flex-1 home-wavy-bg relative overflow-hidden">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-10">
+            <PageHero
+              align="left"
+              eyebrow="Sourcing Desk"
+              title="Request for Quote"
+              description="Share CAD files, callouts, and delivery targets. Our vetted manufacturing partners return pricing, lead times, and certifications—usually within a single business day."
+              theme="light"
+              highlightPlacement="side"
+              highlights={[
+                { label: 'Avg. Response', value: '<24 Hours' },
+                { label: 'Supplier Network', value: '120+ Partners' },
+                { label: 'Manufacturing Processes', value: '8 Capabilities' },
+                { label: 'Fulfillment Regions', value: '4 Zones' },
+              ]}
+            />
           </div>
           
           {/* Tab Navigation */}

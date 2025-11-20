@@ -1,19 +1,41 @@
-import React from 'react';
+import React, { useId } from 'react';
 
-const TechnicalPattern: React.FC = () => {
+interface TechnicalPatternProps {
+  className?: string;
+  gridSpacing?: number;
+  dotSpacing?: number;
+  strokeWidth?: number;
+  dotRadius?: number;
+  opacity?: number;
+  color?: string;
+}
+
+const TechnicalPattern: React.FC<TechnicalPatternProps> = ({
+  className = 'text-[#5daaff]',
+  gridSpacing = 40,
+  dotSpacing = 20,
+  strokeWidth = 1.2,
+  dotRadius = 1.6,
+  opacity = 0.45,
+  color = 'currentColor',
+}) => {
+  const patternId = useId();
+  const gridId = `${patternId}-grid`;
+  const dotsId = `${patternId}-dots`;
+
   return (
-    <div className="absolute inset-0 opacity-10">
+    <div className={`absolute inset-0 ${className}`} style={{ opacity }}>
       <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1"/>
+          <pattern id={gridId} width={gridSpacing} height={gridSpacing} patternUnits="userSpaceOnUse">
+            <path d={`M ${gridSpacing} 0 L 0 0 0 ${gridSpacing}`} fill="none" stroke={color} strokeWidth={strokeWidth} />
           </pattern>
-          <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
-            <circle cx="10" cy="10" r="1" fill="currentColor"/>
+          <pattern id={dotsId} width={dotSpacing} height={dotSpacing} patternUnits="userSpaceOnUse">
+            <circle cx={dotSpacing / 2} cy={dotSpacing / 2} r={dotRadius} fill={color} />
           </pattern>
         </defs>
-        <rect width="100%" height="100%" fill="url(#grid)"/>
-        <rect width="100%" height="100%" fill="url(#dots)"/>
+        <rect width="100%" height="100%" fill={`url(#${gridId})`} />
+        <rect width="100%" height="100%" fill={`url(#${dotsId})`} />
       </svg>
     </div>
   );

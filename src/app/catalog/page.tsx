@@ -14,11 +14,13 @@ function CatalogFallback() {
 
 export default function CatalogPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
-      <Suspense fallback={<CatalogFallback />}>
-        <CatalogContent />
-      </Suspense>
+      <main className="flex-1 pb-16">
+        <Suspense fallback={<CatalogFallback />}>
+          <CatalogContent />
+        </Suspense>
+      </main>
       <Footer />
     </div>
   );

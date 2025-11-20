@@ -10,7 +10,7 @@ const Footer: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <img src="/images/metalyze_logo.png" alt="Metalyze" className="h-12 w-auto" />
-              <span className="text-lg font-bold tracking-wider bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <span className="text-lg font-bold tracking-wider text-[#0074e6]">
                 METALYZE
               </span>
             </div>

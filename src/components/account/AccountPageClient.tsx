@@ -54,15 +54,12 @@ export default function AccountPageClient({ initialProfile }: AccountPageClientP
         </div>
       )}
 
-      {/* Profile and Stats Section - Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Profile Section - Square and Boxy */}
-        <div className="lg:col-span-1">
+      {/* Profile and Stats Section */}
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="lg:w-1/3 w-full">
           <ProfileSection profile={profile} onUpdate={handleUpdateProfile} />
         </div>
-
-        {/* Account Stats Section - 2x2 Grid */}
-        <div className="lg:col-span-2">
+        <div className="flex-1 w-full">
           <AccountStatsSection userId={profile.id} memberSince={profile.created_at} />
         </div>
       </div>

@@ -12,6 +12,7 @@ import CADPreview3D from '@/components/cad/CADPreview3D';
 import { useToast } from '@/components/ui/ToastProvider';
 import { StagedProgress, StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
 import { useCADGeneration } from '@/hooks/useCADGeneration';
+import { CADGenerationRequest } from '@/services/cad.service';
 import { useCADStore } from '@/stores/cad.store';
 
 interface GeneratedDrawing {
@@ -22,6 +23,27 @@ interface GeneratedDrawing {
   dxf: string;
   parameters?: Record<string, any>;
 }
+
+const sanitizeNumericId = (value: string | number | undefined | null): number => {
+  if (value === undefined || value === null) {
+    return Date.now();
+  }
+
+  const digitsOnly = String(value).replace(/\D/g, '');
+  const parsed = parseInt(digitsOnly, 10);
+  return Number.isNaN(parsed) ? Date.now() : parsed;
+};
+
+const isSupportedCategory = (category?: string): category is CADGenerationRequest['category'] => {
+  return category === 'bracket' || category === 'plate' || category === 'beam' || category === 'fastener' || category === 'custom';
+};
+
+const normalizeCategory = (category?: string): CADGenerationRequest['category'] => {
+  if (!category) {
+    return 'custom';
+  }
+  return isSupportedCategory(category) ? category : 'custom';
+};
 
 const CADGenerator: React.FC = () => {
   // Zustand store for CAD preferences
@@ -38,17 +60,19 @@ const CADGenerator: React.FC = () => {
   const { mutate: generateCAD, isPending, data: generationData, error: generationError } = useCADGeneration({
     onSuccess: (result) => {
       // Convert the API response to our component format
+      const parameters = result.parameters ?? {};
+
       setGeneratedDrawing({
-        id: parseInt(result.id.replace(/\D/g, '')) || Date.now(),
+        id: sanitizeNumericId(result.id),
         name: `Generated CAD Model`,
         description: `AI-generated model from: "${textInput}"`,
         preview: '/images/sample-cad-preview.svg',
         dxf: `data:application/octet-stream;base64,${result.model_data}`,
         parameters: {
-          format: result.parameters.format,
-          units: result.parameters.units,
-          category: result.parameters.category,
-          generated_at: result.parameters.generated_at,
+          format: parameters.format ?? selectedFormat,
+          units: parameters.units ?? selectedUnits,
+          category: parameters.category ?? 'custom',
+          generated_at: parameters.generated_at ?? new Date().toISOString(),
           prompt: textInput
         }
       });
@@ -297,7 +321,7 @@ const CADGenerator: React.FC = () => {
     
     // Convert history item to generated drawing format
     const drawing = {
-      id: parseInt(historyItem.id.replace(/\D/g, '')) || Date.now(),
+      id: sanitizeNumericId(historyItem.id),
       name: 'Generated CAD Model (from history)',
       description: `AI-generated model from: "${historyItem.prompt}"`,
       preview: '/images/sample-cad-preview.svg',
@@ -416,7 +440,7 @@ const CADGenerator: React.FC = () => {
     // Use React Query mutation with Zustand store values
     generateCAD({
       description: prompt,
-      category: template.category,
+      category: normalizeCategory(template.category),
       format: selectedFormat,
       units: selectedUnits
     });
@@ -560,7 +584,7 @@ const CADGenerator: React.FC = () => {
         />
       )}
       {/* Tab Navigation */}
-      <div className="glass-container glass-container-with-liquid">
+      <div className="catalog-glass-container mb-10">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6">
             <button
@@ -1061,12 +1085,6 @@ const CADGenerator: React.FC = () => {
         </div>
       )}
 
-      {/* Debug Information */}
-      <CADGenerationDebug 
-        steps={debugSteps}
-        isVisible={showDebug}
-        onToggle={() => setShowDebug(!showDebug)}
-      />
 
       {/* Drawing Editor Modal */}
       <Modal isOpen={isEditorOpen} onClose={() => setIsEditorOpen(false)} title="Edit Drawing">

@@ -185,63 +185,32 @@ const ProductRecommenderNew: React.FC = () => {
   const handleFindRecommendations = async (specs?: any) => {
     setIsLoading(true);
     resetStages();
-    updateStage('catalog', 'active', 'Searching product catalog...');
     
     try {
       const searchSpecs = specs || requirements;
       
-      // Step 1: Search catalog for direct matches
-      let catalogResults: Product[] = [];
-      try {
-        catalogResults = await searchCatalog(searchSpecs);
-        setCatalogMatches(catalogResults);
-        updateStage(
-          'catalog',
-          'success',
-          catalogResults.length ? `Found ${catalogResults.length} catalog matches` : 'No direct catalog matches'
-        );
-      } catch (error) {
-        console.error('Catalog search error:', error);
-        setCatalogMatches([]);
-        updateStage('catalog', 'error', 'Unable to query catalog');
-        addToast({
-          type: 'error',
-          title: 'Catalog search failed',
-          description: error instanceof Error ? error.message : 'Unknown error during catalog search.'
-        });
-      }
-      
-      // Step 2: Get alternative suggestions from AI
+      // Step 1 & 2: OPTIMIZATION - Run catalog and AI searches in PARALLEL using Promise.all()
+      updateStage('catalog', 'active', 'Searching product catalog...');
       updateStage('alternatives', 'active', 'Requesting AI alternatives...');
-      let alternativeResults: AlternativeProduct[] = [];
-      try {
-        alternativeResults = await getAlternativeSuggestions(searchSpecs);
-        setAlternatives(alternativeResults);
-        updateStage(
-          'alternatives',
-          'success',
-          alternativeResults.length
-            ? `AI suggested ${alternativeResults.length} alternatives`
-            : 'No AI alternatives available'
-        );
-      } catch (error) {
-        console.error('Alternative suggestions error:', error);
-        setAlternatives([]);
-        updateStage('alternatives', 'error', 'AI alternative service unavailable');
-        addToast({
-          type: 'error',
-          title: 'AI alternatives failed',
-          description: error instanceof Error ? error.message : 'Unable to fetch AI alternatives.'
-        });
-      }
-      // OPTIMIZATION: Run catalog and AI searches in PARALLEL using Promise.all()
+      
+      console.log('🔍 Starting parallel searches...');
       const [catalogResults, alternativeResults] = await Promise.all([
         searchCatalog(searchSpecs).catch(error => {
           console.error('❌ Catalog search error:', error);
+          addToast({
+            type: 'error',
+            title: 'Catalog search failed',
+            description: error instanceof Error ? error.message : 'Unknown error during catalog search.'
+          });
           return [] as Product[];
         }),
         getAlternativeSuggestions(searchSpecs).catch(error => {
           console.error('❌ Alternative suggestions error:', error);
+          addToast({
+            type: 'error',
+            title: 'AI alternatives failed',
+            description: error instanceof Error ? error.message : 'Unable to fetch AI alternatives.'
+          });
           return [] as AlternativeProduct[];
         })
       ]);
@@ -251,12 +220,28 @@ const ProductRecommenderNew: React.FC = () => {
       console.log('✅ AI alternatives:', alternativeResults.length);
       setCatalogMatches(catalogResults);
       setAlternatives(alternativeResults);
-      setDebugInfo(`Found ${catalogResults.length} catalog matches and ${alternativeResults.length} AI alternatives`);
+      
+      // Update stage statuses based on results
+      updateStage(
+        'catalog',
+        'success',
+        catalogResults.length ? `Found ${catalogResults.length} catalog matches` : 'No direct catalog matches'
+      );
+      updateStage(
+        'alternatives',
+        'success',
+        alternativeResults.length
+          ? `AI suggested ${alternativeResults.length} alternatives`
+          : 'No AI alternatives available'
+      );
       
       // Step 3: Combine and rank all recommendations
       updateStage('ranking', 'active', 'Scoring recommendations...');
+      console.log('⭐ Ranking results...');
+      
       try {
         const ranked = combineAndRank(catalogResults, alternativeResults, searchSpecs);
+        console.log('✅ Ranked:', ranked.length);
         setRankedRecommendations(ranked);
         updateStage(
           'ranking',
@@ -287,13 +272,6 @@ const ProductRecommenderNew: React.FC = () => {
           description: error instanceof Error ? error.message : 'Unable to score recommendations.'
         });
       }
-      // Combine and rank all recommendations
-      setDebugInfo('Ranking results...');
-      console.log('⭐ Ranking results...');
-      const ranked = combineAndRank(catalogResults, alternativeResults, searchSpecs);
-      console.log('✅ Ranked:', ranked.length);
-      setRankedRecommendations(ranked);
-      setDebugInfo(`Complete! ${ranked.length} total recommendations`);
       
     } catch (error) {
       console.error('Error finding recommendations:', error);

@@ -3,6 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { useCategories } from '@/hooks';
+import TechnicalPattern from '@/components/TechnicalPattern';
+import BlueprintSketchLayer from '@/components/BlueprintSketchLayer';
 
 const CategoryShowcase: React.FC = () => {
   const { categories, loading } = useCategories();
@@ -66,61 +68,66 @@ const CategoryShowcase: React.FC = () => {
     }
   };
 
+  const SectionWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <section className="py-16 relative overflow-hidden bg-gradient-to-br from-primary via-blue-600 to-blue-700 text-white">
+      <TechnicalPattern />
+      <div className="absolute inset-0 bg-black/30" />
+      <BlueprintSketchLayer />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">{children}</div>
+    </section>
+  );
+
   if (loading) {
     return (
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Explore Our Product Categories</h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              From precision robotics to heavy-duty structural components, discover our comprehensive range of industrial products.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="glass-card p-6">
-                <div className="w-full h-32 bg-gray-200 rounded-lg mb-4 animate-pulse"></div>
-                <div className="h-6 bg-gray-200 rounded mb-2 animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-              </div>
-            ))}
-          </div>
+      <SectionWrapper>
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-white mb-4">Explore Our Product Categories</h2>
+          <p className="text-lg text-white/80 max-w-2xl mx-auto">
+            From precision robotics to heavy-duty structural components, discover our comprehensive range of industrial products.
+          </p>
         </div>
-      </section>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="glass-card p-6">
+              <div className="w-full h-32 bg-white/10 rounded-lg mb-4 animate-pulse"></div>
+              <div className="h-6 bg-white/10 rounded mb-2 animate-pulse"></div>
+              <div className="h-4 bg-white/10 rounded animate-pulse"></div>
+            </div>
+          ))}
+        </div>
+      </SectionWrapper>
     );
   }
 
   return (
-    <section className="py-16 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Explore Our Product Categories</h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            From precision robotics to heavy-duty structural components, discover our comprehensive range of industrial products.
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {categories.map((category) => (
-            <Link 
-              key={category.id}
-              href={`/catalog?category=${category.id}`} 
-              className="group cursor-pointer glass-card p-6"
-            >
-              <div className={`w-full h-32 bg-gradient-to-br ${getCategoryGradient(category.id)} rounded-lg mb-4 flex items-center justify-center`}>
-                {getCategoryIcon(category.id)}
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary transition-colors">
-                {category.name}
-              </h3>
-              <p className="text-gray-600 text-sm">
-                {category.description}
-              </p>
-            </Link>
-          ))}
-        </div>
+    <SectionWrapper>
+      <div className="text-center mb-12">
+        <h2 className="text-3xl font-bold text-white mb-4">Explore Our Product Categories</h2>
+        <p className="text-lg text-white/80 max-w-2xl mx-auto">
+          From precision robotics to heavy-duty structural components, discover our comprehensive range of industrial products.
+        </p>
       </div>
-    </section>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {categories.map((category) => (
+          <Link 
+            key={category.id}
+            href={`/catalog?category=${category.id}`} 
+            className="group cursor-pointer glass-card p-6 text-gray-900"
+          >
+            <div className={`w-full h-32 bg-gradient-to-br ${getCategoryGradient(category.id)} rounded-lg mb-4 flex items-center justify-center`}>
+              {getCategoryIcon(category.id)}
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary transition-colors">
+              {category.name}
+            </h3>
+            <p className="text-gray-700 text-sm">
+              {category.description}
+            </p>
+          </Link>
+        ))}
+      </div>
+    </SectionWrapper>
   );
 };
 

@@ -18,9 +18,20 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedViews, setGeneratedViews] = useState<GeneratedView[]>([]);
+  const [perspectiveViews, setPerspectiveViews] = useState<GeneratedView[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [isGeneratingPerspective, setIsGeneratingPerspective] = useState(false);
+
+  const createViewGenerator = () =>
+    new CADViewGenerator({
+      width: 800,
+      height: 600,
+      backgroundColor: '#f5f5f5',
+      showGrid: false,
+      showAxes: false,
+    });
 
   const handleGenerateViews = async () => {
     if (!cadModelData) {
@@ -32,15 +43,7 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
     setError(null);
 
     try {
-      // Create view generator
-      const viewGenerator = new CADViewGenerator({
-        width: 800,
-        height: 600,
-        backgroundColor: '#f5f5f5',
-        showGrid: false,
-        showAxes: false,
-      });
-
+      const viewGenerator = createViewGenerator();
       // Load model
       viewGenerator.loadModel(cadModelData);
 
@@ -59,6 +62,29 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
     }
   };
 
+  const handleGeneratePerspectiveViews = async () => {
+    if (!cadModelData) {
+      setError('No CAD model data available');
+      return;
+    }
+
+    setIsGeneratingPerspective(true);
+    setError(null);
+
+    try {
+      const viewGenerator = createViewGenerator();
+      viewGenerator.loadModel(cadModelData);
+      const views = viewGenerator.generatePerspectiveViews();
+      setPerspectiveViews(views);
+      viewGenerator.dispose();
+    } catch (err) {
+      console.error('Error generating perspective views:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate perspective views');
+    } finally {
+      setIsGeneratingPerspective(false);
+    }
+  };
+
   const handleDownloadView = (view: GeneratedView) => {
     const link = document.createElement('a');
     link.href = view.dataUrl;
@@ -69,19 +95,23 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
   };
 
   const handleDownloadAll = () => {
-    generatedViews.forEach((view) => {
+    const allViews = [...generatedViews, ...perspectiveViews];
+    allViews.forEach((view) => {
       setTimeout(() => handleDownloadView(view), 100);
     });
   };
 
   const handleClearViews = () => {
     setGeneratedViews([]);
+    setPerspectiveViews([]);
     setError(null);
     setAnalysisResult(null);
   };
 
   const handleAnalyzeWithAI = async () => {
-    if (generatedViews.length === 0) {
+    const allViews = [...generatedViews, ...perspectiveViews];
+
+    if (allViews.length === 0) {
       setError('Please generate views first');
       return;
     }
@@ -93,7 +123,7 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
       // Create FormData with all views
       const formData = new FormData();
       
-      generatedViews.forEach((view) => {
+      allViews.forEach((view) => {
         formData.append(`view_${view.name}`, view.blob, `${view.name}.png`);
       });
 
@@ -141,16 +171,27 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
       </div>
 
       {/* Generate Button */}
-      {generatedViews.length === 0 && (
-        <div className="mb-4">
-          <Button
-            onClick={handleGenerateViews}
-            disabled={!cadModelData || isGenerating}
-            isLoading={isGenerating}
-            className="w-full sm:w-auto"
-          >
-            {isGenerating ? 'Generating Views...' : 'Extract 2D Views'}
-          </Button>
+      {generatedViews.length === 0 && perspectiveViews.length === 0 && (
+                <div className="mb-4 space-y-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={handleGenerateViews}
+              disabled={!cadModelData || isGenerating}
+              isLoading={isGenerating}
+              className="flex-1 sm:flex-none"
+            >
+              {isGenerating ? 'Generating Views...' : 'Extract 2D Views'}
+            </Button>
+            <Button
+              onClick={handleGeneratePerspectiveViews}
+              disabled={!cadModelData || isGeneratingPerspective}
+              isLoading={isGeneratingPerspective}
+              variant="outline"
+              className="flex-1 sm:flex-none"
+            >
+              {isGeneratingPerspective ? 'Rendering Angles...' : 'Generate Perspective Views'}
+            </Button>
+          </div>
           {!cadModelData && (
             <p className="text-sm text-gray-500 mt-2">
               Upload a 3D CAD file (STEP, STL, OBJ) to enable view extraction
@@ -167,7 +208,7 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
       )}
 
       {/* Generated Views Display */}
-      {generatedViews.length > 0 && (
+      {(generatedViews.length > 0 || perspectiveViews.length > 0) && (
         <div className="space-y-4">
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-2">
@@ -194,6 +235,15 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
               Regenerate Views
             </Button>
             <Button
+              onClick={handleGeneratePerspectiveViews}
+              variant="outline"
+              size="sm"
+              disabled={!cadModelData || isGeneratingPerspective}
+              isLoading={isGeneratingPerspective}
+            >
+              {perspectiveViews.length > 0 ? 'Regenerate Perspective Views' : 'Generate Perspective Views'}
+            </Button>
+            <Button
               onClick={handleClearViews}
               variant="outline"
               size="sm"
@@ -203,35 +253,78 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
           </div>
 
           {/* Views Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {generatedViews.map((view) => (
-              <div
-                key={view.name}
-                className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
-              >
-                <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
-                  <h4 className="font-medium text-gray-900 capitalize text-sm">
-                    {view.name} View
-                  </h4>
+          {generatedViews.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {generatedViews.map((view) => (
+                <div
+                  key={view.name}
+                  className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                >
+                  <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                    <h4 className="font-medium text-gray-900 capitalize text-sm">
+                      {view.name} View
+                    </h4>
+                  </div>
+                  <div className="p-2">
+                    <img
+                      src={view.dataUrl}
+                      alt={`${view.name} view`}
+                      className="w-full h-auto rounded"
+                    />
+                  </div>
+                  <div className="px-3 py-2 bg-gray-50 border-t border-gray-200">
+                    <button
+                      onClick={() => handleDownloadView(view)}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Download PNG
+                    </button>
+                  </div>
                 </div>
-                <div className="p-2">
-                  <img
-                    src={view.dataUrl}
-                    alt={`${view.name} view`}
-                    className="w-full h-auto rounded"
-                  />
-                </div>
-                <div className="px-3 py-2 bg-gray-50 border-t border-gray-200">
-                  <button
-                    onClick={() => handleDownloadView(view)}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    Download PNG
-                  </button>
-                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Perspective Views */}
+          {perspectiveViews.length > 0 && (
+            <div className="space-y-3">
+              <div className="pt-4 border-t border-gray-200">
+                <h4 className="text-base font-semibold text-gray-900 mb-1">Perspective Snapshots</h4>
+                <p className="text-sm text-gray-600">
+                  Six additional oblique angles to visualize the 3D geometry without orbiting the preview.
+                </p>
               </div>
-            ))}
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {perspectiveViews.map((view) => (
+                  <div
+                    key={view.name}
+                    className="border border-indigo-100 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                  >
+                    <div className="bg-indigo-50 px-3 py-2 border-b border-indigo-100">
+                      <h4 className="font-medium text-indigo-900 capitalize text-sm">
+                        {view.name.replace(/-/g, ' ')}
+                      </h4>
+                    </div>
+                    <div className="p-2">
+                      <img
+                        src={view.dataUrl}
+                        alt={`${view.name} view`}
+                        className="w-full h-auto rounded"
+                      />
+                    </div>
+                    <div className="px-3 py-2 bg-indigo-50 border-t border-indigo-100">
+                      <button
+                        onClick={() => handleDownloadView(view)}
+                        className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                      >
+                        Download PNG
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* AI Analysis Results */}
           {analysisResult && (
@@ -249,7 +342,7 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
                     AI Multi-View Analysis Complete
                   </h4>
                   <p className="text-sm text-green-700">
-                    Analyzed {analysisResult.viewCount || 6} orthographic views with Gemini AI
+                    Analyzed {analysisResult.viewCount || (generatedViews.length + perspectiveViews.length)} multi-angle views with Gemini AI
                     {' • '}
                     Confidence: {Math.round((analysisResult.confidence || 0) * 100)}%
                   </p>
@@ -379,11 +472,11 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
               </svg>
               <div className="flex-1">
                 <h4 className="text-sm font-medium text-blue-900 mb-1">
-                  Generated {generatedViews.length} orthographic views
+                  Generated {generatedViews.length} orthographic and {perspectiveViews.length} perspective views
                 </h4>
                 <p className="text-sm text-blue-700">
-                  These 2D views can be used for manufacturing drawings, documentation, or AI analysis.
-                  Click "Analyze with Gemini AI" to get comprehensive multi-angle analysis.
+                  These captures can be used for manufacturing drawings, documentation, or AI analysis.
+                  Click "Analyze with Gemini AI" to send every available view—orthographic plus the new perspective angles.
                 </p>
               </div>
             </div>

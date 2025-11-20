@@ -312,7 +312,7 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
 
   if (!isExpanded) {
     return (
-      <div className={`glass-container glass-container-with-liquid p-4 ${className}`}>
+      <div className={`catalog-glass-container glass-container-with-liquid p-4 ${className}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -338,7 +338,7 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
   }
 
   return (
-    <div className={`glass-container glass-container-with-liquid ${className}`}>
+    <div className={`catalog-glass-container glass-container-with-liquid ${className}`}>
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">

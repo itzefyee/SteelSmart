@@ -1,27 +1,33 @@
+'use client';
+
 import React from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import CADAnalyzerFull from '@/components/cad/CADAnalyzerFull';
-
-export const metadata = {
-  title: 'CAD Drawing Analyzer - Metalyze AI Marketplace',
-  description: 'Upload your technical drawings and get AI-powered product recommendations with detailed analysis.',
-};
+import PageHero from '@/components/layout/PageHero';
+import BlueprintDiagramLayer from '@/components/cad/BlueprintDiagramLayer';
 
 export default function CADAnalyzerPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              CAD Drawing Analyzer
-            </h1>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Upload your technical drawings and get AI-powered product recommendations. 
-              Our advanced analysis extracts specifications and matches them with our comprehensive catalog.
-            </p>
+      <main className="flex-1 home-wavy-bg relative overflow-hidden">
+        <BlueprintDiagramLayer className="text-blue-500/40" />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-10">
+            <PageHero
+              eyebrow="Insight Engine"
+              title="CAD Drawing Analyzer"
+              highlightPlacement="side"
+              theme="light"
+              description="Drop in multi-view drawings or PDFs and let AI extract dimensions, tolerances, and materials automatically. Instantly map the findings to catalog parts or RFQ packages."
+              highlights={[
+                { label: 'Drawings Parsed', value: '12K+ Files' },
+                { label: 'Spec Accuracy', value: '99.1% Match' },
+                { label: 'AI Suggestions', value: 'Ranked Results' },
+                { label: 'Formats', value: 'DWG • PDF' },
+              ]}
+            />
           </div>
           
           <CADAnalyzerFull />

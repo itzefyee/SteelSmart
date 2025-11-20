@@ -9,6 +9,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { UserProfile } from '@/types';
+import PageHero from '@/components/layout/PageHero';
 
 export default function AccountPage() {
   const router = useRouter();
@@ -135,13 +136,29 @@ export default function AccountPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">My Account</h1>
-            <p className="mt-2 text-gray-600">
-              Manage your profile, view your CAD generation history, and track your activity
-            </p>
+      <main className="flex-1 home-wavy-bg relative overflow-hidden">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-10">
+            <PageHero
+              align="left"
+              eyebrow="Control Center"
+              title="My Account"
+              theme="light"
+              highlightPlacement="side"
+              description={
+                <>
+                  Manage preferences, update organization details, and review CAD, RFQ, and sourcing
+                  activity tied to{' '}
+                  <span className="font-semibold text-slate-900">{profile.email}</span>.
+                </>
+              }
+              highlights={[
+                { label: 'Workspace Access', value: 'SSO Secured' },
+                { label: 'Recent CAD Runs', value: 'Auto Synced' },
+                { label: 'RFQ Tracking', value: 'Live Timeline' },
+                { label: 'Support SLA', value: '<24 Hours' },
+              ]}
+            />
           </div>
 
           <AccountPageClient initialProfile={profile} />

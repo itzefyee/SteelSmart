@@ -15,6 +15,14 @@ import { CADModelData, getCADParser } from '@/lib/cad-parser';
 import { ComplianceChecker, convertCADModelToGeometry } from '@/lib/compliance-checker';
 import { useToast } from '@/components/ui/ToastProvider';
 
+type KeyFinding = {
+  title: string;
+  status: 'Valid' | 'Warning' | 'Invalid';
+  message: string;
+  detail?: string;
+  suggestion?: string;
+};
+
 const CADAnalyzerFull: React.FC = () => {
   const [uploadState, setUploadState] = useState<FileUploadState>({
     file: null,
@@ -39,6 +47,19 @@ const CADAnalyzerFull: React.FC = () => {
   const [analysisStage, setAnalysisStage] = useState<string | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const { addToast } = useToast();
+
+  const clearPreviewCache = useCallback(() => {
+    setCADModelData(null);
+    setManufacturabilityResults([]);
+    setSpecificationResults([]);
+    setReportGenerated(false);
+    setReportTimestamp(null);
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('cadFileToAnalyze');
+      sessionStorage.removeItem('cadAnalysisResult');
+    }
+  }, []);
 
   // Check for stored analysis results or file to analyze on component mount
   useEffect(() => {
@@ -150,6 +171,7 @@ const CADAnalyzerFull: React.FC = () => {
 
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
+      clearPreviewCache();
       setUploadState({
         file,
         progress: 0,
@@ -161,7 +183,7 @@ const CADAnalyzerFull: React.FC = () => {
       setAnalysis(null);
       setSampleLoadSuccess(null);
     }
-  }, []);
+  }, [clearPreviewCache]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -248,6 +270,7 @@ const CADAnalyzerFull: React.FC = () => {
   };
 
   const resetAnalysis = () => {
+    clearPreviewCache();
     setUploadState({
       file: null,
       progress: 0,
@@ -255,20 +278,13 @@ const CADAnalyzerFull: React.FC = () => {
       error: undefined
     });
     setAnalysis(null);
-    setCADModelData(null);
-    setManufacturabilityResults([]);
-    setSpecificationResults([]);
-    setReportGenerated(false);
-    setReportTimestamp(null);
     setSampleLoadSuccess(null);
   };
 
   const tryWithSample = (filename: string, displayName: string) => {
     // Clear previous analysis results when loading a new sample
+    clearPreviewCache();
     setAnalysis(null);
-    setManufacturabilityResults([]);
-    setSpecificationResults([]);
-    setReportGenerated(false);
     
     // Simulate loading a sample drawing
     setUploadState({
@@ -1275,8 +1291,8 @@ const CADAnalyzerFull: React.FC = () => {
     { label: 'ASTM', description: 'Material standards' },
   ]), []);
 
-  const keyFindings = useMemo(() => {
-    const issues = [
+  const keyFindings = useMemo<KeyFinding[]>(() => {
+    const issues: KeyFinding[] = [
       ...manufacturabilityResults
         .filter((result) => result.status === 'Warning' || result.status === 'Invalid')
         .map((result) => ({
@@ -1605,6 +1621,7 @@ const CADAnalyzerFull: React.FC = () => {
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">3D Model Preview</h3>
                         <CADPreview3D
                           file={uploadState.file}
+                          modelData={cadModelData || undefined}
                           showStats={true}
                           className="!h-[350px] md:!h-[400px]"
                           onModelDataParsed={(data) => {
