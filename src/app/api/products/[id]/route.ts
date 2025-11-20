@@ -168,8 +168,8 @@ export async function PUT(
         generateProductCacheKey({ page: 1, limit: 20 }),
         generateProductCacheKey({ page: 1, limit: 50 }),
         generateProductCacheKey({ category: product.category, page: 1, limit: 20 }),
-        generateProductCacheKey({ material: product.material, page: 1, limit: 20 }),
-        generateProductCacheKey({ inStock: product.in_stock, page: 1, limit: 20 }),
+        ...(product.material ? [generateProductCacheKey({ material: product.material, page: 1, limit: 20 })] : []),
+        ...(product.in_stock !== null ? [generateProductCacheKey({ inStock: product.in_stock, page: 1, limit: 20 })] : []),
       ];
       
       await invalidateCachePattern(commonProductListKeys);
@@ -291,8 +291,8 @@ export async function DELETE(
         generateProductCacheKey({ page: 1, limit: 20 }),
         generateProductCacheKey({ page: 1, limit: 50 }),
         generateProductCacheKey({ category: product.category, page: 1, limit: 20 }),
-        generateProductCacheKey({ material: product.material, page: 1, limit: 20 }),
-        generateProductCacheKey({ inStock: product.in_stock, page: 1, limit: 20 }),
+        ...(product.material ? [generateProductCacheKey({ material: product.material, page: 1, limit: 20 })] : []),
+        ...(product.in_stock !== null ? [generateProductCacheKey({ inStock: product.in_stock, page: 1, limit: 20 })] : []),
       ];
       
       await invalidateCachePattern(commonProductListKeys);

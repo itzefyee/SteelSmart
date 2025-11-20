@@ -7,6 +7,7 @@ import RFQForm from '@/components/rfq/RFQForm';
 import RFQTracking from '@/components/rfq/RFQTracking';
 import FeatureIcon from '@/components/FeatureIcon';
 import PageHero from '@/components/layout/PageHero';
+import WireframeIconLayer from '@/components/layout/WireframeIconLayer';
 
 export default function RFQPage() {
   const [activeTab, setActiveTab] = useState<'form' | 'tracking'>('form');
@@ -15,20 +16,22 @@ export default function RFQPage() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 home-wavy-bg relative overflow-hidden">
+        <WireframeIconLayer />
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-10">
             <PageHero
               align="left"
               eyebrow="Sourcing Desk"
+              eyebrowPlacement="inline-after"
               title="Request for Quote"
-              description="Share CAD files, callouts, and delivery targets. Our vetted manufacturing partners return pricing, lead times, and certifications—usually within a single business day."
+              description="Send CAD, quantities, and delivery targets; vetted partners reply with pricing and lead times inside a day."
               theme="light"
               highlightPlacement="side"
               highlights={[
-                { label: 'Avg. Response', value: '<24 Hours' },
-                { label: 'Supplier Network', value: '120+ Partners' },
-                { label: 'Manufacturing Processes', value: '8 Capabilities' },
-                { label: 'Fulfillment Regions', value: '4 Zones' },
+                { label: 'Avg Reply', value: '<24h' },
+                { label: 'Vendors', value: '120+' },
+                { label: 'Processes', value: '8 Core' },
+                { label: 'Regions', value: '4 Zones' },
               ]}
             />
           </div>

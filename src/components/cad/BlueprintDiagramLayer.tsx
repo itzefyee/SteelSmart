@@ -11,19 +11,19 @@ interface BlueprintDiagramLayerProps {
   className?: string;
 }
 
-const strokePrimary = 'rgba(191,219,254,0.85)';
-const strokeMuted = 'rgba(148,186,255,0.35)';
-const strokeAccent = 'rgba(96,165,250,0.9)';
+const strokePrimary = 'rgba(191,219,254,0.95)';
+const strokeMuted = 'rgba(148,186,255,0.55)';
+const strokeAccent = 'rgba(96,165,250,0.95)';
 
 const BlueprintCard = ({ children, grid = false }: BlueprintCardProps) => (
-  <div className="relative w-full h-full rounded-[28px] border border-blue-100/40 bg-blue-950/5 shadow-[0_0_30px_rgba(15,23,42,0.35)] overflow-hidden backdrop-blur-[1px]">
+  <div className="relative w-full h-full rounded-[28px] border border-blue-100/70 bg-gradient-to-br from-blue-900/35 via-blue-900/15 to-blue-950/5 shadow-[0_15px_45px_rgba(15,23,42,0.55)] overflow-hidden backdrop-blur-md">
     {grid && (
-      <div className="absolute inset-0 opacity-30">
+      <div className="absolute inset-0 opacity-45">
         <svg className="w-full h-full" viewBox="0 0 200 200" preserveAspectRatio="none">
           {[...Array(20)].map((_, i) => (
             <g key={`grid-${i}`}>
-              <line x1={i * 10} y1={0} x2={i * 10} y2={200} stroke={strokeMuted} strokeWidth="0.4" />
-              <line y1={i * 10} x1={0} y2={i * 10} x2={200} stroke={strokeMuted} strokeWidth="0.4" />
+              <line x1={i * 10} y1={0} x2={i * 10} y2={200} stroke={strokeMuted} strokeWidth="0.6" />
+              <line y1={i * 10} x1={0} y2={i * 10} x2={200} stroke={strokeMuted} strokeWidth="0.6" />
             </g>
           ))}
         </svg>
@@ -63,7 +63,7 @@ const QuadraticFormulaCard = () => (
     <div className="text-blue-100/90 font-mono text-[11px] space-y-3 leading-relaxed tracking-[0.08em]">
       <div className="text-[10px] uppercase text-blue-300/80">Roots</div>
       <div className="text-[12px]">
-        x_{1,2} = (-b +- sqrt(b^2 - 4ac))/(2a)
+        {'x_{1,2} = (-b +- sqrt(b^2 - 4ac))/(2a)'}
       </div>
       <div className="text-[10px] uppercase text-blue-300/80 pt-1">vertex</div>
       <div className="text-[12px]">h = -b/(2a)</div>
@@ -104,36 +104,46 @@ const SineWaveCard = () => (
   </BlueprintCard>
 );
 
-const GearSectionCard = () => (
-  <BlueprintCard grid>
-    <svg className="w-full h-full" viewBox="0 0 220 160">
-      <circle cx="110" cy="80" r="55" fill="none" stroke={strokeAccent} strokeWidth="1.8" />
-      <circle cx="110" cy="80" r="25" fill="none" stroke={strokePrimary} strokeWidth="1.2" strokeDasharray="6 4" />
-      {[...Array(12)].map((_, i) => {
-        const angle = (i / 12) * Math.PI * 2;
-        const outerR = 70;
-        const innerR = 55;
-        return (
+const GearSectionCard = () => {
+  // Pre-calculate coordinates to avoid hydration mismatch
+  const gearTeeth = [...Array(12)].map((_, i) => {
+    const angle = (i / 12) * Math.PI * 2;
+    const outerR = 70;
+    const innerR = 55;
+    return {
+      x1: Number((110 + Math.cos(angle) * innerR).toFixed(2)),
+      y1: Number((80 + Math.sin(angle) * innerR).toFixed(2)),
+      x2: Number((110 + Math.cos(angle) * outerR).toFixed(2)),
+      y2: Number((80 + Math.sin(angle) * outerR).toFixed(2)),
+    };
+  });
+
+  return (
+    <BlueprintCard grid>
+      <svg className="w-full h-full" viewBox="0 0 220 160">
+        <circle cx="110" cy="80" r="55" fill="none" stroke={strokeAccent} strokeWidth="1.8" />
+        <circle cx="110" cy="80" r="25" fill="none" stroke={strokePrimary} strokeWidth="1.2" strokeDasharray="6 4" />
+        {gearTeeth.map((tooth, i) => (
           <line
             key={i}
-            x1={110 + Math.cos(angle) * innerR}
-            y1={80 + Math.sin(angle) * innerR}
-            x2={110 + Math.cos(angle) * outerR}
-            y2={80 + Math.sin(angle) * outerR}
+            x1={tooth.x1}
+            y1={tooth.y1}
+            x2={tooth.x2}
+            y2={tooth.y2}
             stroke={strokePrimary}
             strokeWidth="1"
           />
-        );
-      })}
-      <line x1="30" y1="20" x2="90" y2="20" stroke={strokePrimary} strokeWidth="1" />
-      <line x1="30" y1="20" x2="30" y2="35" stroke={strokePrimary} strokeWidth="1" />
-      <line x1="90" y1="20" x2="90" y2="35" stroke={strokePrimary} strokeWidth="1" />
-      <text x="42" y="36" fill={strokePrimary} fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
-        32 teeth
-      </text>
-    </svg>
-  </BlueprintCard>
-);
+        ))}
+        <line x1="30" y1="20" x2="90" y2="20" stroke={strokePrimary} strokeWidth="1" />
+        <line x1="30" y1="20" x2="30" y2="35" stroke={strokePrimary} strokeWidth="1" />
+        <line x1="90" y1="20" x2="90" y2="35" stroke={strokePrimary} strokeWidth="1" />
+        <text x="42" y="36" fill={strokePrimary} fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
+          32 teeth
+        </text>
+      </svg>
+    </BlueprintCard>
+  );
+};
 
 const ExplodedStackCard = () => (
   <BlueprintCard>
@@ -197,46 +207,61 @@ const DotMatrixCard = () => (
   </BlueprintCard>
 );
 
-const PolarNetworkCard = () => (
-  <BlueprintCard grid>
-    <svg className="w-full h-full" viewBox="0 0 220 160">
-      {[20, 40, 60].map((r, idx) => (
-        <circle key={r} cx="110" cy="80" r={r} fill="none" stroke={idx === 2 ? strokeAccent : strokePrimary} strokeWidth="1" strokeDasharray={idx === 0 ? '4 4' : 'none'} />
-      ))}
-      {[...Array(6)].map((_, i) => {
-        const angle = (i / 6) * Math.PI * 2;
-        return (
+const PolarNetworkCard = () => {
+  // Pre-calculate coordinates to avoid hydration mismatch
+  const polarLines = [...Array(6)].map((_, i) => {
+    const angle = (i / 6) * Math.PI * 2;
+    return {
+      x2: Number((110 + Math.cos(angle) * 60).toFixed(2)),
+      y2: Number((80 + Math.sin(angle) * 60).toFixed(2)),
+    };
+  });
+
+  const polarNodes = [...Array(12)].map((_, i) => {
+    const angle = (i / 12) * Math.PI * 2;
+    return {
+      cx: Number((110 + Math.cos(angle) * 60).toFixed(2)),
+      cy: Number((80 + Math.sin(angle) * 60).toFixed(2)),
+      fill: i % 3 === 0 ? strokeAccent : strokePrimary,
+      opacity: i % 3 === 0 ? 0.9 : 0.6,
+    };
+  });
+
+  return (
+    <BlueprintCard grid>
+      <svg className="w-full h-full" viewBox="0 0 220 160">
+        {[20, 40, 60].map((r, idx) => (
+          <circle key={r} cx="110" cy="80" r={r} fill="none" stroke={idx === 2 ? strokeAccent : strokePrimary} strokeWidth="1" strokeDasharray={idx === 0 ? '4 4' : 'none'} />
+        ))}
+        {polarLines.map((line, i) => (
           <line
             key={i}
             x1="110"
             y1="80"
-            x2={110 + Math.cos(angle) * 60}
-            y2={80 + Math.sin(angle) * 60}
+            x2={line.x2}
+            y2={line.y2}
             stroke={strokePrimary}
             strokeWidth="1"
             strokeDasharray="4 4"
           />
-        );
-      })}
-      {[...Array(12)].map((_, i) => {
-        const angle = (i / 12) * Math.PI * 2;
-        return (
+        ))}
+        {polarNodes.map((node, i) => (
           <circle
             key={`node-${i}`}
-            cx={110 + Math.cos(angle) * 60}
-            cy={80 + Math.sin(angle) * 60}
+            cx={node.cx}
+            cy={node.cy}
             r="3"
-            fill={i % 3 === 0 ? strokeAccent : strokePrimary}
-            opacity={i % 3 === 0 ? 0.9 : 0.6}
+            fill={node.fill}
+            opacity={node.opacity}
           />
-        );
-      })}
-      <text x="74" y="24" fill={strokePrimary} fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
-        polar lattice
-      </text>
-    </svg>
-  </BlueprintCard>
-);
+        ))}
+        <text x="74" y="24" fill={strokePrimary} fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
+          polar lattice
+        </text>
+      </svg>
+    </BlueprintCard>
+  );
+};
 
 const DimensionBlockCard = () => (
   <BlueprintCard grid>
@@ -289,63 +314,63 @@ const WaveEquationCard = () => (
 const blueprintElements = [
   {
     id: 'parabola',
-    className: 'absolute top-[6%] left-[4%] w-[230px] h-[170px] opacity-80',
+    className: 'absolute top-[4%] left-[4%] w-[250px] h-[190px] opacity-95',
     animation: 'blueprintFloat 10s ease-in-out infinite, blueprintPulse 8s ease-in-out infinite',
     node: <ParabolaGraph />,
   },
   {
-    id: 'formula',
-    className: 'absolute top-[12%] left-[20%] w-[200px] h-[150px] opacity-75',
-    animation: 'blueprintFloatAlt 12s ease-in-out infinite, blueprintPulse 10s ease-in-out infinite 1.2s',
-    node: <QuadraticFormulaCard />,
-  },
-  {
     id: 'sine',
-    className: 'absolute top-[4%] left-[42%] w-[240px] h-[170px] opacity-70',
-    animation: 'blueprintFloat 11s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 0.8s',
+    className: 'absolute top-[4%] left-[32%] w-[260px] h-[190px] opacity-92',
+    animation: 'blueprintFloatAlt 11s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 0.8s',
     node: <SineWaveCard />,
   },
   {
     id: 'gear',
-    className: 'absolute top-[10%] right-[6%] w-[210px] h-[210px] opacity-75',
-    animation: 'blueprintFloatAlt 13s ease-in-out infinite, blueprintPulse 8s ease-in-out infinite 1.5s',
+    className: 'absolute top-[4%] right-[4%] w-[230px] h-[230px] opacity-92',
+    animation: 'blueprintFloat 13s ease-in-out infinite, blueprintPulse 8s ease-in-out infinite 1.2s',
     node: <GearSectionCard />,
   },
   {
-    id: 'exploded',
-    className: 'absolute top-[32%] left-[6%] w-[250px] h-[190px] opacity-70',
-    animation: 'blueprintFloat 12s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 2s',
-    node: <ExplodedStackCard />,
+    id: 'formula',
+    className: 'absolute top-[26%] left-[8%] w-[220px] h-[170px] opacity-90',
+    animation: 'blueprintFloatAlt 12s ease-in-out infinite, blueprintPulse 10s ease-in-out infinite 1.5s',
+    node: <QuadraticFormulaCard />,
   },
   {
     id: 'cylinder',
-    className: 'absolute top-[30%] left-[32%] w-[230px] h-[190px] opacity-75',
-    animation: 'blueprintFloatAlt 11s ease-in-out infinite, blueprintPulse 7s ease-in-out infinite 2.5s',
+    className: 'absolute top-[26%] left-[36%] w-[250px] h-[200px] opacity-90',
+    animation: 'blueprintFloat 11s ease-in-out infinite, blueprintPulse 7s ease-in-out infinite 2s',
     node: <CylinderSectionCard />,
   },
   {
     id: 'dot-matrix',
-    className: 'absolute top-[36%] right-[8%] w-[220px] h-[180px] opacity-68',
-    animation: 'blueprintFloat 14s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 1.8s',
+    className: 'absolute top-[26%] right-[6%] w-[230px] h-[190px] opacity-90',
+    animation: 'blueprintFloatAlt 14s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 2.4s',
     node: <DotMatrixCard />,
   },
   {
-    id: 'polar',
-    className: 'absolute bottom-[36%] left-[6%] w-[210px] h-[210px] opacity-72',
-    animation: 'blueprintFloatAlt 13s ease-in-out infinite, blueprintPulse 8s ease-in-out infinite 3s',
-    node: <PolarNetworkCard />,
+    id: 'exploded',
+    className: 'absolute top-[48%] left-[4%] w-[260px] h-[200px] opacity-88',
+    animation: 'blueprintFloat 12s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 2.6s',
+    node: <ExplodedStackCard />,
   },
   {
     id: 'dimension',
-    className: 'absolute bottom-[30%] left-[28%] w-[240px] h-[190px] opacity-74',
-    animation: 'blueprintFloat 12s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 3.4s',
+    className: 'absolute top-[48%] left-[34%] w-[260px] h-[200px] opacity-90',
+    animation: 'blueprintFloatAlt 12s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 3s',
     node: <DimensionBlockCard />,
   },
   {
     id: 'wave-equation',
-    className: 'absolute bottom-[24%] right-[10%] w-[220px] h-[160px] opacity-70',
-    animation: 'blueprintFloatAlt 10s ease-in-out infinite, blueprintPulse 8s ease-in-out infinite 2.8s',
+    className: 'absolute top-[50%] right-[6%] w-[230px] h-[180px] opacity-88',
+    animation: 'blueprintFloat 10s ease-in-out infinite, blueprintPulse 8s ease-in-out infinite 2.8s',
     node: <WaveEquationCard />,
+  },
+  {
+    id: 'polar',
+    className: 'absolute bottom-[8%] left-[8%] w-[240px] h-[220px] opacity-90',
+    animation: 'blueprintFloatAlt 13s ease-in-out infinite, blueprintPulse 8s ease-in-out infinite 3.4s',
+    node: <PolarNetworkCard />,
   },
 ];
 

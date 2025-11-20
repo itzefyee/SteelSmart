@@ -16,6 +16,7 @@ interface StagedProgressProps {
   subtitle?: string;
   stages: StagedProgressItem[];
   className?: string;
+  compact?: boolean;
 }
 
 const statusConfig: Record<StageStatus, { badge: string; text: string; icon: React.ReactNode }> = {
@@ -61,27 +62,34 @@ export const StagedProgress: React.FC<StagedProgressProps> = ({
   title,
   subtitle,
   stages,
-  className = ''
+  className = '',
+  compact = false
 }) => {
   if (!stages || stages.length === 0) {
     return null;
   }
 
+  const paddingClass = compact ? 'p-3' : 'p-4';
+  const stageSpacingClass = compact ? 'space-y-2' : 'space-y-3';
+  const connectorHeight = compact ? 'h-3' : 'h-4';
+  const iconSizeClass = compact ? 'h-7 w-7' : 'h-8 w-8';
+  const titleMargin = compact ? 'mb-3' : 'mb-4';
+
   return (
-    <div className={`rounded-2xl border border-gray-100 bg-white/80 p-4 shadow-sm ${className}`}>
+    <div className={`rounded-2xl border border-gray-100 bg-white/80 ${paddingClass} shadow-sm ${className}`}>
       {(title || subtitle) && (
-        <div className="mb-4">
+        <div className={titleMargin}>
           {title && <p className="text-sm font-semibold text-gray-900">{title}</p>}
           {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
         </div>
       )}
-      <div className="space-y-3">
+      <div className={stageSpacingClass}>
         {stages.map((stage, index) => {
           const config = statusConfig[stage.status];
           return (
             <div key={stage.id}>
               <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 border border-gray-200 flex-shrink-0">
+                <div className={`flex ${iconSizeClass} items-center justify-center rounded-full bg-gray-50 border border-gray-200 flex-shrink-0`}>
                   {config.icon}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -97,7 +105,7 @@ export const StagedProgress: React.FC<StagedProgressProps> = ({
                 </div>
               </div>
               {index < stages.length - 1 && (
-                <div className="ml-4 mt-3 border-l border-dashed border-gray-200 h-4" />
+                <div className={`ml-4 mt-3 border-l border-dashed border-gray-200 ${connectorHeight}`} />
               )}
             </div>
           );

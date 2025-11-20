@@ -224,43 +224,47 @@ export async function POST(request: NextRequest) {
           });
           
           // Still save analysis to database even if file upload fails
-          // Use null for file_path since upload failed
-          await supabase.from('drawing_analyses').insert({
-            user_id: user.id,
-            file_name: file.name,
-            file_path: null, // No file stored
-            file_type: file.type,
-            file_size: file.size,
-            extracted_specs: analysis.extractedSpecs as any,
-            recommended_products: analysis.recommendedProducts.map(p => ({
-              id: p.id,
-              name: p.name,
-              category: p.category
-            })) as any,
-            confidence: analysis.confidence,
-            reasoning: analysis.reasoning,
-            gemini_response: analysis as any // Store full analysis as JSON
-          });
+          // Use empty string for file_path since upload failed
+          if (analysis) {
+            await supabase.from('drawing_analyses').insert({
+              user_id: user.id,
+              file_name: file.name,
+              file_path: '', // No file stored
+              file_type: file.type,
+              file_size: file.size,
+              extracted_specs: analysis.extractedSpecs as any,
+              recommended_products: analysis.recommendedProducts.map(p => ({
+                id: p.id,
+                name: p.name,
+                category: p.category
+              })) as any,
+              confidence: analysis.confidence,
+              reasoning: analysis.reasoning,
+              gemini_response: analysis as any // Store full analysis as JSON
+            });
+          }
 
           console.log(`Saved drawing analysis for user ${user.id} (file upload failed, analysis saved without file)`);
         } else {
           // Save analysis to database with file path
-          await supabase.from('drawing_analyses').insert({
-            user_id: user.id,
-            file_name: file.name,
-            file_path: filePath,
-            file_type: file.type,
-            file_size: file.size,
-            extracted_specs: analysis.extractedSpecs as any,
-            recommended_products: analysis.recommendedProducts.map(p => ({
-              id: p.id,
-              name: p.name,
-              category: p.category
-            })) as any,
-            confidence: analysis.confidence,
-            reasoning: analysis.reasoning,
-            gemini_response: analysis as any // Store full analysis as JSON
-          });
+          if (analysis) {
+            await supabase.from('drawing_analyses').insert({
+              user_id: user.id,
+              file_name: file.name,
+              file_path: filePath,
+              file_type: file.type,
+              file_size: file.size,
+              extracted_specs: analysis.extractedSpecs as any,
+              recommended_products: analysis.recommendedProducts.map(p => ({
+                id: p.id,
+                name: p.name,
+                category: p.category
+              })) as any,
+              confidence: analysis.confidence,
+              reasoning: analysis.reasoning,
+              gemini_response: analysis as any // Store full analysis as JSON
+            });
+          }
 
           console.log(`Saved drawing analysis for user ${user.id} with file at ${filePath}`);
         }
@@ -274,7 +278,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json<APIResponse<DrawingAnalysis>>({
       success: true,
-      data: analysis,
+      data: analysis || undefined,
       message: 'Drawing analysis completed successfully'
     });
 

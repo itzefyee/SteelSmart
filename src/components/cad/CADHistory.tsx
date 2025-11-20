@@ -312,73 +312,84 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
 
   if (!isExpanded) {
     return (
-      <div className={`catalog-glass-container glass-container-with-liquid p-4 ${className}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900">Generation History</h3>
+      <div className={`glass-card ${className}`}>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500 font-medium">History</p>
+                <h3 className="text-xl font-bold text-slate-900">Recent Generations</h3>
+              </div>
+            </div>
             {history.length > 0 && (
-              <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-                {history.length} items
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                {history.length} saved
               </span>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsExpanded(true)}
-          >
-            View History
-          </Button>
+          <div className="flex items-center justify-between text-sm text-slate-600">
+            <p>Review the last 20 prompts you generated.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsExpanded(true)}
+              className="text-slate-700 border-slate-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400"
+            >
+              View History
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`catalog-glass-container glass-container-with-liquid ${className}`}>
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className={`glass-card overflow-hidden ${className}`}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50">
+        <div className="flex items-center space-x-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h3 className="text-lg font-medium text-gray-900">Generation History</h3>
-            {history.length > 0 && (
-              <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-                {history.length} items
-              </span>
-            )}
           </div>
-          <div className="flex items-center space-x-2">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500 font-medium">History</p>
+            <h3 className="text-xl font-bold text-slate-900">Generation Log</h3>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchHistory}
+            disabled={isLoading}
+            className="border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400"
+          >
+            {isLoading ? <LoadingSpinner size="sm" /> : 'Refresh'}
+          </Button>
+          {history.length > 0 && (
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchHistory}
-              disabled={isLoading}
+              onClick={clearHistory}
+              className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-400"
             >
-              {isLoading ? <LoadingSpinner size="sm" /> : 'Refresh'}
+              Clear All
             </Button>
-            {history.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearHistory}
-                className="text-red-600 hover:text-red-700"
-              >
-                Clear All
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsExpanded(false)}
-            >
-              Collapse
-            </Button>
-          </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExpanded(false)}
+            className="border-slate-300 text-slate-700 hover:bg-slate-100"
+          >
+            Collapse
+          </Button>
         </div>
       </div>
 
@@ -412,69 +423,91 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
               return (
                 <div
                   key={item.id}
-                  className={`border rounded-lg transition-all hover:shadow-sm ${
-                    item.status === 'failed' ? 'border-red-200 bg-red-50' : 'border-gray-200 hover:border-gray-300'
-                  } ${isItemExpanded ? 'shadow-md' : ''}`}
+                  className={`group border rounded-xl transition-all duration-200 ${
+                    item.status === 'failed' 
+                      ? 'border-red-200 bg-gradient-to-br from-red-50 to-red-100/50 hover:shadow-lg hover:shadow-red-200/50' 
+                      : 'border-slate-200 bg-gradient-to-br from-white to-slate-50/50 hover:shadow-lg hover:shadow-blue-200/40 hover:border-blue-300'
+                  } ${isItemExpanded ? 'shadow-lg ring-2 ring-blue-200' : 'shadow-sm'}`}
                 >
                   {/* Collapsed Header */}
-                  <div className="p-3">
-                    <div className="flex items-start justify-between">
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <div className={`w-2 h-2 rounded-full ${
-                            item.status === 'completed' ? 'bg-green-500' : 'bg-red-500'
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`w-2.5 h-2.5 rounded-full shadow-sm ${
+                            item.status === 'completed' 
+                              ? 'bg-green-500 ring-2 ring-green-200' 
+                              : 'bg-red-500 ring-2 ring-red-200'
                           }`} />
-                          <span className="text-xs text-gray-500 uppercase tracking-wide">
-                            {item.category} • {item.format} • {item.units}
-                          </span>
+                          <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wide">
+                            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 uppercase">
+                              {item.category}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 uppercase">
+                              {item.format}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 uppercase">
+                              {item.units}
+                            </span>
+                          </div>
                         </div>
-                        <p className={`text-sm font-medium text-gray-900 mb-1 ${
-                          !isItemExpanded ? 'truncate' : ''
+                        <p className={`text-sm font-semibold text-slate-900 mb-2 leading-relaxed ${
+                          !isItemExpanded ? 'line-clamp-2' : ''
                         }`}>
                           {item.prompt}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          {formatDate(item.generated_at)}
-                        </p>
+                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="font-medium">{formatDate(item.generated_at)}</span>
+                        </div>
                         {item.error && !isItemExpanded && (
-                          <p className="text-xs text-red-600 mt-1 truncate">
-                            Error: {item.error}
-                          </p>
+                          <div className="mt-2 flex items-start gap-1.5 text-xs text-red-600 bg-red-100 border border-red-200 rounded-lg px-2 py-1.5">
+                            <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="line-clamp-1 font-medium">{item.error}</span>
+                          </div>
                         )}
                       </div>
-                      <div className="flex items-center space-x-1 ml-2">
+                      <div className="flex flex-col items-center gap-1.5">
                         <button
                           onClick={() => toggleItemExpansion(item.id)}
-                          className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                          className={`p-2 rounded-lg transition-all ${
+                            isItemExpanded 
+                              ? 'bg-blue-100 text-blue-700 shadow-sm' 
+                              : 'bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm'
+                          }`}
                           title={isItemExpanded ? 'Collapse' : 'Expand'}
                         >
                           <svg 
-                            className={`w-4 h-4 transition-transform ${isItemExpanded ? 'rotate-180' : ''}`} 
+                            className={`w-4 h-4 transition-transform duration-200 ${isItemExpanded ? 'rotate-180' : ''}`} 
                             fill="none" 
                             stroke="currentColor" 
                             viewBox="0 0 24 24"
                           >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                           </svg>
                         </button>
                         {hasModel && (
                           <button
                             onClick={() => downloadModel(item)}
-                            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                            className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all"
                             title="Download"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                           </button>
                         )}
                         <button
                           onClick={() => deleteHistoryItem(item.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all"
                           title="Delete"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
                       </div>

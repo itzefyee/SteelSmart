@@ -19,18 +19,10 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset state when ID changes
-  useEffect(() => {
-    console.log('[Product Details] ID changed to:', id);
-    setProduct(null);
-    setRelatedProducts([]);
-    setLoading(true);
-    setError(null);
-  }, [id]);
-
   useEffect(() => {
     const loadProduct = async () => {
-      console.log('[Product Details] loadProduct called, id:', id);
+      console.log('[Product Details] Loading product, id:', id);
+      
       if (!id) {
         console.log('[Product Details] No ID provided');
         setLoading(false);
@@ -38,6 +30,9 @@ export default function ProductDetailPage() {
       }
 
       try {
+        // Reset state
+        setProduct(null);
+        setRelatedProducts([]);
         setLoading(true);
         setError(null);
         
@@ -51,7 +46,7 @@ export default function ProductDetailPage() {
           .eq('id', id)
           .single();
         
-        console.log('[Product Details] Product fetch result:', { productData, productError });
+        console.log('[Product Details] Product fetch result:', { hasData: !!productData, error: productError?.code });
         
         if (productError || !productData) {
           throw new Error('Product not found');
@@ -59,7 +54,6 @@ export default function ProductDetailPage() {
 
         const typedProduct = productData as Product;
         setProduct(typedProduct);
-        console.log('[Product Details] Product set successfully');
 
         // Get related products (same category, excluding current product)
         console.log('[Product Details] Fetching related products...');
@@ -70,13 +64,13 @@ export default function ProductDetailPage() {
           .neq('id', typedProduct.id)
           .limit(4);
         
-        console.log('[Product Details] Related products result:', { relatedData, relatedError });
+        console.log('[Product Details] Related products count:', relatedData?.length || 0);
         
         if (!relatedError && relatedData) {
           setRelatedProducts(relatedData as Product[]);
         }
       } catch (err) {
-        console.error('[Product Details] Error loading product:', err);
+        console.error('[Product Details] Error:', err);
         setError(err instanceof Error ? err.message : 'Failed to load product');
       } finally {
         console.log('[Product Details] Loading complete');
@@ -121,7 +115,7 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col catalog-shell">
       <Header />
       <ProductDetailClient product={product} relatedProducts={relatedProducts} />
       <Footer />

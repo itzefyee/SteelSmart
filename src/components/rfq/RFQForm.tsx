@@ -665,39 +665,57 @@ const RFQForm: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto">
       {/* Progress Bar */}
-      <div className="mb-8">
-        <div className="flex items-center mb-4">
-          {[1, 2, 3, 4].map((step, index) => (
-            <React.Fragment key={step}>
-              <div className="flex justify-center">
-                <div className={`
-                  w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
-                  ${currentStep >= step 
-                    ? 'bg-primary text-white' 
-                    : 'bg-gray-200 text-gray-600'
-                  }
-                `}>
-                  {step}
+      <div className="mb-8 glass-container-with-liquid rounded-3xl p-6">
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Progress</p>
+              <h2 className="text-xl font-semibold text-slate-900">
+                Step {currentStep} of {totalSteps}: {getStepTitle(currentStep)}
+              </h2>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[
+              { id: 1, label: 'Contact', description: 'Introduce your team' },
+              { id: 2, label: 'Requirements', description: 'Tell us what you need' },
+              { id: 3, label: 'Files', description: 'Attach drawings/specs' },
+              { id: 4, label: 'Review', description: 'Confirm & send' },
+            ].map((step) => {
+              const status = currentStep === step.id ? 'active' : currentStep > step.id ? 'done' : 'pending';
+              return (
+                <div
+                  key={step.id}
+                  className={`rounded-2xl border px-4 py-3 flex items-start gap-3 shadow-sm ${
+                    status === 'active'
+                      ? 'border-blue-300 bg-blue-50'
+                      : status === 'done'
+                        ? 'border-green-200 bg-green-50'
+                        : 'border-slate-100 bg-white'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold ${
+                    status === 'active'
+                      ? 'bg-blue-600 text-white'
+                      : status === 'done'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {status === 'done' ? '✓' : step.id}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">{step.label}</p>
+                    <p className="text-xs text-slate-500">{step.description}</p>
+                  </div>
                 </div>
-              </div>
-              {step < 4 && (
-                <div className={`
-                  h-1 flex-1 mx-4
-                  ${currentStep > step ? 'bg-primary' : 'bg-gray-200'}
-                `} />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Step {currentStep} of {totalSteps}: {getStepTitle(currentStep)}
-          </h2>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* Form Content */}
-      <div className="glass-container p-8">
+      <div className="glass-container p-8 rounded-3xl">
         {renderStepContent()}
 
         {/* Error Display */}

@@ -68,7 +68,7 @@ const ProductRecommenderNew: React.FC = () => {
   const [loadingStages, setLoadingStages] = useState<StagedProgressItem[]>(() => buildStageTemplate());
 
   const stageProgressActive = useMemo(
-    () => isLoading || loadingStages.some(stage => stage.status !== 'pending'),
+    () => isLoading || loadingStages.some(stage => stage.status === 'active' || stage.status === 'error'),
     [isLoading, loadingStages]
   );
 
@@ -532,7 +532,14 @@ const ProductRecommenderNew: React.FC = () => {
           </div>
         </div>
         
-        <div className="flex flex-col items-center space-y-3">
+        <div className="inline-flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 w-fit">
+          <svg className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 18.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13z" />
+          </svg>
+          <p>Add a quick material, dimension, or load hint to help us surface direct matches faster.</p>
+        </div>
+        
+        <div className="flex flex-col items-center space-y-3 mt-2">
           <Button 
             onClick={() => handleFindRecommendations()}
             disabled={isLoading}
@@ -545,9 +552,10 @@ const ProductRecommenderNew: React.FC = () => {
         {stageProgressActive && (
           <div className="mt-6">
             <StagedProgress
-              title="Recommendation Pipeline"
-              subtitle="We keep you updated as each step completes."
+              title="Recommender Process"
+              subtitle="We’ll show progress only while steps are running."
               stages={loadingStages}
+              compact
             />
           </div>
         )}
@@ -726,113 +734,88 @@ const ProductRecommenderNew: React.FC = () => {
             {activeTab === 'alternatives' && (
               <div>
                 {alternatives.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {alternatives.map((alt, index) => (
-                      <div key={index} className="glass-card p-6 flex flex-col">
-                        <div className="flex-1 flex flex-col">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2 flex-wrap">
-                                <h3 className="font-semibold text-gray-900 text-lg">{alt.name}</h3>
-                                <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
-                                  🤖 AI Suggested
-                                </span>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(alt.confidence * 100)}`}>
-                                  {Math.round(alt.confidence * 100)}% Match
-                                </span>
-                              </div>
-                              <p className="text-sm text-gray-600 mb-3">{alt.description}</p>
+                      <div key={index} className="glass-card p-5 flex flex-col gap-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-gray-900 text-base line-clamp-1">{alt.name}</h3>
+                              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                                🤖 AI Suggest
+                              </span>
                             </div>
+                            {alt.description && (
+                              <p className="text-sm text-gray-600 mt-1 line-clamp-2">{alt.description}</p>
+                            )}
                           </div>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${getScoreColor(alt.confidence * 100)}`}>
+                            {Math.round(alt.confidence * 100)}% Match
+                          </span>
+                        </div>
 
-                          {/* Specifications */}
-                          <div className="grid grid-cols-2 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-                            {alt.material && (
-                              <div>
-                                <span className="text-xs text-gray-600">Material</span>
-                                <p className="font-medium text-gray-900">{alt.material}</p>
-                              </div>
-                            )}
-                            {alt.specifications.dimensions && (
-                              <div>
-                                <span className="text-xs text-gray-600">Dimensions</span>
-                                <p className="font-medium text-gray-900">{alt.specifications.dimensions}</p>
-                              </div>
-                            )}
-                            {alt.specifications.loadCapacity && (
-                              <div>
-                                <span className="text-xs text-gray-600">Load Capacity</span>
-                                <p className="font-medium text-gray-900">{alt.specifications.loadCapacity}</p>
-                              </div>
-                            )}
+                        <div className="grid grid-cols-2 gap-3 text-xs text-gray-600">
+                          {alt.material && (
                             <div>
-                              <span className="text-xs text-gray-600">Category</span>
-                              <p className="font-medium text-gray-900 capitalize">{alt.category}</p>
-                            </div>
-                          </div>
-
-                          {/* AI Reasoning */}
-                          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="flex items-start space-x-2">
-                              <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <div className="flex-1">
-                                <h4 className="text-sm font-semibold text-blue-900 mb-1">Why This Alternative?</h4>
-                                <p className="text-sm text-blue-800">{alt.reasoning}</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Supplier Information */}
-                          {alt.supplierInfo && (
-                            <div className="grid grid-cols-1 gap-4 mb-4">
-                              {alt.supplierInfo.suggestedSuppliers && alt.supplierInfo.suggestedSuppliers.length > 0 && (
-                                <div>
-                                  <span className="text-xs font-medium text-gray-700">Suggested Suppliers</span>
-                                  <p className="text-sm text-gray-900 mt-1">
-                                    {alt.supplierInfo.suggestedSuppliers.join(', ')}
-                                  </p>
-                                </div>
-                              )}
-                              {alt.supplierInfo.estimatedPrice && (
-                                <div>
-                                  <span className="text-xs font-medium text-gray-700">Estimated Price</span>
-                                  <p className="text-sm text-gray-900 mt-1">{alt.supplierInfo.estimatedPrice}</p>
-                                </div>
-                              )}
-                              {alt.supplierInfo.leadTime && (
-                                <div>
-                                  <span className="text-xs font-medium text-gray-700">Lead Time</span>
-                                  <p className="text-sm text-gray-900 mt-1">{alt.supplierInfo.leadTime}</p>
-                                </div>
-                              )}
+                              <span className="text-[11px] uppercase tracking-wide text-gray-500">Material</span>
+                              <p className="font-semibold text-gray-900 mt-0.5">{alt.material}</p>
                             </div>
                           )}
-
-                          {/* Standards */}
-                          {alt.standards && alt.standards.length > 0 && (
-                            <div className="mb-4">
-                              <span className="text-xs font-medium text-gray-700 block mb-2">Compliance Standards</span>
-                              <div className="flex flex-wrap gap-2">
-                                {alt.standards.map((standard, idx) => (
-                                  <span key={idx} className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                                    ✓ {standard.code} - {standard.name}
-                                  </span>
-                                ))}
-                              </div>
+                          {alt.specifications.dimensions && (
+                            <div>
+                              <span className="text-[11px] uppercase tracking-wide text-gray-500">Size</span>
+                              <p className="font-semibold text-gray-900 mt-0.5 line-clamp-1">{alt.specifications.dimensions}</p>
                             </div>
                           )}
-
-                          {/* Actions */}
-                          <div className="mt-auto flex space-x-3">
-                            <Button size="sm" variant="outline" className="flex-1">
-                              Request Custom Quote
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              More Info
-                            </Button>
+                          {alt.specifications.loadCapacity && (
+                            <div>
+                              <span className="text-[11px] uppercase tracking-wide text-gray-500">Load</span>
+                              <p className="font-semibold text-gray-900 mt-0.5">{alt.specifications.loadCapacity}</p>
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-[11px] uppercase tracking-wide text-gray-500">Category</span>
+                            <p className="font-semibold text-gray-900 mt-0.5 capitalize">{alt.category}</p>
                           </div>
+                        </div>
+
+                        {alt.reasoning && (
+                          <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2">
+                            <p className="text-[11px] font-semibold text-blue-900 mb-0.5">AI Note</p>
+                            <p className="text-xs text-blue-800 line-clamp-3">{alt.reasoning}</p>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                          {alt.supplierInfo?.suggestedSuppliers?.slice(0, 2).map((supplier, idx) => (
+                            <span key={idx} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                              {supplier}
+                            </span>
+                          ))}
+                          {alt.supplierInfo?.estimatedPrice && (
+                            <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                              {alt.supplierInfo.estimatedPrice}
+                            </span>
+                          )}
+                          {alt.supplierInfo?.leadTime && (
+                            <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                              {alt.supplierInfo.leadTime}
+                            </span>
+                          )}
+                          {alt.standards?.slice(0, 2).map((standard, idx) => (
+                            <span key={idx} className="px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                              ✓ {standard.code}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="mt-auto flex gap-2">
+                          <Button size="sm" variant="outline" className="flex-1">
+                            Request Quote
+                          </Button>
+                          <Button size="sm" variant="ghost">
+                            Details
+                          </Button>
                         </div>
                       </div>
                     ))}

@@ -148,7 +148,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { error } = await supabase
         .from('profiles')
-        // @ts-expect-error - Supabase client typing issue with createClientComponentClient
         .update(updateData)
         .eq('id', user.id);
 

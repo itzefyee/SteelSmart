@@ -11,7 +11,12 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "generate-frames": "node scripts/generate_placeholder_frames.js",
-    "upload-frames": "node scripts/upload_frames_to_supabase.js"
+    "upload-frames": "node scripts/upload_frames_to_supabase.js",
+    "upload-product-images": "npx tsx scripts/upload-product-images.ts",
+    "list-storage-images": "npx tsx scripts/list-storage-images.ts",
+    "update-product-images": "npx tsx scripts/update-product-image-urls.ts",
+    "auto-match-products": "npx tsx scripts/auto-match-products.ts",
+    "fix-product-images": "npx tsx scripts/manual-product-image-fix.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

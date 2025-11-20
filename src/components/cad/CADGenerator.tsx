@@ -574,7 +574,9 @@ const CADGenerator: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* CAD History */}
-      <CADHistory onSelectHistory={handleHistorySelect} />
+      <div className="glass-container-with-liquid rounded-3xl border border-white/40">
+        <CADHistory onSelectHistory={handleHistorySelect} className="rounded-3xl overflow-hidden bg-white/60" />
+      </div>
 
       {showStageTracker && (
         <StagedProgress
@@ -584,7 +586,8 @@ const CADGenerator: React.FC = () => {
         />
       )}
       {/* Tab Navigation */}
-      <div className="catalog-glass-container mb-10">
+      <div className="glass-container"></div>
+      <div className="glass-container-with-liquid mb-10 rounded-3xl overflow-hidden">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6">
             <button
@@ -623,7 +626,7 @@ const CADGenerator: React.FC = () => {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <div className="glass-card rounded-2xl rounded-tl-md p-4">
+                    <div className="rounded-2xl rounded-tl-md p-4 bg-white border border-gray-200 shadow-sm">
                       <p className="text-gray-800 leading-relaxed">
                         Hi! I'm your AI CAD assistant. I can help you generate technical drawings from natural language descriptions. 
                         Just describe what you need, and I'll create precise CAD drawings with proper dimensions and specifications.

@@ -56,7 +56,7 @@ export function CADHistoryRefreshExample() {
       {error && <div className="text-red-600">Error: {error.message}</div>}
       {data && (
         <div className="space-y-2">
-          {data.items.map((item) => (
+          {data.data.map((item) => (
             <div key={item.id} className="p-4 border rounded">
               {item.prompt}
             </div>
@@ -195,7 +195,7 @@ export function AutoRefreshExample() {
 
       {/* Content */}
       <div className="space-y-2">
-        {data?.items.map((item) => (
+        {data?.data.map((item) => (
           <div key={item.id} className="p-4 border rounded">
             {item.prompt}
           </div>
@@ -243,7 +243,7 @@ export function RefetchAfterActionExample() {
       <h2 className="text-xl font-bold">CAD History (with Delete)</h2>
       
       <div className="space-y-2">
-        {data?.items.map((item) => (
+        {data?.data.map((item) => (
           <div key={item.id} className="flex items-center justify-between p-4 border rounded">
             <span>{item.prompt}</span>
             <Button
@@ -269,10 +269,10 @@ export function RefetchAfterActionExample() {
  */
 export function ConditionalRefetchExample() {
   const [showStale, setShowStale] = React.useState(false);
-  const { data, refetch, dataUpdatedAt } = useCADHistory(10, 0);
+  const { data, refetch } = useCADHistory(10, 0);
 
-  // Calculate if data is older than 5 minutes
-  const isStale = Date.now() - dataUpdatedAt > 5 * 60 * 1000;
+  // For this example, we'll consider data stale if it exists
+  const isStale = !!data;
 
   // Auto-refetch when showing stale data
   React.useEffect(() => {
@@ -306,7 +306,7 @@ export function ConditionalRefetchExample() {
 
       {/* Content */}
       <div className="space-y-2">
-        {data?.items.map((item) => (
+        {data?.data.map((item) => (
           <div key={item.id} className="p-4 border rounded">
             {item.prompt}
           </div>

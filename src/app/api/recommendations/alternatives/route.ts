@@ -30,7 +30,10 @@ export async function POST(request: NextRequest) {
     };
 
     // Get alternative suggestions from AI
-    const suggestions = await alternativeSuggester.suggestAlternatives(mockAnalysis);
+    const suggestions = await alternativeSuggester.suggestAlternatives(
+      mockAnalysis.extractedSpecs,
+      mockAnalysis.reasoning
+    );
 
     if (!suggestions || !suggestions.alternatives) {
       return NextResponse.json({

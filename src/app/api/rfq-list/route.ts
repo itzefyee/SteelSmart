@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
       id: rfq.id,
       drawing: rfq.project_description || 'RFQ Submission',
       quantity: rfq.quantity,
-      status: mapStatus(rfq.status),
-      submittedDate: new Date(rfq.created_at).toLocaleDateString(),
+      status: mapStatus(rfq.status || 'pending'),
+      submittedDate: rfq.created_at ? new Date(rfq.created_at).toLocaleDateString() : 'N/A',
       expectedDelivery: rfq.deadline || 'TBD',
       priority: 'Medium', // Default priority - could be enhanced
       contactInfo: {

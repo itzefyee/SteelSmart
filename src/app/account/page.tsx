@@ -10,31 +10,22 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { UserProfile } from '@/types';
 import PageHero from '@/components/layout/PageHero';
+import WireframeIconLayer from '@/components/layout/WireframeIconLayer';
 
 export default function AccountPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile: authProfile, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset state when user changes
   useEffect(() => {
-    console.log('[Account Page] User changed:', user?.id);
-    setProfile(null);
-    setError(null);
-    if (!authLoading) {
-      setLoading(!!user); // Only show loading if there's a user to fetch
-    }
-  }, [user?.id, authLoading]);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      console.log('[Account Page] fetchProfile called', { authLoading, hasUser: !!user });
+    const initializeProfile = async () => {
+      console.log('[Account Page] Initializing', { authLoading, hasUser: !!user, hasAuthProfile: !!authProfile });
       
       // Wait for auth to finish loading
       if (authLoading) {
-        console.log('[Account Page] Auth still loading, waiting...');
+        console.log('[Account Page] Auth still loading...');
         setLoading(true);
         return;
       }
@@ -50,26 +41,40 @@ export default function AccountPage() {
         return;
       }
 
-      // Fetch profile data
+      // If we already have the profile from auth context, use it
+      if (authProfile && !profile) {
+        console.log('[Account Page] Using profile from auth context');
+        setProfile(authProfile);
+        setLoading(false);
+        return;
+      }
+
+      // If we already set the profile locally, don't fetch again
+      if (profile) {
+        console.log('[Account Page] Profile already set locally');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch profile data as fallback
       try {
         console.log('[Account Page] Fetching profile for user:', user.id);
-        const supabase = getSupabaseClient();
+        setLoading(true);
+        setError(null);
         
-        console.log('[Account Page] Executing Supabase query...');
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
 
-        console.log('[Account Page] Query completed. Data:', data, 'Error:', error);
+        console.log('[Account Page] Query completed. Data:', !!data, 'Error:', error?.code);
 
         if (error) {
-          console.error('[Account Page] Profile fetch error:', error);
-          
           // If profile doesn't exist, create one
           if (error.code === 'PGRST116') {
-            console.log('[Account Page] Profile not found, creating new profile...');
+            console.log('[Account Page] Profile not found, creating...');
             const { data: newProfile, error: createError } = await supabase
               .from('profiles')
               .insert({
@@ -86,28 +91,27 @@ export default function AccountPage() {
               throw createError;
             }
             
-            console.log('[Account Page] Profile created successfully:', newProfile);
+            console.log('[Account Page] Profile created successfully');
             setProfile(newProfile as UserProfile);
-            setLoading(false);
-            return;
+          } else {
+            throw error;
           }
-          
-          throw error;
+        } else {
+          console.log('[Account Page] Profile fetched successfully');
+          setProfile(data as UserProfile);
         }
-        
-        console.log('[Account Page] Profile fetched successfully:', data);
-        setProfile(data as UserProfile);
       } catch (err) {
-        console.error('[Account Page] Error fetching profile:', err);
+        console.error('[Account Page] Error:', err);
         setError(`Failed to load profile: ${err instanceof Error ? err.message : 'Unknown error'}`);
       } finally {
-        console.log('[Account Page] Setting loading to false');
         setLoading(false);
       }
     };
 
-    fetchProfile();
-  }, [user, authLoading, router]);
+    initializeProfile();
+  }, [user?.id, authLoading, authProfile, router]);
+
+  const accountIdentifier = user?.email ?? profile?.company ?? 'your account';
 
   if (authLoading || loading) {
     return (
@@ -137,26 +141,27 @@ export default function AccountPage() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 home-wavy-bg relative overflow-hidden">
+        <WireframeIconLayer />
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-10">
             <PageHero
               align="left"
               eyebrow="Control Center"
+              eyebrowPlacement="inline-after"
               title="My Account"
               theme="light"
               highlightPlacement="side"
               description={
                 <>
-                  Manage preferences, update organization details, and review CAD, RFQ, and sourcing
-                  activity tied to{' '}
-                  <span className="font-semibold text-slate-900">{profile.email}</span>.
+                  Manage team access, billing, and every CAD, RFQ, and sourcing event linked to{' '}
+                  <span className="font-semibold text-slate-900">{accountIdentifier}</span>.
                 </>
               }
               highlights={[
-                { label: 'Workspace Access', value: 'SSO Secured' },
-                { label: 'Recent CAD Runs', value: 'Auto Synced' },
-                { label: 'RFQ Tracking', value: 'Live Timeline' },
-                { label: 'Support SLA', value: '<24 Hours' },
+                { label: 'Access', value: 'SSO' },
+                { label: 'CAD Runs', value: 'Auto Sync' },
+                { label: 'RFQs', value: 'Live Timeline' },
+                { label: 'Support', value: '<24h' },
               ]}
             />
           </div>

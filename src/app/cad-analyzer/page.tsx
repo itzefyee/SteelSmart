@@ -17,15 +17,16 @@ export default function CADAnalyzerPage() {
           <div className="mb-10">
             <PageHero
               eyebrow="Insight Engine"
+              eyebrowPlacement="inline-after"
               title="CAD Drawing Analyzer"
               highlightPlacement="side"
               theme="light"
-              description="Drop in multi-view drawings or PDFs and let AI extract dimensions, tolerances, and materials automatically. Instantly map the findings to catalog parts or RFQ packages."
+              description="Upload a drawing once to get normalized dimensions, tolerance checks, and ready-to-use catalog matches."
               highlights={[
-                { label: 'Drawings Parsed', value: '12K+ Files' },
-                { label: 'Spec Accuracy', value: '99.1% Match' },
-                { label: 'AI Suggestions', value: 'Ranked Results' },
-                { label: 'Formats', value: 'DWG • PDF' },
+                { label: 'Files Parsed', value: '12K+' },
+                { label: 'Spec Match', value: '99%' },
+                { label: 'Views', value: '3D + 2D' },
+                { label: 'Formats', value: 'STEP • PDF' },
               ]}
             />
           </div>

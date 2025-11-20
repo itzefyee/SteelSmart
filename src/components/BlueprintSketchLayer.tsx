@@ -29,9 +29,9 @@ const BlueprintSketchLayer: React.FC<BlueprintSketchLayerProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const opacityClass = variant === 'hero' ? 'opacity-60' : 'opacity-45';
-  const variantParallax = typeof parallaxOffset === 'number' ? parallaxOffset * 0.15 : 0;
-  const intensity = variant === 'hero' ? 0.32 : 0.24;
+  const opacityClass = variant === 'hero' ? 'opacity-80' : 'opacity-60';
+  const variantParallax = typeof parallaxOffset === 'number' ? parallaxOffset * 0.2 : 0;
+  const intensity = variant === 'hero' ? 0.42 : 0.32;
 
   const getTransformStyle = (dx: number, dy: number) => ({
     transform: `translate3d(${scrollOffset * dx * intensity}px, ${
@@ -75,7 +75,7 @@ const BlueprintSketchLayer: React.FC<BlueprintSketchLayerProps> = ({
         {circles.map(({ className, drift }) => (
           <div
             key={className}
-            className={`absolute ${className} border border-blue-100/70 rounded-full blur-[0.5px]`}
+            className={`absolute ${className} border border-blue-100/90 rounded-full shadow-[0_10px_40px_rgba(30,64,175,0.35)]`}
             style={getTransformStyle(drift.x, drift.y)}
           />
         ))}
@@ -83,7 +83,7 @@ const BlueprintSketchLayer: React.FC<BlueprintSketchLayerProps> = ({
         {squares.map(({ className, drift }) => (
           <div
             key={className}
-            className={`absolute ${className} border border-blue-100/60`}
+            className={`absolute ${className} border border-blue-100/80 shadow-[0_6px_30px_rgba(15,23,42,0.4)]`}
             style={getTransformStyle(drift.x, drift.y)}
           />
         ))}
@@ -107,8 +107,8 @@ const BlueprintSketchLayer: React.FC<BlueprintSketchLayerProps> = ({
               y1={y1}
               x2={x2}
               y2={y2}
-              stroke="rgba(191,219,254,0.55)"
-              strokeWidth="1.4"
+              stroke="rgba(191,219,254,0.75)"
+              strokeWidth="1.8"
               transform={`translate(${scrollOffset * drift.x * intensity}, ${
                 scrollOffset * drift.y * intensity + variantParallax
               })`}
@@ -121,8 +121,8 @@ const BlueprintSketchLayer: React.FC<BlueprintSketchLayerProps> = ({
               cy={cy}
               r={r}
               fill="none"
-              stroke="rgba(191,219,254,0.6)"
-              strokeWidth="1.4"
+              stroke="rgba(191,219,254,0.8)"
+              strokeWidth="1.8"
               transform={`translate(${scrollOffset * drift.x * intensity}, ${
                 scrollOffset * drift.y * intensity + variantParallax
               })`}
