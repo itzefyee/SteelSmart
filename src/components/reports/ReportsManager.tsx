@@ -190,7 +190,7 @@ const ReportsManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow border p-6">
+      <div className="glass-container glass-container-with-liquid-compact p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input
             label="Search Reports"
@@ -205,7 +205,7 @@ const ReportsManager: React.FC = () => {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="glass-input"
             >
               <option value="all">All Types</option>
               <option value="Analysis">Analysis</option>
@@ -220,7 +220,7 @@ const ReportsManager: React.FC = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="glass-input"
             >
               <option value="all">All Statuses</option>
               <option value="Completed">Completed</option>
@@ -234,7 +234,7 @@ const ReportsManager: React.FC = () => {
       {/* Reports Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredReports.map((report) => (
-          <div key={report.id} className="bg-white rounded-lg shadow border hover:shadow-md transition-shadow">
+          <div key={report.id} className="glass-card">
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
@@ -357,7 +357,7 @@ const ReportsManager: React.FC = () => {
 
       {/* Empty State */}
       {filteredReports.length === 0 && (
-        <div className="bg-white rounded-lg shadow border p-12 text-center">
+        <div className="glass-container glass-container-with-liquid p-12 text-center">
           <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>

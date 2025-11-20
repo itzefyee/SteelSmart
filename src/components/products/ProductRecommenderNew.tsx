@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { getSupabaseClient } from '@/lib/supabase';
 import type { Product } from '@/lib/supabase';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/ToastProvider';
+import { StagedProgress, StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
 
 interface AlternativeProduct {
   name: string;
@@ -41,6 +43,12 @@ interface RecommendationItem {
   reasoning: string;
 }
 
+const buildStageTemplate = (): StagedProgressItem[] => ([
+  { id: 'catalog', label: 'Catalog Search', status: 'pending' },
+  { id: 'alternatives', label: 'AI Alternatives', status: 'pending' },
+  { id: 'ranking', label: 'Scoring & Ranking', status: 'pending' }
+]);
+
 const ProductRecommenderNew: React.FC = () => {
   const [requirements, setRequirements] = useState({
     material: '',
@@ -49,6 +57,7 @@ const ProductRecommenderNew: React.FC = () => {
     category: 'all'
   });
 
+  const { addToast } = useToast();
   const [catalogMatches, setCatalogMatches] = useState<Product[]>([]);
   const [alternatives, setAlternatives] = useState<AlternativeProduct[]>([]);
   const [rankedRecommendations, setRankedRecommendations] = useState<RecommendationItem[]>([]);
@@ -56,7 +65,30 @@ const ProductRecommenderNew: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'direct' | 'alternatives' | 'ranked'>('direct');
   const [sortBy, setSortBy] = useState<'score' | 'price'>('score');
   const [analysisData, setAnalysisData] = useState<any>(null);
-  const [debugInfo, setDebugInfo] = useState<string>('');
+  const [loadingStages, setLoadingStages] = useState<StagedProgressItem[]>(() => buildStageTemplate());
+
+  const stageProgressActive = useMemo(
+    () => isLoading || loadingStages.some(stage => stage.status !== 'pending'),
+    [isLoading, loadingStages]
+  );
+
+  const updateStage = (id: string, status: StageStatus, message?: string) => {
+    setLoadingStages(prev =>
+      prev.map(stage =>
+        stage.id === id
+          ? {
+              ...stage,
+              status,
+              message
+            }
+          : stage
+      )
+    );
+  };
+
+  const resetStages = () => {
+    setLoadingStages(buildStageTemplate());
+  };
 
   // Helper function to map componentType to database category
   const mapComponentTypeToCategory = (componentType: string): string => {
@@ -104,6 +136,10 @@ const ProductRecommenderNew: React.FC = () => {
           try {
             const data = JSON.parse(storedAnalysis);
             setAnalysisData(data);
+            addToast({
+              type: 'info',
+              title: 'Loaded CAD analysis specs'
+            });
             
             // Auto-populate requirements from analysis
             if (data.extractedSpecs) {
@@ -144,17 +180,60 @@ const ProductRecommenderNew: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, []); // Empty dependency array - only run once on mount
+  }, [addToast]); // Empty dependency array - only run once on mount
 
   const handleFindRecommendations = async (specs?: any) => {
-    console.log('🔍 Starting recommendations search...');
     setIsLoading(true);
-    setDebugInfo('Starting search...');
+    resetStages();
+    updateStage('catalog', 'active', 'Searching product catalog...');
     
     try {
       const searchSpecs = specs || requirements;
-      console.log('📋 Search specs:', searchSpecs);
       
+      // Step 1: Search catalog for direct matches
+      let catalogResults: Product[] = [];
+      try {
+        catalogResults = await searchCatalog(searchSpecs);
+        setCatalogMatches(catalogResults);
+        updateStage(
+          'catalog',
+          'success',
+          catalogResults.length ? `Found ${catalogResults.length} catalog matches` : 'No direct catalog matches'
+        );
+      } catch (error) {
+        console.error('Catalog search error:', error);
+        setCatalogMatches([]);
+        updateStage('catalog', 'error', 'Unable to query catalog');
+        addToast({
+          type: 'error',
+          title: 'Catalog search failed',
+          description: error instanceof Error ? error.message : 'Unknown error during catalog search.'
+        });
+      }
+      
+      // Step 2: Get alternative suggestions from AI
+      updateStage('alternatives', 'active', 'Requesting AI alternatives...');
+      let alternativeResults: AlternativeProduct[] = [];
+      try {
+        alternativeResults = await getAlternativeSuggestions(searchSpecs);
+        setAlternatives(alternativeResults);
+        updateStage(
+          'alternatives',
+          'success',
+          alternativeResults.length
+            ? `AI suggested ${alternativeResults.length} alternatives`
+            : 'No AI alternatives available'
+        );
+      } catch (error) {
+        console.error('Alternative suggestions error:', error);
+        setAlternatives([]);
+        updateStage('alternatives', 'error', 'AI alternative service unavailable');
+        addToast({
+          type: 'error',
+          title: 'AI alternatives failed',
+          description: error instanceof Error ? error.message : 'Unable to fetch AI alternatives.'
+        });
+      }
       // OPTIMIZATION: Run catalog and AI searches in PARALLEL using Promise.all()
       const [catalogResults, alternativeResults] = await Promise.all([
         searchCatalog(searchSpecs).catch(error => {
@@ -174,6 +253,40 @@ const ProductRecommenderNew: React.FC = () => {
       setAlternatives(alternativeResults);
       setDebugInfo(`Found ${catalogResults.length} catalog matches and ${alternativeResults.length} AI alternatives`);
       
+      // Step 3: Combine and rank all recommendations
+      updateStage('ranking', 'active', 'Scoring recommendations...');
+      try {
+        const ranked = combineAndRank(catalogResults, alternativeResults, searchSpecs);
+        setRankedRecommendations(ranked);
+        updateStage(
+          'ranking',
+          'success',
+          ranked.length ? `Ranked ${ranked.length} results` : 'No recommendations to rank'
+        );
+        
+        if (ranked.length > 0) {
+          addToast({
+            type: 'success',
+            title: 'Recommendations ready',
+            description: `${ranked.length} results ranked by match score.`
+          });
+        } else {
+          addToast({
+            type: 'info',
+            title: 'No recommendations found',
+            description: 'Try broadening your requirements or adjusting filters.'
+          });
+        }
+      } catch (error) {
+        console.error('Ranking error:', error);
+        setRankedRecommendations([]);
+        updateStage('ranking', 'error', 'Failed to score recommendations');
+        addToast({
+          type: 'error',
+          title: 'Ranking failed',
+          description: error instanceof Error ? error.message : 'Unable to score recommendations.'
+        });
+      }
       // Combine and rank all recommendations
       setDebugInfo('Ranking results...');
       console.log('⭐ Ranking results...');
@@ -183,14 +296,17 @@ const ProductRecommenderNew: React.FC = () => {
       setDebugInfo(`Complete! ${ranked.length} total recommendations`);
       
     } catch (error) {
-      console.error('❌ Error finding recommendations:', error);
-      setDebugInfo(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      // Ensure we reset states even on error
+      console.error('Error finding recommendations:', error);
+      addToast({
+        type: 'error',
+        title: 'Recommendation search failed',
+        description: error instanceof Error ? error.message : 'Unknown error occurred.'
+      });
       setCatalogMatches([]);
       setAlternatives([]);
       setRankedRecommendations([]);
+      updateStage('ranking', 'error', 'Pipeline failed');
     } finally {
-      console.log('✅ Search complete');
       setIsLoading(false);
     }
   };
@@ -384,20 +500,8 @@ const ProductRecommenderNew: React.FC = () => {
         </div>
       )}
 
-      {/* Debug Info (remove in production) */}
-      {debugInfo && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center space-x-2">
-            <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm text-yellow-800 font-medium">Debug: {debugInfo}</span>
-          </div>
-        </div>
-      )}
-
       {/* Search Form */}
-      <div className="bg-white rounded-lg shadow border p-6">
+      <div className="glass-container glass-container-with-liquid-compact p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Product Requirements</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -408,7 +512,7 @@ const ProductRecommenderNew: React.FC = () => {
               value={requirements.material}
               onChange={(e) => setRequirements({ ...requirements, material: e.target.value })}
               placeholder="e.g., Steel, Aluminum, Stainless Steel"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="glass-input"
             />
           </div>
           
@@ -417,7 +521,7 @@ const ProductRecommenderNew: React.FC = () => {
             <select
               value={requirements.category}
               onChange={(e) => setRequirements({ ...requirements, category: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="glass-input"
             >
               <option value="all">All Categories</option>
               <option value="structural">Structural</option>
@@ -434,7 +538,7 @@ const ProductRecommenderNew: React.FC = () => {
               value={requirements.dimensions}
               onChange={(e) => setRequirements({ ...requirements, dimensions: e.target.value })}
               placeholder="e.g., 200mm x 100mm x 10mm"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="glass-input"
             />
           </div>
           
@@ -445,7 +549,7 @@ const ProductRecommenderNew: React.FC = () => {
               value={requirements.loadCapacity}
               onChange={(e) => setRequirements({ ...requirements, loadCapacity: e.target.value })}
               placeholder="e.g., 500kg, 10kN"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="glass-input"
             />
           </div>
         </div>
@@ -459,11 +563,21 @@ const ProductRecommenderNew: React.FC = () => {
             {isLoading ? <LoadingSpinner size="sm" /> : 'Find Recommendations'}
           </Button>
         </div>
+
+        {stageProgressActive && (
+          <div className="mt-6">
+            <StagedProgress
+              title="Recommendation Pipeline"
+              subtitle="We keep you updated as each step completes."
+              stages={loadingStages}
+            />
+          </div>
+        )}
       </div>
 
       {/* Results Section */}
       {(catalogMatches.length > 0 || alternatives.length > 0) && (
-        <div className="bg-white rounded-lg shadow border">
+        <div className="glass-container glass-container-with-liquid">
           {/* Tab Navigation */}
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
@@ -525,7 +639,8 @@ const ProductRecommenderNew: React.FC = () => {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as 'score' | 'price')}
-                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="glass-input"
+                  style={{ width: 'auto', minWidth: '200px' }}
                 >
                   <option value="score">Match Score (High to Low)</option>
                   <option value="price">Price (Low to High)</option>
@@ -537,86 +652,88 @@ const ProductRecommenderNew: React.FC = () => {
             {activeTab === 'direct' && (
               <div>
                 {catalogMatches.length > 0 ? (
-                  <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {catalogMatches.map((product) => {
                       const score = calculateMatchScore(product, requirements);
                       const reasoning = generateMatchReasoning(product, requirements, score);
 
                       return (
-                        <div key={product.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow bg-white">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-2">
-                                <h3 className="font-semibold text-gray-900 text-lg">{product.name}</h3>
-                                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                                  🏪 Catalog Match
-                                </span>
-                                {/* Match Score Badge - Similar to AI Alternatives */}
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(score)}`}>
-                                  {Math.round(score)}% Match
-                                </span>
+                        <div key={product.id} className="glass-card p-6 flex flex-col">
+                          <div className="flex-1 flex flex-col">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex-1 pr-3">
+                                <div className="flex items-center space-x-2 mb-2 flex-wrap">
+                                  <span className="text-lg font-semibold text-gray-900">{product.name}</span>
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                                    🏪 Catalog Match
+                                  </span>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(score)}`}>
+                                    {Math.round(score)}% Match
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-600">{product.description}</p>
                               </div>
-                              <p className="text-sm text-gray-600 mb-3">{product.description}</p>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-lg font-bold text-gray-900">${product.price}</span>
-                            </div>
-                          </div>
-
-                          {/* Specifications Grid */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-                            <div>
-                              <span className="text-xs text-gray-600">Material</span>
-                              <p className="font-medium text-gray-900">{product.material || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-gray-600">Category</span>
-                              <p className="font-medium text-gray-900 capitalize">{product.category || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-gray-600">Lead Time</span>
-                              <p className="font-medium text-gray-900">{product.lead_time || 'N/A'}</p>
-                            </div>
-                             <div>
-                              <span className="text-xs text-gray-600">Availability</span>
-                              <p className={`font-medium ${product.in_stock ? 'text-green-600' : 'text-red-600'}`}>
-                                {product.in_stock ? '✓ In Stock' : '✗ Out of Stock'}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Reasoning Box */}
-                          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="flex items-start space-x-2">
-                              <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <div className="flex-1">
-                                <h4 className="text-xs font-semibold text-blue-900 mb-1">Match Analysis</h4>
-                                <p className="text-xs text-blue-800">{reasoning}</p>
+                              <div className="text-right">
+                                <p className="text-xs uppercase tracking-wide text-gray-500">Price</p>
+                                <span className="text-lg font-bold text-gray-900">${product.price}</span>
                               </div>
                             </div>
-                          </div>
 
-                          {/* Actions */}
-                          <div className="flex space-x-3">
-                            <Link href="/rfq" className="flex-1">
-                              <Button size="sm" className="w-full">
-                                Add to Quote
-                              </Button>
-                            </Link>
-                            <Link href={`/catalog/${product.id}`}>
-                              <Button size="sm" variant="outline">
-                                View Details
-                              </Button>
-                            </Link>
+                            {/* Specifications Grid */}
+                            <div className="grid grid-cols-2 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                              <div>
+                                <span className="text-xs text-gray-600">Material</span>
+                                <p className="font-medium text-gray-900">{product.material || 'N/A'}</p>
+                              </div>
+                              <div>
+                                <span className="text-xs text-gray-600">Category</span>
+                                <p className="font-medium text-gray-900 capitalize">{product.category || 'N/A'}</p>
+                              </div>
+                              <div>
+                                <span className="text-xs text-gray-600">Lead Time</span>
+                                <p className="font-medium text-gray-900">{product.lead_time || 'N/A'}</p>
+                              </div>
+                              <div>
+                                <span className="text-xs text-gray-600">Availability</span>
+                                <p className={`font-medium ${product.in_stock ? 'text-green-600' : 'text-red-600'}`}>
+                                  {product.in_stock ? '✓ In Stock' : '✗ Out of Stock'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Reasoning Box */}
+                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="flex items-start space-x-2">
+                                <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div className="flex-1">
+                                  <h4 className="text-xs font-semibold text-blue-900 mb-1">Match Analysis</h4>
+                                  <p className="text-xs text-blue-800">{reasoning}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="mt-auto flex space-x-3">
+                              <Link href="/rfq" className="flex-1">
+                                <Button size="sm" className="w-full">
+                                  Add to Quote
+                                </Button>
+                              </Link>
+                              <Link href={`/catalog/${product.id}`}>
+                                <Button size="sm" variant="outline">
+                                  View Details
+                                </Button>
+                              </Link>
+                            </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-12">
+                  <div className="glass-container glass-container-with-liquid p-12 text-center">
                     <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                     </svg>
@@ -631,117 +748,119 @@ const ProductRecommenderNew: React.FC = () => {
             {activeTab === 'alternatives' && (
               <div>
                 {alternatives.length > 0 ? (
-                  <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {alternatives.map((alt, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <h3 className="font-semibold text-gray-900 text-lg">{alt.name}</h3>
-                              <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
-                                🤖 AI Suggested
-                              </span>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(alt.confidence * 100)}`}>
-                                {Math.round(alt.confidence * 100)}% Match
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-3">{alt.description}</p>
-                          </div>
-                        </div>
-
-                        {/* Specifications */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-                          {alt.material && (
-                            <div>
-                              <span className="text-xs text-gray-600">Material</span>
-                              <p className="font-medium text-gray-900">{alt.material}</p>
-                            </div>
-                          )}
-                          {alt.specifications.dimensions && (
-                            <div>
-                              <span className="text-xs text-gray-600">Dimensions</span>
-                              <p className="font-medium text-gray-900">{alt.specifications.dimensions}</p>
-                            </div>
-                          )}
-                          {alt.specifications.loadCapacity && (
-                            <div>
-                              <span className="text-xs text-gray-600">Load Capacity</span>
-                              <p className="font-medium text-gray-900">{alt.specifications.loadCapacity}</p>
-                            </div>
-                          )}
-                          <div>
-                            <span className="text-xs text-gray-600">Category</span>
-                            <p className="font-medium text-gray-900 capitalize">{alt.category}</p>
-                          </div>
-                        </div>
-
-                        {/* AI Reasoning */}
-                        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="flex items-start space-x-2">
-                            <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                      <div key={index} className="glass-card p-6 flex flex-col">
+                        <div className="flex-1 flex flex-col">
+                          <div className="flex items-start justify-between mb-4">
                             <div className="flex-1">
-                              <h4 className="text-sm font-semibold text-blue-900 mb-1">Why This Alternative?</h4>
-                              <p className="text-sm text-blue-800">{alt.reasoning}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Supplier Information */}
-                        {alt.supplierInfo && (
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            {alt.supplierInfo.suggestedSuppliers && alt.supplierInfo.suggestedSuppliers.length > 0 && (
-                              <div>
-                                <span className="text-xs font-medium text-gray-700">Suggested Suppliers</span>
-                                <p className="text-sm text-gray-900 mt-1">
-                                  {alt.supplierInfo.suggestedSuppliers.join(', ')}
-                                </p>
-                              </div>
-                            )}
-                            {alt.supplierInfo.estimatedPrice && (
-                              <div>
-                                <span className="text-xs font-medium text-gray-700">Estimated Price</span>
-                                <p className="text-sm text-gray-900 mt-1">{alt.supplierInfo.estimatedPrice}</p>
-                              </div>
-                            )}
-                            {alt.supplierInfo.leadTime && (
-                              <div>
-                                <span className="text-xs font-medium text-gray-700">Lead Time</span>
-                                <p className="text-sm text-gray-900 mt-1">{alt.supplierInfo.leadTime}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Standards */}
-                        {alt.standards && alt.standards.length > 0 && (
-                          <div className="mb-4">
-                            <span className="text-xs font-medium text-gray-700 block mb-2">Compliance Standards</span>
-                            <div className="flex flex-wrap gap-2">
-                              {alt.standards.map((standard, idx) => (
-                                <span key={idx} className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                                  ✓ {standard.code} - {standard.name}
+                              <div className="flex items-center space-x-2 mb-2 flex-wrap">
+                                <h3 className="font-semibold text-gray-900 text-lg">{alt.name}</h3>
+                                <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
+                                  🤖 AI Suggested
                                 </span>
-                              ))}
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(alt.confidence * 100)}`}>
+                                  {Math.round(alt.confidence * 100)}% Match
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-3">{alt.description}</p>
                             </div>
                           </div>
-                        )}
 
-                        {/* Actions */}
-                        <div className="flex space-x-3">
-                          <Button size="sm" variant="outline" className="flex-1">
-                            Request Custom Quote
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            More Info
-                          </Button>
+                          {/* Specifications */}
+                          <div className="grid grid-cols-2 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                            {alt.material && (
+                              <div>
+                                <span className="text-xs text-gray-600">Material</span>
+                                <p className="font-medium text-gray-900">{alt.material}</p>
+                              </div>
+                            )}
+                            {alt.specifications.dimensions && (
+                              <div>
+                                <span className="text-xs text-gray-600">Dimensions</span>
+                                <p className="font-medium text-gray-900">{alt.specifications.dimensions}</p>
+                              </div>
+                            )}
+                            {alt.specifications.loadCapacity && (
+                              <div>
+                                <span className="text-xs text-gray-600">Load Capacity</span>
+                                <p className="font-medium text-gray-900">{alt.specifications.loadCapacity}</p>
+                              </div>
+                            )}
+                            <div>
+                              <span className="text-xs text-gray-600">Category</span>
+                              <p className="font-medium text-gray-900 capitalize">{alt.category}</p>
+                            </div>
+                          </div>
+
+                          {/* AI Reasoning */}
+                          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-start space-x-2">
+                              <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <div className="flex-1">
+                                <h4 className="text-sm font-semibold text-blue-900 mb-1">Why This Alternative?</h4>
+                                <p className="text-sm text-blue-800">{alt.reasoning}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Supplier Information */}
+                          {alt.supplierInfo && (
+                            <div className="grid grid-cols-1 gap-4 mb-4">
+                              {alt.supplierInfo.suggestedSuppliers && alt.supplierInfo.suggestedSuppliers.length > 0 && (
+                                <div>
+                                  <span className="text-xs font-medium text-gray-700">Suggested Suppliers</span>
+                                  <p className="text-sm text-gray-900 mt-1">
+                                    {alt.supplierInfo.suggestedSuppliers.join(', ')}
+                                  </p>
+                                </div>
+                              )}
+                              {alt.supplierInfo.estimatedPrice && (
+                                <div>
+                                  <span className="text-xs font-medium text-gray-700">Estimated Price</span>
+                                  <p className="text-sm text-gray-900 mt-1">{alt.supplierInfo.estimatedPrice}</p>
+                                </div>
+                              )}
+                              {alt.supplierInfo.leadTime && (
+                                <div>
+                                  <span className="text-xs font-medium text-gray-700">Lead Time</span>
+                                  <p className="text-sm text-gray-900 mt-1">{alt.supplierInfo.leadTime}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Standards */}
+                          {alt.standards && alt.standards.length > 0 && (
+                            <div className="mb-4">
+                              <span className="text-xs font-medium text-gray-700 block mb-2">Compliance Standards</span>
+                              <div className="flex flex-wrap gap-2">
+                                {alt.standards.map((standard, idx) => (
+                                  <span key={idx} className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                                    ✓ {standard.code} - {standard.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Actions */}
+                          <div className="mt-auto flex space-x-3">
+                            <Button size="sm" variant="outline" className="flex-1">
+                              Request Custom Quote
+                            </Button>
+                            <Button size="sm" variant="outline">
+                              More Info
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12">
+                  <div className="glass-container glass-container-with-liquid p-12 text-center">
                     <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                     </svg>
@@ -756,7 +875,7 @@ const ProductRecommenderNew: React.FC = () => {
             {activeTab === 'ranked' && (
               <div>
                 {rankedRecommendations.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                     {rankedRecommendations
                       .sort((a, b) => {
                         if (sortBy === 'price') {
@@ -767,136 +886,138 @@ const ProductRecommenderNew: React.FC = () => {
                         return b.matchScore - a.matchScore;
                       })
                       .map((item, index) => (
-                        <div key={`${item.type}-${index}`} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-2">
-                                <span className="text-lg font-bold text-gray-400">#{index + 1}</span>
-                                <h3 className="font-semibold text-gray-900 text-lg">
-                                  {item.type === 'catalog' ? item.product?.name : item.alternative?.name}
-                                </h3>
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                  item.type === 'catalog' 
-                                    ? 'bg-blue-100 text-blue-700' 
-                                    : 'bg-purple-100 text-purple-700'
-                                }`}>
-                                  {item.type === 'catalog' ? '🏪 Catalog' : '🤖 AI Alternative'}
-                                </span>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(item.matchScore)}`}>
-                                  {Math.round(item.matchScore)}% {getScoreLabel(item.matchScore)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Match Score Breakdown */}
-                          <div className="mb-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium text-gray-700">Match Score</span>
-                              <span className="text-sm text-gray-600">{Math.round(item.matchScore)}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                              <div 
-                                className={`h-2.5 rounded-full transition-all ${
-                                  item.matchScore >= 85 ? 'bg-green-500' :
-                                  item.matchScore >= 70 ? 'bg-yellow-500' :
-                                  'bg-orange-500'
-                                }`}
-                                style={{ width: `${item.matchScore}%` }}
-                              ></div>
-                            </div>
-                          </div>
-
-                          {/* Product Details */}
-                          {item.type === 'catalog' && item.product && (
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-                              <div>
-                                <span className="text-xs text-gray-600">Material</span>
-                                <p className="font-medium text-gray-900">{item.product.material || 'N/A'}</p>
-                              </div>
-                              <div>
-                                <span className="text-xs text-gray-600">Price</span>
-                                <p className="font-medium text-gray-900">${item.product.price}</p>
-                              </div>
-                              <div>
-                                <span className="text-xs text-gray-600">Lead Time</span>
-                                <p className="font-medium text-gray-900">{item.product.lead_time || 'N/A'}</p>
-                              </div>
-                              <div>
-                                <span className="text-xs text-gray-600">Availability</span>
-                                <p className={`font-medium ${item.product.in_stock ? 'text-green-600' : 'text-red-600'}`}>
-                                  {item.product.in_stock ? '✓ In Stock' : '✗ Out of Stock'}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {item.type === 'alternative' && item.alternative && (
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-                              <div>
-                                <span className="text-xs text-gray-600">Material</span>
-                                <p className="font-medium text-gray-900">{item.alternative.material || 'N/A'}</p>
-                              </div>
-                              <div>
-                                <span className="text-xs text-gray-600">Est. Price</span>
-                                <p className="font-medium text-gray-900">
-                                  {item.alternative.supplierInfo?.estimatedPrice || 'Contact for quote'}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="text-xs text-gray-600">Lead Time</span>
-                                <p className="font-medium text-gray-900">
-                                  {item.alternative.supplierInfo?.leadTime || 'N/A'}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="text-xs text-gray-600">Category</span>
-                                <p className="font-medium text-gray-900 capitalize">{item.alternative.category}</p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Reasoning */}
-                          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="flex items-start space-x-2">
-                              <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
+                        <div key={`${item.type}-${index}`} className="glass-card p-6 flex flex-col">
+                          <div className="flex-1 flex flex-col">
+                            <div className="flex items-start justify-between mb-4">
                               <div className="flex-1">
-                                <h4 className="text-xs font-semibold text-blue-900 mb-1">Why Recommended</h4>
-                                <p className="text-xs text-blue-800">{item.reasoning}</p>
+                                <div className="flex items-center space-x-2 mb-2 flex-wrap">
+                                  <span className="text-lg font-bold text-gray-400">#{index + 1}</span>
+                                  <h3 className="font-semibold text-gray-900 text-lg">
+                                    {item.type === 'catalog' ? item.product?.name : item.alternative?.name}
+                                  </h3>
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                    item.type === 'catalog' 
+                                      ? 'bg-blue-100 text-blue-700' 
+                                      : 'bg-purple-100 text-purple-700'
+                                  }`}>
+                                    {item.type === 'catalog' ? '🏪 Catalog' : '🤖 AI Alternative'}
+                                  </span>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(item.matchScore)}`}>
+                                    {Math.round(item.matchScore)}% {getScoreLabel(item.matchScore)}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          {/* Actions */}
-                          <div className="flex space-x-3">
+                            {/* Match Score Breakdown */}
+                            <div className="mb-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-gray-700">Match Score</span>
+                                <span className="text-sm text-gray-600">{Math.round(item.matchScore)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                <div 
+                                  className={`h-2.5 rounded-full transition-all ${
+                                    item.matchScore >= 85 ? 'bg-green-500' :
+                                    item.matchScore >= 70 ? 'bg-yellow-500' :
+                                    'bg-orange-500'
+                                  }`}
+                                  style={{ width: `${item.matchScore}%` }}
+                                ></div>
+                              </div>
+                            </div>
+
+                            {/* Product Details */}
                             {item.type === 'catalog' && item.product && (
-                              <>
-                                <Button size="sm" className="flex-1" onClick={() => window.location.href = `/catalog/${item.product?.id}`}>
-                                  View Details
-                                </Button>
-                                <Button size="sm" variant="outline">
-                                  Add to RFQ
-                                </Button>
-                              </>
+                              <div className="grid grid-cols-2 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                                <div>
+                                  <span className="text-xs text-gray-600">Material</span>
+                                  <p className="font-medium text-gray-900">{item.product.material || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-xs text-gray-600">Price</span>
+                                  <p className="font-medium text-gray-900">${item.product.price}</p>
+                                </div>
+                                <div>
+                                  <span className="text-xs text-gray-600">Lead Time</span>
+                                  <p className="font-medium text-gray-900">{item.product.lead_time || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-xs text-gray-600">Availability</span>
+                                  <p className={`font-medium ${item.product.in_stock ? 'text-green-600' : 'text-red-600'}`}>
+                                    {item.product.in_stock ? '✓ In Stock' : '✗ Out of Stock'}
+                                  </p>
+                                </div>
+                              </div>
                             )}
-                            {item.type === 'alternative' && (
-                              <>
-                                <Button size="sm" variant="outline" className="flex-1">
-                                  Request Custom Quote
-                                </Button>
-                                <Button size="sm" variant="outline">
-                                  More Info
-                                </Button>
-                              </>
+
+                            {item.type === 'alternative' && item.alternative && (
+                              <div className="grid grid-cols-2 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                                <div>
+                                  <span className="text-xs text-gray-600">Material</span>
+                                  <p className="font-medium text-gray-900">{item.alternative.material || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-xs text-gray-600">Est. Price</span>
+                                  <p className="font-medium text-gray-900">
+                                    {item.alternative.supplierInfo?.estimatedPrice || 'Contact for quote'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-xs text-gray-600">Lead Time</span>
+                                  <p className="font-medium text-gray-900">
+                                    {item.alternative.supplierInfo?.leadTime || 'N/A'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-xs text-gray-600">Category</span>
+                                  <p className="font-medium text-gray-900 capitalize">{item.alternative.category}</p>
+                                </div>
+                              </div>
                             )}
+
+                            {/* Reasoning */}
+                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="flex items-start space-x-2">
+                                <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div className="flex-1">
+                                  <h4 className="text-xs font-semibold text-blue-900 mb-1">Why Recommended</h4>
+                                  <p className="text-xs text-blue-800">{item.reasoning}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="mt-auto flex space-x-3">
+                              {item.type === 'catalog' && item.product && (
+                                <>
+                                  <Button size="sm" className="flex-1" onClick={() => window.location.href = `/catalog/${item.product?.id}`}>
+                                    View Details
+                                  </Button>
+                                  <Button size="sm" variant="outline">
+                                    Add to RFQ
+                                  </Button>
+                                </>
+                              )}
+                              {item.type === 'alternative' && (
+                                <>
+                                  <Button size="sm" variant="outline" className="flex-1">
+                                    Request Custom Quote
+                                  </Button>
+                                  <Button size="sm" variant="outline">
+                                    More Info
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12">
+                  <div className="glass-container glass-container-with-liquid p-12 text-center">
                     <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
@@ -912,7 +1033,7 @@ const ProductRecommenderNew: React.FC = () => {
 
       {/* Empty State */}
       {!isLoading && catalogMatches.length === 0 && alternatives.length === 0 && (
-        <div className="bg-white rounded-lg shadow border p-12 text-center">
+        <div className="glass-container glass-container-with-liquid p-12 text-center">
           <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full mx-auto mb-6 flex items-center justify-center">
             <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

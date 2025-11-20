@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase-server';
+import { deleteCached, invalidateCachePattern } from '@/lib/cache/redis-cache';
+import { generateCADHistoryCacheKey } from '@/lib/cache/cache-keys';
 
 // Types for the history API
 interface CADHistoryItem {
@@ -209,6 +211,30 @@ export async function POST(request: NextRequest): Promise<NextResponse<{ success
     }
 
 
+    // ===== CACHE INVALIDATION =====
+    // When a new CAD generation is added to history, invalidate:
+    // 1. User-specific CAD history caches (all pages)
+    // 2. Global CAD history caches (if applicable)
+    
+    try {
+      // Invalidate user-specific history caches (common pagination scenarios)
+      const historyKeys = [
+        generateCADHistoryCacheKey(user.id, 1, 10),
+        generateCADHistoryCacheKey(user.id, 1, 20),
+        generateCADHistoryCacheKey(user.id, 1, 50),
+        // Also invalidate first few pages
+        generateCADHistoryCacheKey(user.id, 2, 10),
+        generateCADHistoryCacheKey(user.id, 3, 10),
+      ];
+      
+      await invalidateCachePattern(historyKeys);
+      
+      console.log(`Cache invalidated for CAD history addition: user ${user.id}`);
+    } catch (cacheError) {
+      // Log but don't fail the request if cache invalidation fails
+      console.error('Cache invalidation error:', cacheError);
+    }
+
     return NextResponse.json({
       success: true,
       id: insertData.id
@@ -278,6 +304,25 @@ export async function DELETE(request: NextRequest): Promise<NextResponse<{ succe
         }, { status: 500 });
       }
 
+      // ===== CACHE INVALIDATION =====
+      // When a CAD history item is deleted, invalidate user-specific history caches
+      
+      try {
+        const historyKeys = [
+          generateCADHistoryCacheKey(user.id, 1, 10),
+          generateCADHistoryCacheKey(user.id, 1, 20),
+          generateCADHistoryCacheKey(user.id, 1, 50),
+          generateCADHistoryCacheKey(user.id, 2, 10),
+          generateCADHistoryCacheKey(user.id, 3, 10),
+        ];
+        
+        await invalidateCachePattern(historyKeys);
+        
+        console.log(`Cache invalidated for CAD history deletion: ${id}`);
+      } catch (cacheError) {
+        console.error('Cache invalidation error:', cacheError);
+      }
+
       console.log(`Deleted CAD history item: ${id}`);
     } else {
       // Clear all history for this user
@@ -311,6 +356,25 @@ export async function DELETE(request: NextRequest): Promise<NextResponse<{ succe
           success: false,
           error: `Failed to clear history: ${deleteError.message}`
         }, { status: 500 });
+      }
+
+      // ===== CACHE INVALIDATION =====
+      // When all CAD history is cleared, invalidate all user-specific history caches
+      
+      try {
+        const historyKeys = [
+          generateCADHistoryCacheKey(user.id, 1, 10),
+          generateCADHistoryCacheKey(user.id, 1, 20),
+          generateCADHistoryCacheKey(user.id, 1, 50),
+          generateCADHistoryCacheKey(user.id, 2, 10),
+          generateCADHistoryCacheKey(user.id, 3, 10),
+        ];
+        
+        await invalidateCachePattern(historyKeys);
+        
+        console.log(`Cache invalidated for CAD history clear: user ${user.id}`);
+      } catch (cacheError) {
+        console.error('Cache invalidation error:', cacheError);
       }
 
       console.log('Cleared all CAD history for user:', user.id);

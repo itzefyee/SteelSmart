@@ -128,7 +128,7 @@ const RFQTracking: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow border p-6">
+      <div className="glass-container glass-container-with-liquid-compact p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input
             label="Search RFQs"
@@ -180,7 +180,7 @@ const RFQTracking: React.FC = () => {
 
       {/* Loading State */}
       {loading && (
-        <div className="bg-white rounded-lg shadow border p-12">
+        <div className="glass-container glass-container-with-liquid p-12">
           <div className="flex flex-col items-center justify-center">
             <LoadingSpinner size="lg" />
             <p className="text-gray-600 mt-4">Loading your RFQs...</p>
@@ -190,82 +190,82 @@ const RFQTracking: React.FC = () => {
 
       {/* RFQ List */}
       {!loading && (
-        <div className="bg-white rounded-lg shadow border overflow-hidden">
+        <div className="glass-container glass-container-with-liquid p-6">
           {filteredRFQs.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    RFQ Details
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Progress
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dates
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredRFQs.map((rfq) => (
-                  <tr key={rfq.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          RFQ #{rfq.id.slice(-8).toUpperCase()}
-                        </div>
-                        <div className="text-sm text-gray-500">{rfq.drawing}</div>
-                        <div className="text-xs text-gray-400">Qty: {rfq.quantity}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(rfq.status)}`}>
-                          {rfq.status}
-                        </span>
-                        <span className={`text-xs font-medium ${getPriorityColor(rfq.priority)}`}>
-                          {rfq.priority}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full ${
-                            rfq.status === 'Rejected' ? 'bg-red-500' : 'bg-blue-500'
-                          }`}
-                          style={{ width: `${getProgressPercentage(rfq.status)}%` }}
-                        ></div>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {getProgressPercentage(rfq.status)}% Complete
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          <div className="space-y-4">
+            {filteredRFQs.map((rfq) => (
+              <div key={rfq.id} className="glass-card p-6">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  {/* RFQ Details */}
+                  <div className="md:col-span-1">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                      RFQ Details
+                    </div>
+                    <div className="text-sm font-medium text-gray-900">
+                      RFQ #{rfq.id.slice(-8).toUpperCase()}
+                    </div>
+                    <div className="text-sm text-gray-600">{rfq.drawing}</div>
+                    <div className="text-xs text-gray-500 mt-1">Qty: {rfq.quantity}</div>
+                  </div>
+
+                  {/* Status */}
+                  <div className="md:col-span-1">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                      Status
+                    </div>
+                    <div className="flex flex-col space-y-2">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(rfq.status)} w-fit`}>
+                        {rfq.status}
+                      </span>
+                      <span className={`text-xs font-medium ${getPriorityColor(rfq.priority)}`}>
+                        Priority: {rfq.priority}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Progress */}
+                  <div className="md:col-span-1">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                      Progress
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${
+                          rfq.status === 'Rejected' ? 'bg-red-500' : 'bg-blue-500'
+                        }`}
+                        style={{ width: `${getProgressPercentage(rfq.status)}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {getProgressPercentage(rfq.status)}% Complete
+                    </div>
+                  </div>
+
+                  {/* Dates */}
+                  <div className="md:col-span-1">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                      Dates
+                    </div>
+                    <div className="text-sm text-gray-600">
                       <div>Submitted: {rfq.submittedDate}</div>
                       <div>Expected: {rfq.expectedDelivery}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => setSelectedRFQ(rfq)}
-                        className="w-full"
-                      >
-                        View Details
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="md:col-span-1 flex items-end">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setSelectedRFQ(rfq)}
+                      className="w-full"
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="text-center py-12">
@@ -289,7 +289,7 @@ const RFQTracking: React.FC = () => {
       {/* RFQ Details Modal */}
       {selectedRFQ && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="glass-container glass-container-with-liquid max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">

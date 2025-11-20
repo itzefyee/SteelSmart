@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useDropzone, FileRejection } from 'react-dropzone';
 import Button from '@/components/ui/Button';
 import ProductCard from '@/components/products/ProductCard';
@@ -13,6 +13,7 @@ import { formatFileSize } from '@/lib/utils';
 import { sampleAnalysisReport } from '@/data/sample-data';
 import { CADModelData, getCADParser } from '@/lib/cad-parser';
 import { ComplianceChecker, convertCADModelToGeometry } from '@/lib/compliance-checker';
+import { useToast } from '@/components/ui/ToastProvider';
 
 const CADAnalyzerFull: React.FC = () => {
   const [uploadState, setUploadState] = useState<FileUploadState>({
@@ -33,9 +34,11 @@ const CADAnalyzerFull: React.FC = () => {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportGenerated, setReportGenerated] = useState(false);
+  const [reportTimestamp, setReportTimestamp] = useState<string | null>(null);
   const [isAnalyzingManufacturing, setIsAnalyzingManufacturing] = useState(false);
   const [analysisStage, setAnalysisStage] = useState<string | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
+  const { addToast } = useToast();
 
   // Check for stored analysis results or file to analyze on component mount
   useEffect(() => {
@@ -224,6 +227,10 @@ const CADAnalyzerFull: React.FC = () => {
       if (result.success && result.data) {
         setUploadState(prev => ({ ...prev, status: 'success', progress: 100 }));
         setAnalysis(result.data);
+        addToast({
+          type: 'success',
+          title: 'Drawing analyzed successfully'
+        });
       } else {
         throw new Error(result.error || 'Analysis failed');
       }
@@ -233,6 +240,10 @@ const CADAnalyzerFull: React.FC = () => {
         status: 'error',
         error: error instanceof Error ? error.message : 'Analysis failed'
       }));
+      addToast({
+        type: 'error',
+        title: 'Analysis failed'
+      });
     }
   };
 
@@ -248,6 +259,7 @@ const CADAnalyzerFull: React.FC = () => {
     setManufacturabilityResults([]);
     setSpecificationResults([]);
     setReportGenerated(false);
+    setReportTimestamp(null);
     setSampleLoadSuccess(null);
   };
 
@@ -269,6 +281,10 @@ const CADAnalyzerFull: React.FC = () => {
     // Show success indicator
     setSampleLoadSuccess(displayName);
     setTimeout(() => setSampleLoadSuccess(null), 3000); // Hide after 3 seconds
+    addToast({
+      type: 'info',
+      title: `Sample loaded: ${displayName}`
+    });
   };
 
   // Run manufacturing analysis with stage-by-stage progress
@@ -338,10 +354,18 @@ const CADAnalyzerFull: React.FC = () => {
 
       setAnalysisStage('Analysis complete!');
       await new Promise(resolve => setTimeout(resolve, 500));
+      addToast({
+        type: 'success',
+        title: 'Manufacturing analysis complete'
+      });
 
     } catch (error) {
       console.error('Error during manufacturing analysis:', error);
       setAnalysisStage('Analysis failed');
+      addToast({
+        type: 'error',
+        title: 'Manufacturing analysis failed'
+      });
 
       // Set error messages
       setManufacturabilityResults([
@@ -911,6 +935,221 @@ const CADAnalyzerFull: React.FC = () => {
     return report;
   };
 
+  const buildStyledReportHtml = () => {
+    const specEntries = Object.entries(analysis?.extractedSpecs || {}).filter(([, value]) => value);
+    const manufacturingCards = manufacturabilityResults.map((result) => {
+      const tone =
+        result.status === 'Valid'
+          ? 'border: 1px solid #a7f3d0; background: #ecfdf5;'
+          : result.status === 'Warning'
+            ? 'border: 1px solid #fef08a; background: #fffbeb;'
+            : 'border: 1px solid #fecaca; background: #fef2f2;';
+      return `
+        <div class="card" style="${tone}">
+          <div class="card-title">${result.check}</div>
+          <p class="muted">${result.message || ''}</p>
+          <p class="detail"><strong>Value:</strong> ${result.value} · <strong>Requirement:</strong> ${result.requirement}</p>
+          ${result.suggestion ? `<div class="pill-outline">Suggestion: ${result.suggestion}</div>` : ''}
+        </div>
+      `;
+    });
+
+    const specificationCards = specificationResults.map((result) => {
+      const tone =
+        result.status === 'Valid'
+          ? 'border: 1px solid #a7f3d0; background: #ecfdf5;'
+          : result.status === 'Missing'
+            ? 'border: 1px solid #fde68a; background: #fffbeb;'
+            : 'border: 1px solid #fecaca; background: #fef2f2;';
+      return `
+        <div class="card" style="${tone}">
+          <div class="card-title">${result.specification}</div>
+          <p class="muted">${result.notes || result.value}</p>
+          <p class="detail"><strong>Standard:</strong> ${result.standard} · <strong>Status:</strong> ${result.status}</p>
+        </div>
+      `;
+    });
+
+    const recommendationsList = recommendationList
+      .map((item, idx) => `<li><span class="index">${idx + 1}.</span> ${item}</li>`)
+      .join('');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>CAD Analysis Report</title>
+          <style>
+            body {
+              font-family: 'Segoe UI', Arial, sans-serif;
+              margin: 0;
+              padding: 32px;
+              background: #0f172a;
+              color: #0f172a;
+            }
+            .report {
+              max-width: 900px;
+              margin: 0 auto;
+              background: #f8fafc;
+              border-radius: 24px;
+              padding: 32px 40px;
+              box-shadow: 0 30px 80px rgba(15, 23, 42, 0.35);
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              margin-bottom: 32px;
+            }
+            .badge {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              padding: 6px 12px;
+              border-radius: 999px;
+              background: rgba(59, 130, 246, 0.12);
+              color: #1d4ed8;
+              font-size: 12px;
+              font-weight: 600;
+            }
+            .section-title {
+              font-size: 18px;
+              font-weight: 600;
+              margin-bottom: 12px;
+              color: #0f172a;
+            }
+            .grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+              gap: 16px;
+            }
+            .card {
+              border-radius: 16px;
+              padding: 18px;
+              background: white;
+            }
+            .card-title {
+              font-weight: 600;
+              margin-bottom: 6px;
+            }
+            .muted {
+              color: #475569;
+              font-size: 14px;
+            }
+            .detail {
+              font-size: 13px;
+              color: #334155;
+              margin-top: 8px;
+            }
+            .pill-outline {
+              display: inline-block;
+              margin-top: 10px;
+              padding: 6px 10px;
+              border-radius: 999px;
+              border: 1px solid rgba(15, 23, 42, 0.2);
+              font-size: 12px;
+            }
+            ul {
+              padding-left: 18px;
+              color: #475569;
+              font-size: 14px;
+            }
+            li {
+              margin-bottom: 8px;
+              display: flex;
+              gap: 8px;
+            }
+            .index {
+              font-weight: 600;
+              color: #0f172a;
+            }
+            .table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 12px;
+            }
+            .table th, .table td {
+              padding: 10px 12px;
+              border-bottom: 1px solid #e2e8f0;
+              text-align: left;
+            }
+            .table th {
+              font-size: 12px;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              color: #64748b;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="report">
+            <div class="header">
+              <div>
+                <div class="badge">Metalyze CAD Report</div>
+                <h1 style="margin: 12px 0 8px; font-size: 28px; color: #0f172a;">${analysis?.analysisId || 'Analysis Report'}</h1>
+                <p style="color: #475569; font-size: 14px;">Generated ${reportTimestamp || new Date().toLocaleString()}</p>
+              </div>
+              <div style="text-align: right;">
+                <p style="margin: 0; font-size: 13px; color: #64748b;">Confidence</p>
+                <p style="margin: 4px 0 0; font-size: 26px; font-weight: 700; color: #16a34a;">
+                  ${analysis ? `${Math.round(analysis.confidence * 100)}%` : '—'}
+                </p>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">Technical Specifications</div>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Attribute</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${
+                    specEntries.length
+                      ? specEntries.map(
+                          ([key, value]) => `
+                            <tr>
+                              <td>${key.replace(/([A-Z])/g, ' $1').trim()}</td>
+                              <td>${value}</td>
+                            </tr>
+                          `
+                        ).join('')
+                      : '<tr><td colspan="2">No extracted specifications.</td></tr>'
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div class="section" style="margin-top: 28px;">
+              <div class="section-title">Manufacturability Checks</div>
+              <div class="grid">
+                ${manufacturingCards.join('')}
+              </div>
+            </div>
+
+            <div class="section" style="margin-top: 28px;">
+              <div class="section-title">Specification Verification</div>
+              <div class="grid">
+                ${specificationCards.join('')}
+              </div>
+            </div>
+
+            <div class="section" style="margin-top: 28px;">
+              <div class="section-title">Recommendations</div>
+              <ul>
+                ${recommendationsList || '<li>No critical recommendations. Component is production-ready.</li>'}
+              </ul>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  };
+
   const generateReport = async () => {
     if (!analysis && !cadModelData) return;
 
@@ -920,8 +1159,13 @@ const CADAnalyzerFull: React.FC = () => {
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     setReportGenerated(true);
+    setReportTimestamp(new Date().toLocaleString());
     setIsGeneratingReport(false);
     setShowReportModal(true);
+    addToast({
+      type: 'success',
+      title: 'Report generated successfully'
+    });
   };
 
   const downloadReport = (format: 'pdf' | 'txt') => {
@@ -941,36 +1185,10 @@ const CADAnalyzerFull: React.FC = () => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } else {
-      // Download as PDF (using HTML and print)
+      // Download as PDF (styled HTML -> print)
       const printWindow = window.open('', '_blank');
       if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>CAD Analysis Report - ${fileName}</title>
-            <style>
-              body {
-                font-family: 'Courier New', monospace;
-                padding: 20mm;
-                line-height: 1.6;
-                font-size: 11pt;
-              }
-              pre {
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                margin: 0;
-              }
-              @media print {
-                body { margin: 0; padding: 15mm; }
-              }
-            </style>
-          </head>
-          <body>
-            <pre>${reportContent}</pre>
-          </body>
-          </html>
-        `);
+        printWindow.document.write(buildStyledReportHtml());
         printWindow.document.close();
         setTimeout(() => {
           printWindow.print();
@@ -979,23 +1197,153 @@ const CADAnalyzerFull: React.FC = () => {
     }
   };
 
+  const reportSummary = useMemo(() => {
+    const totalChecks = manufacturabilityResults.length + specificationResults.length;
+    const invalid = manufacturabilityResults.filter(r => r.status === 'Invalid').length +
+      specificationResults.filter(r => r.status === 'Invalid').length;
+    const warnings = manufacturabilityResults.filter(r => r.status === 'Warning').length +
+      specificationResults.filter(r => r.status === 'Warning' || r.status === 'Missing').length;
+    const passes = Math.max(0, totalChecks - invalid - warnings);
+
+    const statusLabel = invalid > 0 ? 'Needs Attention' : warnings > 0 ? 'Review Warnings' : 'Production Ready';
+    const statusDescription = invalid > 0
+      ? 'Resolve blocking compliance issues before releasing to manufacturing.'
+      : warnings > 0
+        ? 'Minor advisories detected. Review before final approval.'
+        : 'All checks passed. Ready for procurement.';
+
+    const tone = invalid > 0
+      ? { badge: 'bg-red-50 text-red-700 border-red-100', accent: 'text-red-600', chip: 'bg-red-100 text-red-800' }
+      : warnings > 0
+        ? { badge: 'bg-amber-50 text-amber-700 border-amber-100', accent: 'text-amber-600', chip: 'bg-amber-100 text-amber-800' }
+        : { badge: 'bg-emerald-50 text-emerald-700 border-emerald-100', accent: 'text-emerald-600', chip: 'bg-emerald-100 text-emerald-800' };
+
+    return {
+      totalChecks,
+      invalid,
+      warnings,
+      passes,
+      statusLabel,
+      statusDescription,
+      tone,
+    };
+  }, [manufacturabilityResults, specificationResults]);
+
+  const technicalSnapshot = useMemo(() => {
+    const snapshot: { label: string; value: string; helper?: string }[] = [];
+
+    if (analysis?.extractedSpecs?.dimensions) {
+      snapshot.push({ label: 'Dimensions', value: analysis.extractedSpecs.dimensions });
+    }
+    if (analysis?.extractedSpecs?.material) {
+      snapshot.push({ label: 'Material', value: analysis.extractedSpecs.material });
+    }
+    if (analysis?.extractedSpecs?.tolerance) {
+      snapshot.push({ label: 'Tolerance', value: analysis.extractedSpecs.tolerance });
+    }
+    if (analysis?.extractedSpecs?.loadRequirements) {
+      snapshot.push({ label: 'Load Requirements', value: analysis.extractedSpecs.loadRequirements });
+    }
+    if (cadModelData?.holeAnalysis?.count) {
+      snapshot.push({
+        label: 'Detected Holes',
+        value: `${cadModelData.holeAnalysis.count}`,
+        helper: 'Extracted for spacing + compliance checks',
+      });
+    }
+    if (cadModelData?.weldJointAnalysis?.totalJoints) {
+      snapshot.push({
+        label: 'Weld Joints',
+        value: `${cadModelData.weldJointAnalysis.totalJoints}`,
+        helper: `${cadModelData.weldJointAnalysis.accessibilityIssues || 0} flagged for access`,
+      });
+    }
+    if (cadModelData?.boundingBox) {
+      const length = ((cadModelData.boundingBox.max.x - cadModelData.boundingBox.min.x) * 25.4).toFixed(1);
+      const width = ((cadModelData.boundingBox.max.y - cadModelData.boundingBox.min.y) * 25.4).toFixed(1);
+      const height = ((cadModelData.boundingBox.max.z - cadModelData.boundingBox.min.z) * 25.4).toFixed(1);
+      snapshot.push({ label: 'Bounding Box (mm)', value: `${length} × ${width} × ${height}` });
+    }
+
+    return snapshot.slice(0, 6);
+  }, [analysis, cadModelData]);
+
+  const standardBadges = useMemo(() => ([
+    { label: 'AISC 303', description: 'Dimensional tolerances' },
+    { label: 'AISC 360', description: 'Structural steel spec' },
+    { label: 'AWS D1.1', description: 'Welding compliance' },
+    { label: 'ASTM', description: 'Material standards' },
+  ]), []);
+
+  const keyFindings = useMemo(() => {
+    const issues = [
+      ...manufacturabilityResults
+        .filter((result) => result.status === 'Warning' || result.status === 'Invalid')
+        .map((result) => ({
+          title: result.check,
+          status: result.status,
+          message: result.message,
+          detail: `${result.value} • Req: ${result.requirement}`,
+          suggestion: result.suggestion,
+        })),
+      ...specificationResults
+        .filter((result) => result.status === 'Warning' || result.status === 'Invalid' || result.status === 'Missing')
+        .map((result) => ({
+          title: result.specification,
+          status: result.status === 'Missing' ? 'Warning' : result.status,
+          message: result.notes || result.value,
+          detail: result.standard,
+        })),
+    ];
+
+    if (issues.length === 0) {
+      return [{
+        title: 'All checks passed',
+        status: 'Valid',
+        message: 'No warnings or blocking issues detected in manufacturability or specifications.',
+        detail: 'Full compliance achieved',
+      }];
+    }
+
+    return issues.slice(0, 4);
+  }, [manufacturabilityResults, specificationResults]);
+
+  const recommendationList = useMemo(() => {
+    const manufacturingSuggestions = manufacturabilityResults
+      .filter((result) => result.suggestion)
+      .map((result) => result.suggestion as string);
+
+    const specificationNotes = specificationResults
+      .filter((result) => result.status === 'Invalid' || result.status === 'Warning')
+      .map((result) => result.notes || result.value)
+      .filter(Boolean) as string[];
+
+    const combined = [...manufacturingSuggestions, ...specificationNotes];
+
+    if (combined.length === 0) {
+      return ['Maintain current configuration — all standards satisfied.'];
+    }
+
+    return combined.slice(0, 5);
+  }, [manufacturabilityResults, specificationResults]);
+
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       {/* Left Column - Upload and Controls - 40% width on desktop */}
       <div className="w-full lg:w-[40%] space-y-6">
         {/* File Upload Area */}
-        <div className="bg-white rounded-xl shadow-lg border p-8">
+        <div className="glass-container glass-container-with-liquid p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload Drawing</h2>
           
           <div
             {...getRootProps()}
             className={`
-              border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all
+              glass-upload-zone p-8 text-center cursor-pointer
               ${isDragActive 
                 ? 'border-primary bg-blue-50' 
                 : uploadState.status === 'error'
                 ? 'border-red-300 bg-red-50'
-                : 'border-gray-300 hover:border-primary hover:bg-gray-50'
+                : ''
               }
             `}
           >
@@ -1092,7 +1440,7 @@ const CADAnalyzerFull: React.FC = () => {
         </div>
 
         {/* Sample Drawings */}
-        <div className="bg-white rounded-xl shadow-lg border p-4">
+        <div className="glass-container glass-container-with-liquid p-4">
           <h3 className="text-base font-semibold text-gray-900 mb-2">Try Sample Drawings</h3>
           <p className="text-gray-600 text-xs mb-3">
             Test with sample drawings.
@@ -1100,7 +1448,7 @@ const CADAnalyzerFull: React.FC = () => {
           
           <div className="space-y-2">
             {/* Servo Motor Sample */}
-            <div className="bg-white rounded-lg p-2 border border-blue-200 hover:shadow-md transition-shadow cursor-pointer flex items-center gap-2" 
+            <div className="glass-card-compact hover:shadow-md transition-shadow cursor-pointer flex items-center gap-2" 
                  onClick={() => tryWithSample('servo-motor-drawing.pdf', 'Servo Motor')}>
               <div className="flex-shrink-0">
                 <img 
@@ -1116,7 +1464,7 @@ const CADAnalyzerFull: React.FC = () => {
             </div>
 
             {/* Bracket Sample */}
-            <div className="bg-white rounded-lg p-2 border border-blue-200 hover:shadow-md transition-shadow cursor-pointer flex items-center gap-2"
+            <div className="glass-card-compact hover:shadow-md transition-shadow cursor-pointer flex items-center gap-2"
                  onClick={() => tryWithSample('bracket-drawing.pdf', 'Mounting Bracket')}>
               <div className="flex-shrink-0">
                 <img 
@@ -1132,7 +1480,7 @@ const CADAnalyzerFull: React.FC = () => {
             </div>
 
             {/* Steel Beam Sample */}
-            <div className="bg-white rounded-lg p-2 border border-blue-200 hover:shadow-md transition-shadow cursor-pointer flex items-center gap-2"
+            <div className="glass-card-compact hover:shadow-md transition-shadow cursor-pointer flex items-center gap-2"
                  onClick={() => tryWithSample('steel-beam-drawing.pdf', 'I-Beam Steel')}>
               <div className="flex-shrink-0">
                 <img 
@@ -1185,7 +1533,7 @@ const CADAnalyzerFull: React.FC = () => {
             </div> */}
 
             {/* Tab Navigation */}
-            <div className="bg-white rounded-xl shadow-lg border">
+            <div className="glass-container glass-container-with-liquid">
               <div className="border-b border-gray-200">
                 <nav className="flex space-x-6 px-6 overflow-x-auto">
                   <button
@@ -1253,7 +1601,7 @@ const CADAnalyzerFull: React.FC = () => {
                     {uploadState.file && ['step', 'stp', 'stl', 'obj', 'dxf', 'gltf', 'glb'].includes(
                       uploadState.file.name.split('.').pop()?.toLowerCase() || ''
                     ) && (
-                      <div>
+                      <div className="glass-container glass-container-with-liquid p-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">3D Model Preview</h3>
                         <CADPreview3D
                           file={uploadState.file}
@@ -1417,7 +1765,7 @@ const CADAnalyzerFull: React.FC = () => {
                     )}
 
                     {/* Analysis Summary */}
-                    <div>
+                    <div className="glass-card p-6">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold text-gray-900">Analysis Results</h3>
                         <div className="flex items-center space-x-2">
@@ -1461,7 +1809,7 @@ const CADAnalyzerFull: React.FC = () => {
                     </div>
 
                     {/* Recommended Products */}
-                    <div>
+                    <div className="glass-card p-6">
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-lg font-semibold text-gray-900">
                           Recommended Products ({analysis.totalRecommendations})
@@ -1552,10 +1900,10 @@ const CADAnalyzerFull: React.FC = () => {
                         {manufacturabilityResults.map((result, index) => (
                           <div 
                             key={index}
-                            className={`p-4 rounded-lg border-l-4 ${
-                              result.status === 'Valid' ? 'bg-green-50 border-green-500' :
-                              result.status === 'Warning' ? 'bg-yellow-50 border-yellow-500' :
-                              'bg-red-50 border-red-500'
+                            className={`glass-card p-4 border-l-4 ${
+                              result.status === 'Valid' ? 'border-green-500' :
+                              result.status === 'Warning' ? 'border-yellow-500' :
+                              'border-red-500'
                             }`}
                           >
                             <div className="flex items-center justify-between mb-3">
@@ -1574,7 +1922,7 @@ const CADAnalyzerFull: React.FC = () => {
                             </div>
                             <p className="text-sm text-gray-700 mb-2">{result.message}</p>
                             {result.suggestion && (
-                              <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-2">
+                              <div className="glass-card-compact bg-blue-50 border border-blue-200 mt-2">
                                 <div className="flex items-start">
                                   <svg className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1632,10 +1980,10 @@ const CADAnalyzerFull: React.FC = () => {
                         {specificationResults.map((result, index) => (
                           <div 
                             key={index}
-                            className={`p-4 rounded-lg border ${
-                              result.status === 'Valid' ? 'bg-green-50 border-green-200' :
-                              result.status === 'Missing' ? 'bg-yellow-50 border-yellow-200' :
-                              'bg-red-50 border-red-200'
+                            className={`glass-card p-4 border ${
+                              result.status === 'Valid' ? 'border-green-200' :
+                              result.status === 'Missing' ? 'border-yellow-200' :
+                              'border-red-200'
                             }`}
                           >
                             <div className="flex items-start justify-between mb-3">
@@ -1712,7 +2060,7 @@ const CADAnalyzerFull: React.FC = () => {
                 )}
 
                 {activeTab === 'report' && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-gray-900">Analysis Report</h3>
                       {!reportGenerated && (
@@ -1721,106 +2069,165 @@ const CADAnalyzerFull: React.FC = () => {
                         </Button>
                       )}
                     </div>
-                    
+
                     {reportGenerated ? (
-                      <div className="space-y-4">
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                          <h4 className="font-medium text-gray-900 mb-3">Report Summary</h4>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="font-medium text-gray-700">File Name:</span>
-                              <p className="text-gray-900">{uploadState.file?.name || 'Unknown'}</p>
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className={`glass-card p-5 ${reportSummary.tone.badge}`}>
+                            <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Overall Status</p>
+                            <p className={`mt-2 text-2xl font-semibold ${reportSummary.tone.accent}`}>
+                              {reportSummary.statusLabel}
+                            </p>
+                            <p className="text-sm mt-3">{reportSummary.statusDescription}</p>
+                          </div>
+                          <div className="glass-card p-5">
+                            <p className="text-xs uppercase tracking-[0.25em] text-gray-500">AI Confidence</p>
+                            <p className="text-3xl font-bold text-gray-900 mt-2">
+                              {analysis ? `${Math.round(analysis.confidence * 100)}%` : '—'}
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">Model certainty across extracted specifications.</p>
+                          </div>
+                          <div className="glass-card p-5">
+                            <p className="text-xs uppercase tracking-[0.25em] text-gray-500">Check Breakdown</p>
+                            <div className="mt-3 space-y-2 text-sm">
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500">Total Checks</span>
+                                <span className="font-semibold text-gray-900">{reportSummary.totalChecks}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500">Pass</span>
+                                <span className="font-semibold text-emerald-600">{reportSummary.passes}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500">Warnings</span>
+                                <span className="font-semibold text-amber-600">{reportSummary.warnings}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500">Issues</span>
+                                <span className="font-semibold text-red-600">{reportSummary.invalid}</span>
+                              </div>
                             </div>
-                            <div>
-                              <span className="font-medium text-gray-700">Overall Status:</span>
-                              <p className={`font-semibold ${
-                                manufacturabilityResults.filter(r => r.status === 'Invalid').length === 0 &&
-                                specificationResults.filter(r => r.status === 'Invalid').length === 0
-                                  ? 'text-green-600'
-                                  : 'text-red-600'
-                              }`}>
-                                {manufacturabilityResults.filter(r => r.status === 'Invalid').length === 0 &&
-                                specificationResults.filter(r => r.status === 'Invalid').length === 0
-                                  ? 'PASS'
-                                  : 'FAIL'}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-700">Confidence:</span>
-                              <p className="text-gray-900">{analysis ? `${Math.round(analysis.confidence * 100)}%` : 'N/A'}</p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-700">Total Checks:</span>
-                              <p className="text-gray-900">
-                                {manufacturabilityResults.length + specificationResults.length}
-                              </p>
-                            </div>
-                            {cadModelData?.boundingBox && (
-                              <>
-                                <div>
-                                  <span className="font-medium text-gray-700">Dimensions:</span>
-                                  <p className="text-gray-900 text-xs">
-                                    {((cadModelData.boundingBox.max.x - cadModelData.boundingBox.min.x) * 25.4).toFixed(1)}mm × {((cadModelData.boundingBox.max.y - cadModelData.boundingBox.min.y) * 25.4).toFixed(1)}mm × {((cadModelData.boundingBox.max.z - cadModelData.boundingBox.min.z) * 25.4).toFixed(1)}mm
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="font-medium text-gray-700">Features:</span>
-                                  <p className="text-gray-900 text-xs">
-                                    {cadModelData.holeAnalysis?.count || 0} holes, {cadModelData.weldJointAnalysis?.totalJoints || 0} welds
-                                  </p>
-                                </div>
-                              </>
-                            )}
                           </div>
                         </div>
 
-                        {/* Preview of report content */}
-                        <div className="bg-white border rounded-lg p-4 max-h-96 overflow-y-auto">
-                          <h4 className="font-medium text-gray-900 mb-2">Report Preview</h4>
-                          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">
-                            {generateComprehensiveReport().substring(0, 1500)}...
-                            {'\n\n[Download full report for complete details]'}
-                          </pre>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                          <div className="lg:col-span-2 glass-card p-6">
+                            <div className="flex items-center justify-between mb-4">
+                              <h4 className="text-base font-semibold text-gray-900">Key Findings</h4>
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${reportSummary.tone.chip}`}>
+                                {keyFindings.length} highlight{keyFindings.length === 1 ? '' : 's'}
+                              </span>
+                            </div>
+                            <div className="space-y-4">
+                              {keyFindings.map((finding, index) => {
+                                const statusClasses = finding.status === 'Invalid'
+                                  ? 'bg-red-50 border-red-200 text-red-700'
+                                  : finding.status === 'Warning'
+                                    ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                    : 'bg-emerald-50 border-emerald-200 text-emerald-700';
+                                return (
+                                  <div key={`${finding.title}-${index}`} className="glass-card-compact border border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-sm font-semibold text-gray-900">{finding.title}</p>
+                                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusClasses}`}>
+                                        {finding.status}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-gray-600 mt-2">{finding.message}</p>
+                                    {finding.detail && (
+                                      <p className="text-xs text-gray-500 mt-1">{finding.detail}</p>
+                                    )}
+                                    {finding.suggestion && (
+                                      <div className="mt-3 glass-card-compact bg-blue-50 border border-blue-200 text-xs text-blue-900">
+                                        Suggestion: {finding.suggestion}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div className="glass-card bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 p-6 text-slate-100 shadow-xl">
+                            <h4 className="text-base font-semibold">Recommendations</h4>
+                            <p className="text-sm text-slate-300 mb-4">
+                              Prioritized next steps from manufacturability and compliance analysis.
+                            </p>
+                            <ul className="space-y-3 text-sm">
+                              {recommendationList.map((rec, idx) => (
+                                <li key={`${rec}-${idx}`} className="flex items-start">
+                                  <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-white/15 text-xs font-semibold mr-3">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="flex-1 text-slate-100">{rec}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         </div>
 
-                        <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
-                          <h4 className="font-medium text-gray-900 mb-2 flex items-center">
-                            <svg className="w-5 h-5 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Key Findings
-                          </h4>
-                          <ul className="text-sm text-gray-700 space-y-1">
-                            {[
-                              ...manufacturabilityResults
-                                .filter(r => r.status === 'Invalid' || r.status === 'Warning')
-                                .slice(0, 3)
-                                .map(r => r.message),
-                              ...specificationResults
-                                .filter(r => r.status === 'Invalid' || r.status === 'Warning')
-                                .slice(0, 2)
-                                .map(r => r.notes)
-                            ].map((finding, index) => (
-                              <li key={index} className="flex items-start">
-                                <span className="text-amber-600 mr-2">•</span>
-                                {finding}
-                              </li>
-                            ))}
-                            {manufacturabilityResults.filter(r => r.status === 'Invalid' || r.status === 'Warning').length === 0 &&
-                            specificationResults.filter(r => r.status === 'Invalid' || r.status === 'Warning').length === 0 && (
-                              <li className="text-green-700">All checks passed. Component meets all requirements.</li>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <div className="glass-card p-6">
+                            <h4 className="text-base font-semibold text-gray-900 mb-4">Technical Snapshot</h4>
+                            {technicalSnapshot.length > 0 ? (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {technicalSnapshot.map((item) => (
+                                  <div key={item.label} className="glass-card-compact bg-gray-50 border border-gray-100">
+                                    <p className="text-xs uppercase tracking-wide text-gray-500">{item.label}</p>
+                                    <p className="text-lg font-semibold text-gray-900 mt-1">{item.value}</p>
+                                    {item.helper && <p className="text-xs text-gray-500 mt-1">{item.helper}</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500">
+                                Run the manufacturing analysis to populate dimensional insights and feature counts.
+                              </p>
                             )}
-                          </ul>
+                          </div>
+                          <div className="glass-card p-6 space-y-4">
+                            <div>
+                              <h4 className="text-base font-semibold text-gray-900">Compliance Standards</h4>
+                              <p className="text-sm text-gray-500">Referenced during this report.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                              {standardBadges.map((badge) => (
+                                <div key={badge.label} className="glass-card-compact border border-gray-200 bg-gray-50">
+                                  <p className="text-xs font-semibold text-gray-700">{badge.label}</p>
+                                  <p className="text-xs text-gray-500">{badge.description}</p>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="glass-card-compact bg-slate-50 border border-slate-100">
+                              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <dt className="text-gray-500">File</dt>
+                                  <dd className="font-semibold text-gray-900 truncate">{uploadState.file?.name || 'Unknown'}</dd>
+                                </div>
+                                <div>
+                                  <dt className="text-gray-500">Analysis ID</dt>
+                                  <dd className="font-semibold text-gray-900">{analysis?.analysisId || 'N/A'}</dd>
+                                </div>
+                                <div>
+                                  <dt className="text-gray-500">Report Generated</dt>
+                                  <dd className="font-semibold text-gray-900">{reportTimestamp || 'Pending'}</dd>
+                                </div>
+                                <div>
+                                  <dt className="text-gray-500">Products Suggested</dt>
+                                  <dd className="font-semibold text-gray-900">{analysis?.totalRecommendations || 0}</dd>
+                                </div>
+                              </dl>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="flex space-x-3">
-                          <Button onClick={() => downloadReport('pdf')} className="flex-1">
+                        <div className="flex flex-wrap gap-3">
+                          <Button onClick={() => downloadReport('pdf')} className="flex-1 min-w-[160px]">
                             <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                             </svg>
                             Download PDF
                           </Button>
-                          <Button onClick={() => downloadReport('txt')} variant="outline" className="flex-1">
+                          <Button onClick={() => downloadReport('txt')} variant="outline" className="flex-1 min-w-[160px]">
                             <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
@@ -1829,12 +2236,16 @@ const CADAnalyzerFull: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <p>No report generated yet.</p>
-                        <p className="text-sm mt-1">Click "Generate Report" to create a detailed analysis report.</p>
+                      <div className="glass-card text-center py-12 text-gray-500 border border-dashed border-gray-200">
+                        <div className="w-16 h-16 rounded-full bg-gray-100 mx-auto mb-4 flex items-center justify-center">
+                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <p className="text-lg font-medium text-gray-900">No report generated yet</p>
+                        <p className="text-sm mt-2 text-gray-500">
+                          Click “Generate Report” to create a styled manufacturing + compliance summary.
+                        </p>
                       </div>
                     )}
                   </div>
@@ -1843,7 +2254,7 @@ const CADAnalyzerFull: React.FC = () => {
             </div>
           </>
         ) : (
-          <div className="bg-white rounded-xl shadow-lg border p-8 text-center">
+          <div className="glass-container glass-container-with-liquid p-8 text-center">
             <div className="w-16 h-16 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
               <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />

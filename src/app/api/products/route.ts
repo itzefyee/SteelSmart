@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase';
+import { getCached } from '@/lib/cache/redis-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,85 +35,104 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 100);
     
-    const supabase = getSupabaseClient();
+    // Generate cache key from query parameters
+    // Format: products:{filters}
+    const filterParts: string[] = [];
+    if (ids.length > 0) filterParts.push(`ids=${ids.join(',')}`);
+    if (category) filterParts.push(`category=${category}`);
+    if (material) filterParts.push(`material=${material}`);
+    if (inStock) filterParts.push(`inStock=${inStock}`);
+    if (minPrice) filterParts.push(`minPrice=${minPrice}`);
+    if (maxPrice) filterParts.push(`maxPrice=${maxPrice}`);
+    if (search) filterParts.push(`search=${search}`);
+    filterParts.push(`page=${page}`);
+    filterParts.push(`limit=${limit}`);
     
-    // Build query
-    let query = supabase
-      .from('products')
-      .select('*', { count: 'exact' });
+    const cacheKey = `products:${filterParts.join('&')}`;
     
-    // Apply filters
-    // If specific IDs are requested, filter by those IDs
-    if (ids.length > 0) {
-      query = query.in('id', ids);
-    }
-    
-    if (category) {
-      query = query.eq('category', category);
-    }
-    
-    if (material) {
-      query = query.ilike('material', `%${material}%`);
-    }
-    
-    if (inStock !== null && inStock !== undefined) {
-      query = query.eq('in_stock', inStock === 'true');
-    }
-    
-    if (minPrice) {
-      query = query.gte('price', parseFloat(minPrice));
-    }
-    
-    if (maxPrice) {
-      query = query.lte('price', parseFloat(maxPrice));
-    }
-    
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
-    }
-    
-    // Apply pagination (skip pagination if specific IDs are requested)
-    if (ids.length === 0) {
-      const from = (page - 1) * limit;
-      const to = from + limit - 1;
-      query = query.range(from, to);
-    }
-    
-    // Order by name
-    query = query.order('name', { ascending: true });
-    
-    const { data: products, error, count } = await query;
+    // Use Redis cache with 300 second (5 minute) TTL
+    const result = await getCached(
+      cacheKey,
+      async () => {
+        // Database query fetcher function
+        const supabase = getSupabaseClient();
+        
+        // Build query
+        let query = supabase
+          .from('products')
+          .select('*', { count: 'exact' });
+        
+        // Apply filters
+        // If specific IDs are requested, filter by those IDs
+        if (ids.length > 0) {
+          query = query.in('id', ids);
+        }
+        
+        if (category) {
+          query = query.eq('category', category);
+        }
+        
+        if (material) {
+          query = query.ilike('material', `%${material}%`);
+        }
+        
+        if (inStock !== null && inStock !== undefined) {
+          query = query.eq('in_stock', inStock === 'true');
+        }
+        
+        if (minPrice) {
+          query = query.gte('price', parseFloat(minPrice));
+        }
+        
+        if (maxPrice) {
+          query = query.lte('price', parseFloat(maxPrice));
+        }
+        
+        if (search) {
+          query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+        }
+        
+        // Apply pagination (skip pagination if specific IDs are requested)
+        if (ids.length === 0) {
+          const from = (page - 1) * limit;
+          const to = from + limit - 1;
+          query = query.range(from, to);
+        }
+        
+        // Order by name
+        query = query.order('name', { ascending: true });
+        
+        const { data: products, error, count } = await query;
 
-    if (error) {
-      console.error('Error fetching products:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch products', details: error.message },
-        { status: 500 }
-      );
-    }
+        if (error) {
+          console.error('Error fetching products:', error);
+          throw new Error(`Failed to fetch products: ${error.message}`);
+        }
 
-    // Calculate pagination metadata
-    const totalPages = count ? Math.ceil(count / limit) : 0;
+        // Calculate pagination metadata
+        const totalPages = count ? Math.ceil(count / limit) : 0;
+        
+        return {
+          products: products || [],
+          pagination: {
+            page,
+            limit,
+            total: count || 0,
+            totalPages,
+            hasMore: page < totalPages,
+          },
+        };
+      },
+      300 // TTL: 300 seconds (5 minutes)
+    );
     
     // Add caching headers (cache for 30 minutes)
-    return NextResponse.json(
-      {
-        products: products || [],
-        pagination: {
-          page,
-          limit,
-          total: count || 0,
-          totalPages,
-          hasMore: page < totalPages,
-        },
+    return NextResponse.json(result, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
       },
-      {
-        status: 200,
-        headers: {
-          'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
-        },
-      }
-    );
+    });
   } catch (error) {
     console.error('Unexpected error in products API:', error);
     return NextResponse.json(

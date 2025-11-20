@@ -86,9 +86,9 @@ export default function CADHistoryDetailModal({
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="relative glass-container glass-container-with-liquid max-w-4xl w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+          <div className="sticky top-0 glass-container glass-container-with-liquid border-b border-gray-200 px-6 py-4 flex justify-between items-center">
             <h2 className="text-2xl font-semibold text-gray-900">CAD Generation Details</h2>
             <button
               onClick={onClose}
@@ -226,7 +226,7 @@ export default function CADHistoryDetailModal({
           </div>
 
           {/* Footer */}
-          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-between items-center">
+          <div className="sticky bottom-0 glass-container glass-container-with-liquid border-t border-gray-200 px-6 py-4 flex justify-between items-center">
             {/* Delete Button */}
             {onDelete && !showDeleteConfirm && (
               <button

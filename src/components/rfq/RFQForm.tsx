@@ -8,9 +8,11 @@ import { supabase } from '@/lib/supabase';
 import { RFQFormData, ValidationErrors, APIResponse } from '@/types';
 import { validateEmail, formatFileSize, isValidFileType, isValidFileSize } from '@/lib/utils';
 import { sampleDrawings, cadTemplates } from '@/data/sample-data';
+import { useToast } from '@/components/ui/ToastProvider';
 
 const RFQForm: React.FC = () => {
   const router = useRouter();
+  const { addToast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -233,7 +235,14 @@ const RFQForm: React.FC = () => {
   };
 
   const submitRFQ = async () => {
-    if (!validateStep(2)) return;
+    if (!validateStep(2)) {
+      addToast({
+        type: 'warning',
+        title: 'Complete form',
+        description: 'Please finish the required project details before submitting.'
+      });
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -279,6 +288,11 @@ const RFQForm: React.FC = () => {
       if (result.success && result.data) {
         setRfqId(result.data.rfqId);
         setCurrentStep(4);
+        addToast({
+          type: 'success',
+          title: 'RFQ submitted',
+          description: `Request ID ${result.data.rfqId}`
+        });
       } else {
         // Handle authentication errors specifically
         if (response.status === 401) {
@@ -289,6 +303,11 @@ const RFQForm: React.FC = () => {
     } catch (error) {
       console.error('Error submitting RFQ:', error);
       setErrors({ submit: error instanceof Error ? error.message : 'Failed to submit RFQ' });
+      addToast({
+        type: 'error',
+        title: 'RFQ submission failed',
+        description: error instanceof Error ? error.message : 'Unknown error while submitting.'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -678,7 +697,7 @@ const RFQForm: React.FC = () => {
       </div>
 
       {/* Form Content */}
-      <div className="bg-white rounded-lg shadow border p-8">
+      <div className="glass-container p-8">
         {renderStepContent()}
 
         {/* Error Display */}
@@ -742,7 +761,7 @@ const RFQForm: React.FC = () => {
                 {cadTemplates.map((template) => (
                   <div
                     key={template.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
+                    className="glass-card-compact cursor-pointer"
                     onClick={() => autoFillFromTemplate(template)}
                   >
                     <div className="flex items-start space-x-4">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { APIResponse, RecommendationScore } from '@/types';
 import { productMatcher } from '@/lib/product-matcher';
+import { getCached } from '@/lib/cache/redis-cache';
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,8 +44,20 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Use the product matcher to get compatible products
-    const recommendations = productMatcher.getCompatibleProducts(productId);
+    // Generate cache key from product ID and any additional filters
+    const cacheKey = `recommendations:${productId}`;
+    
+    // Check Redis cache before computing recommendations
+    // TTL: 3600 seconds (1 hour) as per requirement 12.4
+    const recommendations = await getCached<RecommendationScore[]>(
+      cacheKey,
+      async () => {
+        console.log(`Computing recommendations for product: ${productId}`);
+        // Use the product matcher to get compatible products
+        return productMatcher.getCompatibleProducts(productId);
+      },
+      3600 // 1 hour TTL
+    );
 
     return NextResponse.json<APIResponse<RecommendationScore[]>>({
       success: true,

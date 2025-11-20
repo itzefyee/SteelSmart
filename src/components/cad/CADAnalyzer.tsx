@@ -146,7 +146,7 @@ const CADAnalyzer: React.FC = () => {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <div className="bg-white rounded-xl shadow-lg border p-6">
+      <div className="glass-container glass-container-with-liquid p-6">
         <div className="text-center mb-5">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">CAD Drawing Analyzer</h2>
@@ -169,12 +169,12 @@ const CADAnalyzer: React.FC = () => {
         <div
           {...getRootProps()}
           className={`
-            border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all
+            glass-upload-zone p-6 text-center cursor-pointer
             ${isDragActive 
               ? 'border-primary bg-blue-50' 
               : uploadState.status === 'error'
               ? 'border-red-300 bg-red-50'
-              : 'border-gray-300 hover:border-primary hover:bg-gray-50'
+              : ''
             }
           `}
         >
@@ -279,7 +279,7 @@ const CADAnalyzer: React.FC = () => {
             
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {/* Servo Motor Sample */}
-                      <div className="bg-white rounded-lg p-3 border border-blue-200 text-center flex flex-col h-full">
+                      <div className="glass-card-compact text-center flex flex-col h-full">
                         <img 
                           src="/images/sample-cad-preview.svg" 
                           alt="Servo Motor Drawing"
@@ -299,7 +299,7 @@ const CADAnalyzer: React.FC = () => {
                       </div>
 
                       {/* Bracket Sample */}
-                      <div className="bg-white rounded-lg p-3 border border-blue-200 text-center flex flex-col h-full">
+                      <div className="glass-card-compact text-center flex flex-col h-full">
                         <img 
                           src="/images/bracket-cad-preview.svg" 
                           alt="Bracket Drawing"
@@ -319,7 +319,7 @@ const CADAnalyzer: React.FC = () => {
                       </div>
 
                       {/* Steel Beam Sample */}
-                      <div className="bg-white rounded-lg p-3 border border-blue-200 text-center flex flex-col h-full">
+                      <div className="glass-card-compact text-center flex flex-col h-full">
                         <img 
                           src="/images/steel-beam-cad-preview.svg" 
                           alt="Steel Beam Drawing"

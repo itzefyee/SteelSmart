@@ -65,9 +65,9 @@ const CATEGORY_STYLES: Record<
   },
 };
 
-const getCategoryColor = (category: string) => {
+  const getCategoryColor = (category: string) => {
   return CATEGORY_STYLES[category]?.badge ?? 'bg-slate-200/85 border-slate-500/35 text-slate-900';
-};
+  };
 
   const isCompact = className.includes('compact');
   const imageHeight = isCompact ? 'h-32' : 'h-48';

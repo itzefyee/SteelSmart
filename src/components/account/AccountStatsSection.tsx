@@ -83,7 +83,7 @@ export default function AccountStatsSection({ userId, memberSince }: AccountStat
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="glass-container glass-container-with-liquid p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-6">Account Statistics</h2>
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -95,7 +95,7 @@ export default function AccountStatsSection({ userId, memberSince }: AccountStat
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="glass-container glass-container-with-liquid p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-6">Account Statistics</h2>
         <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
           {error}
@@ -105,20 +105,20 @@ export default function AccountStatsSection({ userId, memberSince }: AccountStat
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="glass-container glass-container-with-liquid p-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-6">Account Statistics</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 gap-4">
         {/* CAD Generations */}
-        <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+        <div className="glass-card-compact">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-blue-600 mb-1">CAD Generations</p>
               <p className="text-3xl font-bold text-blue-900">{stats.totalCADGenerations}</p>
             </div>
-            <div className="bg-blue-100 rounded-full p-3">
+            <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-full p-3">
               <svg
-                className="h-6 w-6 text-blue-600"
+                className="h-6 w-6 text-white"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -135,15 +135,15 @@ export default function AccountStatsSection({ userId, memberSince }: AccountStat
         </div>
 
         {/* RFQ Submissions */}
-        <div className="bg-green-50 rounded-lg p-4 border border-green-100">
+        <div className="glass-card-compact">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-green-600 mb-1">RFQ Submissions</p>
               <p className="text-3xl font-bold text-green-900">{stats.totalRFQs}</p>
             </div>
-            <div className="bg-green-100 rounded-full p-3">
+            <div className="bg-gradient-to-br from-green-400 to-green-600 rounded-full p-3">
               <svg
-                className="h-6 w-6 text-green-600"
+                className="h-6 w-6 text-white"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -160,15 +160,15 @@ export default function AccountStatsSection({ userId, memberSince }: AccountStat
         </div>
 
         {/* Drawing Analyses */}
-        <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
+        <div className="glass-card-compact">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-purple-600 mb-1">Drawing Analyses</p>
               <p className="text-3xl font-bold text-purple-900">{stats.totalAnalyses}</p>
             </div>
-            <div className="bg-purple-100 rounded-full p-3">
+            <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded-full p-3">
               <svg
-                className="h-6 w-6 text-purple-600"
+                className="h-6 w-6 text-white"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -185,15 +185,15 @@ export default function AccountStatsSection({ userId, memberSince }: AccountStat
         </div>
 
         {/* Member Since */}
-        <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">
+        <div className="glass-card-compact">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-amber-600 mb-1">Member Since</p>
               <p className="text-lg font-bold text-amber-900">{formatDate(memberSince)}</p>
             </div>
-            <div className="bg-amber-100 rounded-full p-3">
+            <div className="bg-gradient-to-br from-amber-400 to-amber-600 rounded-full p-3">
               <svg
-                className="h-6 w-6 text-amber-600"
+                className="h-6 w-6 text-white"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

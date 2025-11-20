@@ -7,10 +7,12 @@ import { useProducts } from '@/hooks';
 
 const FeaturedProducts: React.FC = () => {
   // Fetch first 4 products as featured products
-  const { products, loading } = useProducts({
+  const { data, isLoading } = useProducts({
     limit: 4,
-    autoFetch: true,
   });
+  
+  const products = data?.products || [];
+  const loading = isLoading;
 
   return (
     <section className="section bg-white">

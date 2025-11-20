@@ -1,125 +1,159 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { Product } from '@/lib/supabase';
+import { useQuery } from '@tanstack/react-query';
+import { ProductService, type ProductFilters, type ProductResponse } from '@/services/product.service';
+import { logQueryPerformance } from '@/lib/performance/query-performance';
 
-export interface ProductFilters {
-  category?: string;
-  material?: string;
-  inStock?: boolean;
-  minPrice?: number;
-  maxPrice?: number;
-  search?: string;
-}
-
-export interface ProductPagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  hasMore: boolean;
-}
+export type { ProductFilters } from '@/services/product.service';
 
 export interface UseProductsOptions {
   filters?: ProductFilters;
   page?: number;
   limit?: number;
-  autoFetch?: boolean;
-}
-
-export interface UseProductsState {
-  products: Product[];
-  loading: boolean;
-  error: Error | null;
-  pagination: ProductPagination | null;
-  refetch: () => Promise<void>;
-  setFilters: (filters: ProductFilters) => void;
-  setPage: (page: number) => void;
+  enabled?: boolean;
 }
 
 /**
- * Custom hook to fetch products from the API with filters and pagination
- * Implements caching, error handling, and filter management
+ * Product Hooks with Cache Management
+ * 
+ * ============================================================================
+ * CACHE INVALIDATION STRATEGY FOR PRODUCTS
+ * ============================================================================
+ * 
+ * Cache Behavior:
+ * - Product lists are cached for 5 minutes (staleTime: 300000ms)
+ * - Each unique combination of filters, page, and limit has its own cache entry
+ * - After 5 minutes, data becomes stale and will refetch on next access
+ * 
+ * Manual Refetch:
+ * All hooks return a `refetch` function for manual cache invalidation:
+ * 
+ * Example:
+ * ```tsx
+ * const { data, refetch, isRefetching } = useProducts({ filters: { category: 'steel' } });
+ * 
+ * return (
+ *   <button onClick={() => refetch()} disabled={isRefetching}>
+ *     {isRefetching ? 'Refreshing...' : 'Refresh Products'}
+ *   </button>
+ * );
+ * ```
+ * 
+ * When to Invalidate:
+ * - After product is updated (use queryClient.invalidateQueries({ queryKey: ['products'] }))
+ * - After product is deleted (use queryClient.invalidateQueries({ queryKey: ['products'] }))
+ * - When user explicitly requests refresh (use refetch function)
+ * - After bulk operations on products
+ * 
+ * Cache Keys:
+ * - ['products', filters, page, limit] - Product list queries
+ * - ['product', id] - Single product queries
+ * 
+ * Future Enhancement:
+ * When product mutations are implemented, they should invalidate the product cache:
+ * 
+ * ```tsx
+ * const updateProduct = useMutation({
+ *   mutationFn: ProductService.updateProduct,
+ *   onSuccess: () => {
+ *     queryClient.invalidateQueries({ queryKey: ['products'] });
+ *     queryClient.invalidateQueries({ queryKey: ['product', productId] });
+ *   }
+ * });
+ * ```
+ * 
+ * Requirements: 10.2, 10.4
+ * ============================================================================
  */
-export function useProducts(options: UseProductsOptions = {}): UseProductsState {
+
+/**
+ * React Query hook to fetch products with filters and pagination
+ * Implements automatic caching with 5-minute stale time
+ * 
+ * @param options - Configuration options for the query
+ * @returns Query result with data, isLoading, error, refetch, and isRefetching
+ * 
+ * The returned refetch function can be used for manual cache invalidation:
+ * - Call refetch() to force a fresh fetch from the API
+ * - Useful for "Refresh" buttons or pull-to-refresh functionality
+ * - Bypasses the staleTime and always fetches fresh data
+ */
+export function useProducts(options: UseProductsOptions = {}) {
   const {
-    filters: initialFilters = {},
-    page: initialPage = 1,
+    filters = {},
+    page = 1,
     limit = 20,
-    autoFetch = true,
+    enabled = true,
   } = options;
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(autoFetch);
-  const [error, setError] = useState<Error | null>(null);
-  const [pagination, setPagination] = useState<ProductPagination | null>(null);
-  const [filters, setFilters] = useState<ProductFilters>(initialFilters);
-  const [page, setPage] = useState(initialPage);
+  const queryKey = ['products', filters, page, limit];
 
-  const fetchProducts = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Build query parameters
-      const params = new URLSearchParams();
-      params.append('page', page.toString());
-      params.append('limit', limit.toString());
-
-      if (filters.category) {
-        params.append('category', filters.category);
+  return useQuery<ProductResponse, Error>({
+    // Generate unique cache key including all parameters
+    queryKey,
+    // Use ProductService to fetch data with performance monitoring
+    queryFn: async () => {
+      const startTime = performance.now();
+      try {
+        const result = await ProductService.getProducts(filters, page, limit);
+        const duration = performance.now() - startTime;
+        logQueryPerformance(queryKey, duration, 'success', 'miss');
+        return result;
+      } catch (error) {
+        const duration = performance.now() - startTime;
+        logQueryPerformance(queryKey, duration, 'error', 'miss');
+        throw error;
       }
-      if (filters.material) {
-        params.append('material', filters.material);
-      }
-      if (filters.inStock !== undefined) {
-        params.append('inStock', filters.inStock.toString());
-      }
-      if (filters.minPrice !== undefined) {
-        params.append('minPrice', filters.minPrice.toString());
-      }
-      if (filters.maxPrice !== undefined) {
-        params.append('maxPrice', filters.maxPrice.toString());
-      }
-      if (filters.search) {
-        params.append('search', filters.search);
-      }
+    },
+    // Keep data fresh for 5 minutes (300000ms)
+    staleTime: 5 * 60 * 1000,
+    // Enable/disable query based on options
+    enabled,
+  });
+}
 
-      const response = await fetch(`/api/products?${params.toString()}`);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to fetch products: ${response.statusText}`);
+/**
+ * React Query hook to fetch a single product by ID
+ * Implements automatic caching with default stale time
+ * 
+ * @param id - The product ID to fetch
+ * @returns Query result with data, isLoading, error, refetch, and isRefetching
+ * 
+ * Manual Cache Invalidation:
+ * The returned refetch function can be used to manually refresh a single product:
+ * 
+ * Example:
+ * ```tsx
+ * const { data: product, refetch } = useProduct(productId);
+ * 
+ * const handleProductUpdate = async () => {
+ *   await updateProduct(productId, changes);
+ *   refetch(); // Refresh the product data after update
+ * };
+ * ```
+ * 
+ * Note: When product mutations are implemented, they should automatically
+ * invalidate the cache instead of requiring manual refetch calls.
+ */
+export function useProduct(id: string) {
+  const queryKey = ['product', id];
+
+  return useQuery({
+    // Generate unique cache key for single product
+    queryKey,
+    // Use ProductService to fetch single product with performance monitoring
+    queryFn: async () => {
+      const startTime = performance.now();
+      try {
+        const result = await ProductService.getProduct(id);
+        const duration = performance.now() - startTime;
+        logQueryPerformance(queryKey, duration, 'success', 'miss');
+        return result;
+      } catch (error) {
+        const duration = performance.now() - startTime;
+        logQueryPerformance(queryKey, duration, 'error', 'miss');
+        throw error;
       }
-
-      const data = await response.json();
-      setProducts(data.products || []);
-      setPagination(data.pagination || null);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error occurred');
-      setError(error);
-      console.error('Error fetching products:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, page, limit]);
-
-  useEffect(() => {
-    if (autoFetch) {
-      fetchProducts();
-    }
-  }, [fetchProducts, autoFetch]);
-
-  const handleSetFilters = useCallback((newFilters: ProductFilters) => {
-    setFilters(newFilters);
-    setPage(1); // Reset to first page when filters change
-  }, []);
-
-  return {
-    products,
-    loading,
-    error,
-    pagination,
-    refetch: fetchProducts,
-    setFilters: handleSetFilters,
-    setPage,
-  };
+    },
+    // Only fetch if id is provided
+    enabled: !!id,
+  });
 }

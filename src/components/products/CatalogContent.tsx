@@ -1,17 +1,13 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/products/ProductCard';
 import ProductFilter from '@/components/products/ProductFilter';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { FilterOptions } from '@/types';
 import { useProducts, useCategories } from '@/hooks';
-import { 
-  filterProductsBySearch, 
-  filterProductsByPriceRange,
-  sortProducts 
-} from '@/lib/utils';
+import type { Product } from '@/lib/supabase';
 
 export default function CatalogContent() {
   const searchParams = useSearchParams();
@@ -28,11 +24,11 @@ export default function CatalogContent() {
   // Fetch categories from Supabase
   const { categories: categoriesData, loading: categoriesLoading } = useCategories();
 
-  // Fetch products from Supabase
-  const { products, loading: productsLoading } = useProducts({
-    autoFetch: true,
-  });
+  // Fetch products from Supabase using React Query
+  const { data: productsData, isLoading: productsLoading, error: productsError, refetch } = useProducts();
 
+  // Extract products array from React Query response
+  const products: Product[] = productsData?.products || [];
   const loading = productsLoading || categoriesLoading;
 
   // Filter and sort products
@@ -117,20 +113,46 @@ export default function CatalogContent() {
   }, [categoriesData]);
 
   const availableMaterials = useMemo(() => {
-    const materials = [...new Set(products.map(p => p.material).filter((m): m is string => m !== null && m !== undefined))];
+    const materials = [...new Set(products.map((p: Product) => p.material).filter((m): m is string => m !== null && m !== undefined))];
     return materials.sort();
   }, [products]);
 
   const priceRange: [number, number] = useMemo(() => {
     if (products.length === 0) return [0, 10000];
-    const prices = products.map(p => p.price);
+    const prices = products.map((p: Product) => p.price);
     return [Math.min(...prices), Math.max(...prices)];
   }, [products]);
 
+  // Handle loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  // Handle error state
+  if (productsError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center py-12 bg-white/5 border border-red-500/20 rounded-2xl backdrop-blur-xl max-w-md mx-auto px-6">
+          <div className="text-red-400 mb-4">
+            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-white mb-2">Failed to load products</h3>
+          <p className="text-slate-300 mb-4">
+            {productsError.message || 'An error occurred while fetching products'}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="inline-flex items-center px-4 py-2 border border-white/20 text-sm font-medium rounded-md text-white bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-0"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
@@ -141,14 +163,53 @@ export default function CatalogContent() {
       <div className="catalog-wire-pattern" aria-hidden="true"></div>
       <div className="catalog-particle-layer" aria-hidden="true"></div>
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-8">
-          <p className="text-sm uppercase tracking-[0.3em] text-blue-200 mb-2">Metalyze Inventory</p>
-          <h1 className="text-3xl font-semibold text-white mb-4">
-            Product Catalog
-          </h1>
-          <p className="text-lg text-slate-300 max-w-3xl">
-            Discover our comprehensive selection of robotic components, structural steel, and custom fabricated parts.
-          </p>
+        <div className="mb-10 space-y-6">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-4">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-[0.25em] uppercase bg-white/10 text-sky-200 border border-white/20">
+                Live Catalog
+              </span>
+              <div>
+                <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight">
+                  <span className="bg-gradient-to-r from-cyan-200 via-white to-blue-200 bg-clip-text text-transparent drop-shadow-sm">
+                    Intelligent Product Catalog
+                  </span>
+                </h1>
+                <p className="text-base sm:text-lg text-slate-200 max-w-3xl mt-3">
+                  Discover <span className="font-semibold text-white">{products.length}+ precision components</span> curated for robotics, structural steel, and custom fabrication.
+                  Every product is synchronized with Supabase and enriched with AI-ready metadata for instant filtering.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {['AI-featherlight filters', '24h quote-ready specs', 'SVG-rich visuals', 'Compliance metadata'].map((badge) => (
+                  <span
+                    key={badge}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold text-slate-200 bg-white/10 border border-white/10 backdrop-blur-sm"
+                  >
+                    {badge}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:gap-6">
+              {[
+                { label: 'Products Live', value: products.length.toString(), accent: 'from-cyan-400 to-blue-500' },
+                { label: 'Categories', value: availableCategories.length.toString(), accent: 'from-indigo-400 to-purple-500' },
+                { label: 'Avg Lead Time', value: '2-5 days', accent: 'from-emerald-400 to-teal-500' },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-xl p-4 text-white shadow-[0_10px_30px_rgba(15,23,42,0.25)]"
+                >
+                  <p className="text-xs uppercase tracking-wide text-slate-300">{stat.label}</p>
+                  <p className={`text-2xl font-semibold mt-2 bg-gradient-to-r ${stat.accent} text-transparent bg-clip-text`}>
+                    {stat.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
@@ -175,21 +236,35 @@ export default function CatalogContent() {
                   Showing <span className="text-blue-300 font-bold">{filteredAndSortedProducts.length}</span> of {products.length} products
                 </div>
                 
-                <div className="flex items-center space-x-2">
-                  <label htmlFor="sort" className="text-sm font-medium text-white">
-                    Sort by:
-                  </label>
-                  <select
-                    id="sort"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="border border-white/20 bg-white/5 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm font-medium"
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => refetch()}
+                    disabled={productsLoading}
+                    className="inline-flex items-center px-3 py-2 border border-white/20 text-sm font-medium rounded-md text-white bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Refresh products"
                   >
-                    <option value="name-asc" className="bg-slate-800">Name (A-Z)</option>
-                    <option value="name-desc" className="bg-slate-800">Name (Z-A)</option>
-                    <option value="price-asc" className="bg-slate-800">Price (Low to High)</option>
-                    <option value="price-desc" className="bg-slate-800">Price (High to Low)</option>
-                  </select>
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
+                  </button>
+                  
+                  <div className="flex items-center space-x-2">
+                    <label htmlFor="sort" className="text-sm font-medium text-white">
+                      Sort by:
+                    </label>
+                    <select
+                      id="sort"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="border border-white/20 bg-white/5 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm font-medium"
+                    >
+                      <option value="name-asc" className="bg-slate-800">Name (A-Z)</option>
+                      <option value="name-desc" className="bg-slate-800">Name (Z-A)</option>
+                      <option value="price-asc" className="bg-slate-800">Price (Low to High)</option>
+                      <option value="price-desc" className="bg-slate-800">Price (High to Low)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 

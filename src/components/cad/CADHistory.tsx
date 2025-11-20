@@ -32,6 +32,24 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [loadingModelIds, setLoadingModelIds] = useState<Set<string>>(new Set());
 
+  /**
+   * Manual Cache Invalidation Support
+   * 
+   * TODO: When migrating to React Query, replace this manual fetch with useCADHistory hook:
+   * 
+   * const { data, isLoading, error, refetch } = useCADHistory(20, 0);
+   * 
+   * Then use the refetch function for the Refresh button:
+   * <Button onClick={() => refetch()}>Refresh</Button>
+   * 
+   * This will leverage React Query's cache invalidation and provide:
+   * - Automatic background refetching when data becomes stale
+   * - Optimistic updates when new CAD models are generated
+   * - Manual refetch support via the refetch function
+   * - Better loading states and error handling
+   * 
+   * Requirements: 10.4 (Manual cache invalidation via refetch function)
+   */
   const fetchHistory = async () => {
     try {
       setIsLoading(true);
@@ -294,7 +312,7 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
 
   if (!isExpanded) {
     return (
-      <div className={`bg-white rounded-lg shadow border p-4 ${className}`}>
+      <div className={`glass-container glass-container-with-liquid p-4 ${className}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -320,7 +338,7 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
   }
 
   return (
-    <div className={`bg-white rounded-lg shadow border ${className}`}>
+    <div className={`glass-container glass-container-with-liquid ${className}`}>
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">

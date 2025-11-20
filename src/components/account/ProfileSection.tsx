@@ -56,7 +56,7 @@ export default function ProfileSection({ profile, onUpdate }: ProfileSectionProp
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="glass-container glass-container-with-liquid p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900">Profile Information</h2>
         {!isEditing && (
@@ -92,7 +92,7 @@ export default function ProfileSection({ profile, onUpdate }: ProfileSectionProp
               type="text"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="glass-input"
               placeholder="Enter your company name"
             />
           ) : (
@@ -116,7 +116,7 @@ export default function ProfileSection({ profile, onUpdate }: ProfileSectionProp
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="glass-input"
               placeholder="Enter your phone number"
             />
           ) : (

@@ -565,6 +565,423 @@
   .product-glass-card:hover::after {
     opacity: 1;
   }
+
+  /* General Purpose Glass Container - For large sections */
+  .glass-container {
+    @apply relative rounded-3xl;
+    background: rgba(160, 180, 200, 0.28);
+    backdrop-filter: blur(50px) saturate(140%);
+    -webkit-backdrop-filter: blur(50px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    /* Shadow removed for liquid glass effect */
+  }
+
+  /* Enhanced border effects for liquid glass container */
+  .glass-container-with-liquid {
+    /* Softer, more transparent background to blend with page */
+    background: rgba(160, 180, 200, 0.18);
+    backdrop-filter: blur(60px) saturate(150%);
+    -webkit-backdrop-filter: blur(60px) saturate(150%);
+    
+    /* Multi-layer border effect */
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 
+      /* Outer glow - neon blue */
+      0 0 40px rgba(59, 130, 246, 0.15),
+      0 0 80px rgba(59, 130, 246, 0.08),
+      /* Inner highlight */
+      inset 0 1px 2px rgba(255, 255, 255, 0.3),
+      inset 0 -1px 2px rgba(59, 130, 246, 0.1),
+      /* Subtle depth */
+      0 8px 32px rgba(15, 23, 42, 0.08);
+  }
+
+  /* Browser compatibility fallback for glass-container */
+  @supports not (backdrop-filter: blur(50px)) {
+    .glass-container {
+      background: rgba(160, 180, 200, 0.95);
+    }
+  }
+
+  /* Keyframe animations for liquid glass effect */
+  @keyframes liquidWave {
+    0%, 100% {
+      transform: translateX(-50%) translateY(-50%) rotate(0deg);
+    }
+    25% {
+      transform: translateX(-50%) translateY(-55%) rotate(1deg);
+    }
+    50% {
+      transform: translateX(-50%) translateY(-48%) rotate(-1deg);
+    }
+    75% {
+      transform: translateX(-50%) translateY(-58%) rotate(0.5deg);
+    }
+  }
+
+  @keyframes liquidPulse {
+    0%, 100% {
+      opacity: 0.6;
+      filter: blur(40px);
+    }
+    50% {
+      opacity: 0.8;
+      filter: blur(50px);
+    }
+  }
+
+  @keyframes borderGlow {
+    0%, 100% {
+      box-shadow: 
+        0 0 40px rgba(59, 130, 246, 0.15),
+        0 0 80px rgba(59, 130, 246, 0.08),
+        inset 0 1px 2px rgba(255, 255, 255, 0.3),
+        inset 0 -1px 2px rgba(59, 130, 246, 0.1),
+        0 8px 32px rgba(15, 23, 42, 0.08);
+    }
+    50% {
+      box-shadow: 
+        0 0 60px rgba(59, 130, 246, 0.25),
+        0 0 120px rgba(59, 130, 246, 0.12),
+        inset 0 1px 3px rgba(255, 255, 255, 0.4),
+        inset 0 -1px 3px rgba(59, 130, 246, 0.15),
+        0 8px 32px rgba(15, 23, 42, 0.08);
+    }
+  }
+
+  /* Wavy Liquid Glass Effect for Container - Neon blue background animation */
+  .glass-container-with-liquid {
+    position: relative;
+    overflow: hidden;
+    
+    /* Animated border glow */
+    animation: borderGlow 4s ease-in-out infinite;
+    
+    /* Base ambient glow covering entire container - blended with background */
+    background-image: 
+      radial-gradient(ellipse 800px 600px at 50% 50%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
+      radial-gradient(ellipse 600px 800px at 20% 30%, rgba(96, 165, 250, 0.09) 0%, transparent 50%),
+      radial-gradient(ellipse 700px 700px at 80% 70%, rgba(37, 99, 235, 0.09) 0%, transparent 50%);
+    background-size: 100% 100%;
+    background-position: center;
+  }
+
+  /* Upper wave - covers top area */
+  .glass-container-with-liquid::before {
+    content: '';
+    position: absolute;
+    top: 20%;
+    left: 30%;
+    width: 140%;
+    height: 140%;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(96, 165, 250, 0.4) 0%,
+      rgba(59, 130, 246, 0.3) 30%,
+      rgba(37, 99, 235, 0.2) 60%,
+      transparent 100%
+    );
+    border-radius: 50%;
+    transform: translateX(-50%) translateY(-50%);
+    animation: liquidWave 7s ease-in-out infinite, liquidPulse 4.5s ease-in-out infinite;
+    animation-delay: 0.5s;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* Lower wave - covers bottom area */
+  .glass-container-with-liquid::after {
+    content: '';
+    position: absolute;
+    top: 80%;
+    left: 70%;
+    width: 150%;
+    height: 150%;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(59, 130, 246, 0.45) 0%,
+      rgba(37, 99, 235, 0.35) 25%,
+      rgba(29, 78, 216, 0.25) 50%,
+      rgba(96, 165, 250, 0.15) 75%,
+      transparent 100%
+    );
+    border-radius: 50%;
+    transform: translateX(-50%) translateY(-50%);
+    animation: liquidWave 9s ease-in-out infinite reverse, liquidPulse 5s ease-in-out infinite;
+    animation-delay: 1.5s;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* General Purpose Glass Card - For individual cards */
+  .glass-card {
+    @apply relative overflow-hidden rounded-2xl;
+    background: linear-gradient(
+      145deg,
+      rgba(240, 247, 255, 0.88) 0%,
+      rgba(228, 239, 255, 0.82) 100%
+    );
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    border: 1.5px solid rgba(147, 197, 253, 0.45);
+    /* Shadow removed for liquid glass effect */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-card:hover {
+    background: linear-gradient(
+      145deg,
+      rgba(236, 245, 255, 0.98) 0%,
+      rgba(205, 232, 255, 0.94) 100%
+    );
+    border-color: rgba(59, 130, 246, 0.65);
+    /* Shadow removed for liquid glass effect */
+    transform: translateY(-6px) scale(1.02);
+  }
+
+  /* Browser compatibility fallback for glass-card */
+  @supports not (backdrop-filter: blur(25px)) {
+    .glass-card {
+      background: linear-gradient(
+        145deg,
+        rgba(240, 247, 255, 0.98) 0%,
+        rgba(228, 239, 255, 0.95) 100%
+      );
+    }
+  }
+
+  /* Wavy Liquid Glass Effect - Neon blue background animation */
+  @keyframes liquidWave {
+    0%, 100% {
+      transform: translateX(-50%) translateY(0) rotate(0deg);
+    }
+    25% {
+      transform: translateX(-50%) translateY(-10px) rotate(1deg);
+    }
+    50% {
+      transform: translateX(-50%) translateY(-5px) rotate(-1deg);
+    }
+    75% {
+      transform: translateX(-50%) translateY(-15px) rotate(0.5deg);
+    }
+  }
+
+  @keyframes liquidPulse {
+    0%, 100% {
+      opacity: 0.6;
+      filter: blur(40px);
+    }
+    50% {
+      opacity: 0.8;
+      filter: blur(50px);
+    }
+  }
+
+  .glass-card-with-liquid {
+    position: relative;
+    z-index: 1;
+  }
+
+  .glass-card-with-liquid::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 120%;
+    height: 120%;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(59, 130, 246, 0.4) 0%,
+      rgba(37, 99, 235, 0.3) 30%,
+      rgba(29, 78, 216, 0.2) 60%,
+      transparent 100%
+    );
+    border-radius: 50%;
+    transform: translateX(-50%) translateY(-50%);
+    animation: liquidWave 8s ease-in-out infinite, liquidPulse 4s ease-in-out infinite;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .glass-card-with-liquid::after {
+    content: '';
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(96, 165, 250, 0.3) 0%,
+      rgba(59, 130, 246, 0.2) 40%,
+      transparent 70%
+    );
+    border-radius: 50%;
+    transform: translateX(-50%) translateY(-50%);
+    animation: liquidWave 6s ease-in-out infinite reverse, liquidPulse 5s ease-in-out infinite;
+    animation-delay: 1s;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* Compact Glass Card Variant - For smaller cards in dense layouts */
+  .glass-card-compact {
+    @apply relative overflow-hidden rounded-xl;
+    background: linear-gradient(
+      145deg,
+      rgba(240, 247, 255, 0.88) 0%,
+      rgba(228, 239, 255, 0.82) 100%
+    );
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    border: 1.5px solid rgba(147, 197, 253, 0.45);
+    box-shadow: 
+      0 25px 45px 0 rgba(15, 23, 42, 0.25),
+      0 12px 22px 0 rgba(15, 23, 42, 0.18),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.6);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 1rem;
+  }
+
+  .glass-card-compact:hover {
+    background: linear-gradient(
+      145deg,
+      rgba(236, 245, 255, 0.98) 0%,
+      rgba(205, 232, 255, 0.94) 100%
+    );
+    border-color: rgba(59, 130, 246, 0.65);
+    box-shadow: 
+      0 34px 80px 0 rgba(15, 23, 42, 0.4),
+      0 22px 46px 0 rgba(15, 23, 42, 0.3),
+      inset 0 2px 4px 0 rgba(255, 255, 255, 0.4);
+    transform: translateY(-3px) scale(1.01);
+  }
+
+  /* Browser compatibility fallback for glass-card-compact */
+  @supports not (backdrop-filter: blur(25px)) {
+    .glass-card-compact {
+      background: linear-gradient(
+        145deg,
+        rgba(240, 247, 255, 0.98) 0%,
+        rgba(228, 239, 255, 0.95) 100%
+      );
+    }
+  }
+
+  /* Glass Upload Zone - For file upload areas */
+  .glass-upload-zone {
+    @apply relative overflow-hidden rounded-2xl;
+    background: linear-gradient(
+      145deg,
+      rgba(248, 250, 252, 0.95) 0%,
+      rgba(241, 245, 249, 0.90) 100%
+    );
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    border: 2px dashed rgba(147, 197, 253, 0.6);
+    box-shadow: 
+      0 25px 45px 0 rgba(15, 23, 42, 0.25),
+      0 12px 22px 0 rgba(15, 23, 42, 0.18),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.6);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-upload-zone:hover {
+    border-color: rgba(59, 130, 246, 0.8);
+    background: linear-gradient(
+      145deg,
+      rgba(236, 245, 255, 0.98) 0%,
+      rgba(225, 239, 255, 0.94) 100%
+    );
+    box-shadow: 
+      0 34px 80px 0 rgba(15, 23, 42, 0.4),
+      0 22px 46px 0 rgba(15, 23, 42, 0.3),
+      inset 0 2px 4px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  /* Browser compatibility fallback for glass-upload-zone */
+  @supports not (backdrop-filter: blur(25px)) {
+    .glass-upload-zone {
+      background: linear-gradient(
+        145deg,
+        rgba(248, 250, 252, 0.98) 0%,
+        rgba(241, 245, 249, 0.95) 100%
+      );
+    }
+  }
+
+  /* Accessibility enhancements for glass components */
+  .glass-container:focus-visible,
+  .glass-card:focus-visible,
+  .glass-card-compact:focus-visible,
+  .glass-upload-zone:focus-visible {
+    outline: 3px solid rgba(59, 130, 246, 0.8);
+    outline-offset: 2px;
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .glass-container,
+    .glass-card,
+    .glass-card-compact,
+    .glass-upload-zone {
+      background: rgba(255, 255, 255, 0.98);
+      border: 2px solid rgba(0, 0, 0, 0.8);
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .glass-card,
+    .glass-card-compact,
+    .glass-upload-zone,
+    .product-glass-card {
+      transition: none;
+    }
+    
+    .glass-card:hover,
+    .glass-card-compact:hover,
+    .glass-upload-zone:hover,
+    .product-glass-card:hover {
+      transform: none;
+    }
+  }
+
+  /* Responsive design adjustments for mobile */
+  @media (max-width: 767px) {
+    .glass-container {
+      backdrop-filter: blur(30px) saturate(140%);
+      -webkit-backdrop-filter: blur(30px) saturate(140%);
+    }
+
+    .glass-card,
+    .glass-card-compact,
+    .glass-upload-zone {
+      backdrop-filter: blur(15px) saturate(160%);
+      -webkit-backdrop-filter: blur(15px) saturate(160%);
+      box-shadow: 0 15px 30px 0 rgba(15, 23, 42, 0.2);
+    }
+    
+    .glass-card:active,
+    .glass-card-compact:active,
+    .glass-upload-zone:active {
+      transform: scale(0.98);
+    }
+
+    .glass-card:hover,
+    .glass-card-compact:hover,
+    .glass-upload-zone:hover {
+      transform: none;
+    }
+  }
+
+  /* Tablet responsive adjustments */
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .glass-card:hover,
+    .glass-card-compact:hover {
+      transform: translateY(-4px) scale(1.015);
+    }
+  }
 }
 
 .catalog-grid-pattern,

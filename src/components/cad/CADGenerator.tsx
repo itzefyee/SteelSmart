@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { sampleDrawings, cadTemplates, sampleTextGenerations, mlPromptTemplates } from '@/data/sample-data';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -9,6 +9,10 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import CADHistory from '@/components/cad/CADHistory';
 import CADGenerationDebug from '@/components/cad/CADGenerationDebug';
 import CADPreview3D from '@/components/cad/CADPreview3D';
+import { useToast } from '@/components/ui/ToastProvider';
+import { StagedProgress, StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
+import { useCADGeneration } from '@/hooks/useCADGeneration';
+import { useCADStore } from '@/stores/cad.store';
 
 interface GeneratedDrawing {
   id: number;
@@ -20,20 +24,128 @@ interface GeneratedDrawing {
 }
 
 const CADGenerator: React.FC = () => {
+  // Zustand store for CAD preferences
+  const { 
+    selectedFormat, 
+    selectedUnits, 
+    recentPrompts,
+    setFormat,
+    setUnits,
+    clearRecentPrompts
+  } = useCADStore();
+
+  // React Query mutation for CAD generation
+  const { mutate: generateCAD, isPending, data: generationData, error: generationError } = useCADGeneration({
+    onSuccess: (result) => {
+      // Convert the API response to our component format
+      setGeneratedDrawing({
+        id: parseInt(result.id.replace(/\D/g, '')) || Date.now(),
+        name: `Generated CAD Model`,
+        description: `AI-generated model from: "${textInput}"`,
+        preview: '/images/sample-cad-preview.svg',
+        dxf: `data:application/octet-stream;base64,${result.model_data}`,
+        parameters: {
+          format: result.parameters.format,
+          units: result.parameters.units,
+          category: result.parameters.category,
+          generated_at: result.parameters.generated_at,
+          prompt: textInput
+        }
+      });
+
+      setConversationId(result.id);
+      addDebugStep('finalize', 'Finalize CAD Model', 'completed', 'CAD model ready for display');
+      
+      addToast({
+        type: 'success',
+        title: 'CAD model generated successfully'
+      });
+    },
+    onError: (error) => {
+      console.error('CAD generation error:', error);
+      addDebugStep('finalize', 'Finalize CAD Model', 'failed', undefined, error.message);
+      
+      const message = `CAD generation failed: ${error.message}`;
+      setErrorMessage(message);
+      addToast({
+        type: 'error',
+        title: 'CAD generation failed'
+      });
+
+      // Fallback to sample data for demo purposes
+      const matchingGeneration = sampleTextGenerations.find(gen => 
+        textInput.toLowerCase().includes('beam') && gen.input.includes('beam') ||
+        textInput.toLowerCase().includes('bracket') && gen.input.includes('bracket')
+      ) || sampleTextGenerations[0];
+      
+      const drawing = sampleDrawings.find(d => d.id === matchingGeneration.result.drawingId) || sampleDrawings[0];
+      
+      setGeneratedDrawing({
+        ...drawing,
+        parameters: {
+          ...matchingGeneration.result.parameters,
+          note: 'Using sample data - API unavailable'
+        }
+      });
+    }
+  });
+
   const [activeTab, setActiveTab] = useState<'text' | 'template'>('text');
   const [textInput, setTextInput] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
   const [generatedDrawing, setGeneratedDrawing] = useState<GeneratedDrawing | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState<string>('');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editParameters, setEditParameters] = useState<Record<string, string>>({});
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [debugSteps, setDebugSteps] = useState<any[]>([]);
   const [showDebug, setShowDebug] = useState(false);
   const [conversationId, setConversationId] = useState<string>('');
   const [cadFileForPreview, setCadFileForPreview] = useState<File | null>(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const { addToast } = useToast();
+
+  const generationStageTemplate = [
+    { id: 'init', label: 'Prepare Prompt', aliases: ['init', 'init_template'] },
+    { id: 'api_request', label: 'Zoo Dev Generation', aliases: ['api_request'] },
+    { id: 'process_response', label: 'Process Response', aliases: ['process_response'] },
+    { id: 'finalize', label: 'Finalize & Preview', aliases: ['finalize'] },
+  ];
+
+  const generationStages = useMemo<StagedProgressItem[]>(() => {
+    return generationStageTemplate.map((stage, index) => {
+      const debug = debugSteps.find(step => stage.aliases.includes(step.id));
+      let status: StageStatus = 'pending';
+      let message: string | undefined;
+
+      if (debug) {
+        switch (debug.status) {
+          case 'in_progress':
+            status = 'active';
+            break;
+          case 'completed':
+            status = 'success';
+            break;
+          case 'failed':
+            status = 'error';
+            break;
+        }
+        message = debug.error || debug.details;
+      } else if (isPending && index === 0) {
+        status = 'active';
+        message = 'Initializing generation...';
+      }
+
+      return {
+        id: stage.id,
+        label: stage.label,
+        status,
+        message,
+      };
+    });
+  }, [debugSteps, isPending]);
+
+  const showStageTracker = isPending || debugSteps.length > 0;
 
   // Check for URL parameters on mount
   useEffect(() => {
@@ -219,109 +331,32 @@ const CADGenerator: React.FC = () => {
   const handleTextGeneration = async () => {
     if (!textInput.trim()) return;
     
-    setIsGenerating(true);
     setErrorMessage('');
     setGenerationProgress('Initializing CAD generation...');
     clearDebugSteps();
     
-    try {
-      // Debug Step 1: Initialize
-      addDebugStep('init', 'Initialize Generation', 'in_progress', `Prompt: "${textInput}"`);
-      
-      setGenerationProgress('Sending request to Zoo Dev API...');
-      addDebugStep('init', 'Initialize Generation', 'completed');
-      
-      // Debug Step 2: API Request
-      addDebugStep('api_request', 'Send API Request', 'in_progress', 'Calling Zoo Dev text-to-CAD API');
-      
-      // Call the real Zoo Dev API
-      const response = await fetch('/api/generate-cad', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          description: textInput,
-          category: 'custom', // Could be enhanced to detect category from text
-          format: 'step',
-          units: 'mm'
-        }),
-      });
-
-      addDebugStep('api_request', 'Send API Request', 'completed', `Response status: ${response.status}`);
-      
-      // Debug Step 3: Process Response
-      addDebugStep('process_response', 'Process API Response', 'in_progress', 'Parsing Zoo Dev API response');
-      
-      setGenerationProgress('Processing your request...');
-      const result = await response.json();
-
-      if (!result.success) {
-        addDebugStep('process_response', 'Process API Response', 'failed', undefined, result.error);
-        throw new Error(result.error || 'CAD generation failed');
-      }
-
-      addDebugStep('process_response', 'Process API Response', 'completed', `Model ID: ${result.data.id}`);
-      
-      // Debug Step 4: Finalize
-      addDebugStep('finalize', 'Finalize CAD Model', 'in_progress', 'Converting to display format');
-      
-      setGenerationProgress('Finalizing your CAD model...');
-      
-      // Convert the API response to our component format
-      const { data } = result;
-      
-      setGeneratedDrawing({
-        id: parseInt(data.id.replace(/\D/g, '')) || Date.now(),
-        name: `Generated CAD Model`,
-        description: `AI-generated model from: "${textInput}"`,
-        preview: '/images/sample-cad-preview.svg', // Placeholder - in production, generate preview from model
-        dxf: `data:application/octet-stream;base64,${data.model_data}`,
-        parameters: {
-          format: data.parameters.format,
-          units: data.parameters.units,
-          category: data.parameters.category,
-          generated_at: data.parameters.generated_at,
-          prompt: textInput
-        }
-      });
-      
-      // Store conversation ID for Zoo Dev API integration
-      setConversationId(data.id);
-      
-      addDebugStep('finalize', 'Finalize CAD Model', 'completed', 'CAD model ready for display');
-      
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-      
-    } catch (error: any) {
-      console.error('CAD generation error:', error);
-      
-      // Update debug steps with error
-      addDebugStep('finalize', 'Finalize CAD Model', 'failed', undefined, error.message);
-      
-      // Show error to user
-      setErrorMessage(`CAD generation failed: ${error.message}`);
-      
-      // Fallback to sample data for demo purposes
-      const matchingGeneration = sampleTextGenerations.find(gen => 
-        textInput.toLowerCase().includes('beam') && gen.input.includes('beam') ||
-        textInput.toLowerCase().includes('bracket') && gen.input.includes('bracket')
-      ) || sampleTextGenerations[0];
-      
-      const drawing = sampleDrawings.find(d => d.id === matchingGeneration.result.drawingId) || sampleDrawings[0];
-      
-      setGeneratedDrawing({
-        ...drawing,
-        parameters: {
-          ...matchingGeneration.result.parameters,
-          note: 'Using sample data - API unavailable'
-        }
-      });
-    } finally {
-      setIsGenerating(false);
-      setGenerationProgress('');
-    }
+    // Debug Step 1: Initialize
+    addDebugStep('init', 'Initialize Generation', 'in_progress', `Prompt: "${textInput}"`);
+    
+    setGenerationProgress('Sending request to Zoo Dev API...');
+    addDebugStep('init', 'Initialize Generation', 'completed');
+    
+    // Debug Step 2: API Request
+    addDebugStep('api_request', 'Send API Request', 'in_progress', 'Calling Zoo Dev text-to-CAD API');
+    
+    // Debug Step 3: Process Response
+    addDebugStep('process_response', 'Process API Response', 'in_progress', 'Parsing Zoo Dev API response');
+    
+    // Debug Step 4: Finalize
+    addDebugStep('finalize', 'Finalize CAD Model', 'in_progress', 'Converting to display format');
+    
+    // Use React Query mutation with Zustand store values
+    generateCAD({
+      description: textInput,
+      category: 'custom',
+      format: selectedFormat,
+      units: selectedUnits
+    });
   };
 
   // Helper function to generate prompt from template
@@ -349,131 +384,42 @@ const CADGenerator: React.FC = () => {
   const handleTemplateGeneration = async () => {
     if (selectedTemplate === null) return;
 
-    setIsGenerating(true);
     setErrorMessage('');
     setGenerationProgress('Preparing template for generation...');
     clearDebugSteps();
 
-    try {
-      const template = cadTemplates.find(t => t.id === selectedTemplate);
-      if (!template) {
-        throw new Error('Template not found');
-      }
-
-      // Debug Step 1: Initialize Template
-      addDebugStep('init_template', 'Initialize Template', 'in_progress', `Template: ${template.name}`);
-
-      // Convert template parameters to a descriptive prompt for Zoo Dev API
-      const prompt = generatePromptFromTemplate(template);
-
-      addDebugStep('init_template', 'Initialize Template', 'completed', `Generated prompt: "${prompt}"`);
-
-      setGenerationProgress('Sending request to Zoo Dev API...');
-
-      // Debug Step 2: API Request
-      addDebugStep('api_request', 'Send API Request', 'in_progress', 'Calling Zoo Dev text-to-CAD API with template parameters');
-
-      // Call the real Zoo Dev API
-      const response = await fetch('/api/generate-cad', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          description: prompt,
-          category: template.category,
-          format: 'step',
-          units: 'mm'
-        }),
-      });
-
-      addDebugStep('api_request', 'Send API Request', 'completed', `Response status: ${response.status}`);
-
-      // Debug Step 3: Process Response
-      addDebugStep('process_response', 'Process API Response', 'in_progress', 'Parsing Zoo Dev API response');
-
-      setGenerationProgress('Processing your request...');
-      const result = await response.json();
-
-      if (!result.success) {
-        addDebugStep('process_response', 'Process API Response', 'failed', undefined, result.error);
-        throw new Error(result.error || 'CAD generation failed');
-      }
-
-      addDebugStep('process_response', 'Process API Response', 'completed', `Model ID: ${result.data.id}`);
-
-      // Debug Step 4: Finalize
-      addDebugStep('finalize', 'Finalize CAD Model', 'in_progress', 'Converting to display format');
-
-      setGenerationProgress('Finalizing your CAD model...');
-
-      // Convert the API response to our component format
-      const { data } = result;
-
-      // Convert template parameters to display format
-      const templateParams: Record<string, any> = {};
-      if (template.parameters) {
-        Object.entries(template.parameters).forEach(([key, param]) => {
-          templateParams[key] = `${param.value}${param.unit || ''}`;
-        });
-      }
-
-      setGeneratedDrawing({
-        id: parseInt(data.id.replace(/\D/g, '')) || Date.now(),
-        name: `Generated ${template.name}`,
-        description: `AI-generated ${template.name} from template`,
-        preview: template.preview,
-        dxf: `data:application/octet-stream;base64,${data.model_data}`,
-        parameters: {
-          ...templateParams,
-          format: data.parameters.format,
-          units: data.parameters.units,
-          category: data.parameters.category,
-          generated_at: data.parameters.generated_at,
-          prompt: prompt
-        }
-      });
-
-      // Store conversation ID for Zoo Dev API integration
-      setConversationId(data.id);
-
-      addDebugStep('finalize', 'Finalize CAD Model', 'completed', 'CAD model ready for display');
-
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-
-    } catch (error: any) {
-      console.error('Template CAD generation error:', error);
-
-      // Update debug steps with error
-      addDebugStep('finalize', 'Finalize CAD Model', 'failed', undefined, error.message);
-
-      // Show error to user
-      setErrorMessage(`Template generation failed: ${error.message}`);
-
-      // Fallback to sample data for demo purposes
-      const template = cadTemplates.find(t => t.id === selectedTemplate);
-      const drawing = sampleDrawings.find(d => d.category === template?.category) || sampleDrawings[0];
-
-      // Convert template parameters to generated drawing parameters
-      const templateParams: Record<string, any> = {};
-      if (template?.parameters) {
-        Object.entries(template.parameters).forEach(([key, param]) => {
-          templateParams[key] = `${param.value}${param.unit || ''}`;
-        });
-      }
-
-      setGeneratedDrawing({
-        ...drawing,
-        parameters: {
-          ...templateParams,
-          note: 'Using sample data - API unavailable'
-        }
-      });
-    } finally {
-      setIsGenerating(false);
-      setGenerationProgress('');
+    const template = cadTemplates.find(t => t.id === selectedTemplate);
+    if (!template) {
+      setErrorMessage('Template not found');
+      return;
     }
+
+    // Debug Step 1: Initialize Template
+    addDebugStep('init_template', 'Initialize Template', 'in_progress', `Template: ${template.name}`);
+
+    // Convert template parameters to a descriptive prompt for Zoo Dev API
+    const prompt = generatePromptFromTemplate(template);
+
+    addDebugStep('init_template', 'Initialize Template', 'completed', `Generated prompt: "${prompt}"`);
+
+    setGenerationProgress('Sending request to Zoo Dev API...');
+
+    // Debug Step 2: API Request
+    addDebugStep('api_request', 'Send API Request', 'in_progress', 'Calling Zoo Dev text-to-CAD API with template parameters');
+
+    // Debug Step 3: Process Response
+    addDebugStep('process_response', 'Process API Response', 'in_progress', 'Parsing Zoo Dev API response');
+
+    // Debug Step 4: Finalize
+    addDebugStep('finalize', 'Finalize CAD Model', 'in_progress', 'Converting to display format');
+
+    // Use React Query mutation with Zustand store values
+    generateCAD({
+      description: prompt,
+      category: template.category,
+      format: selectedFormat,
+      units: selectedUnits
+    });
   };
 
   const handleEditDrawing = () => {
@@ -587,12 +533,17 @@ const CADGenerator: React.FC = () => {
         URL.revokeObjectURL(downloadUrl);
       }, 100);
       
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
+      addToast({
+        type: 'success',
+        title: `${format.toUpperCase()} download started`
+      });
       
     } catch (error: any) {
       console.error('Download error:', error);
-      alert(`Download failed: ${error.message || 'Unknown error'}. Please try again.`);
+      addToast({
+        type: 'error',
+        title: 'Download failed'
+      });
     }
   };
 
@@ -600,20 +551,16 @@ const CADGenerator: React.FC = () => {
     <div className="space-y-8">
       {/* CAD History */}
       <CADHistory onSelectHistory={handleHistorySelect} />
-      {/* Success Message */}
-      {showSuccessMessage && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span className="text-green-800 font-medium">Operation completed successfully!</span>
-          </div>
-        </div>
-      )}
 
+      {showStageTracker && (
+        <StagedProgress
+          title="Generation Pipeline"
+          subtitle="Track each stage of the Zoo Dev workflow."
+          stages={generationStages}
+        />
+      )}
       {/* Tab Navigation */}
-      <div className="bg-white rounded-lg shadow border">
+      <div className="glass-container glass-container-with-liquid">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6">
             <button
@@ -652,7 +599,7 @@ const CADGenerator: React.FC = () => {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <div className="bg-gray-50 rounded-2xl rounded-tl-md p-4 border border-gray-200">
+                    <div className="glass-card rounded-2xl rounded-tl-md p-4">
                       <p className="text-gray-800 leading-relaxed">
                         Hi! I'm your AI CAD assistant. I can help you generate technical drawings from natural language descriptions. 
                         Just describe what you need, and I'll create precise CAD drawings with proper dimensions and specifications.
@@ -670,7 +617,7 @@ const CADGenerator: React.FC = () => {
                       <button
                         key={template.id}
                         onClick={() => setTextInput(template.prompt)}
-                        className="text-left p-4 bg-white rounded-lg border border-gray-200 hover:border-primary hover:shadow-md transition-all group"
+                        className="text-left p-4 glass-card group"
                       >
                         <div className="flex items-start space-x-3">
                           <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-colors">
@@ -705,6 +652,69 @@ const CADGenerator: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Recent Prompts from Zustand Store */}
+                {recentPrompts.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="ml-12 flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-600">Your recent prompts:</p>
+                      <button
+                        onClick={clearRecentPrompts}
+                        className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                    <div className="ml-12 flex flex-wrap gap-2">
+                      {recentPrompts.map((prompt, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setTextInput(prompt)}
+                          className="inline-flex items-center px-3 py-1.5 glass-card text-sm text-gray-700 hover:bg-blue-50 transition-colors group"
+                        >
+                          <svg className="w-3 h-3 mr-1.5 text-gray-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="line-clamp-1 max-w-xs">{prompt}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* CAD Preferences from Zustand Store */}
+                <div className="ml-12 space-y-3">
+                  <p className="text-sm font-medium text-gray-600">Output preferences:</p>
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex items-center space-x-2">
+                      <label className="text-xs text-gray-600">Format:</label>
+                      <select
+                        value={selectedFormat}
+                        onChange={(e) => setFormat(e.target.value as any)}
+                        className="px-3 py-1.5 text-sm glass-card border-none outline-none cursor-pointer"
+                      >
+                        <option value="step">STEP</option>
+                        <option value="stl">STL</option>
+                        <option value="obj">OBJ</option>
+                        <option value="gltf">glTF</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <label className="text-xs text-gray-600">Units:</label>
+                      <select
+                        value={selectedUnits}
+                        onChange={(e) => setUnits(e.target.value as any)}
+                        className="px-3 py-1.5 text-sm glass-card border-none outline-none cursor-pointer"
+                      >
+                        <option value="mm">Millimeters</option>
+                        <option value="cm">Centimeters</option>
+                        <option value="m">Meters</option>
+                        <option value="in">Inches</option>
+                        <option value="ft">Feet</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Chat Input */}
                 <div className="relative">
                   <div className="flex items-end space-x-4">
@@ -714,7 +724,7 @@ const CADGenerator: React.FC = () => {
                       </svg>
                     </div>
                     <div className="flex-1 relative">
-                      <div className="bg-white rounded-2xl border border-gray-300 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+                      <div className="glass-card rounded-2xl focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
                         <textarea
                           id="textInput"
                           value={textInput}
@@ -722,7 +732,7 @@ const CADGenerator: React.FC = () => {
                           placeholder="Describe the component you want to generate..."
                           className="w-full min-h-[80px] max-h-[200px] px-4 py-3 bg-transparent border-none outline-none resize-none text-gray-900 placeholder-gray-500"
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey && textInput.trim() && !isGenerating) {
+                            if (e.key === 'Enter' && !e.shiftKey && textInput.trim() && !isPending) {
                               e.preventDefault();
                               handleTextGeneration();
                             }
@@ -739,14 +749,14 @@ const CADGenerator: React.FC = () => {
                           </div>
                           <button
                             onClick={handleTextGeneration}
-                            disabled={!textInput.trim() || isGenerating}
+                            disabled={!textInput.trim() || isPending}
                             className={`p-2 rounded-lg transition-all ${
-                              textInput.trim() && !isGenerating
+                              textInput.trim() && !isPending
                                 ? 'bg-primary text-white hover:bg-primary/90' 
                                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             }`}
                           >
-                            {isGenerating ? (
+                            {isPending ? (
                               <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
                             ) : (
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -761,13 +771,13 @@ const CADGenerator: React.FC = () => {
                 </div>
 
                 {/* Loading State */}
-                {isGenerating && (
+                {isPending && (
                   <div className="flex items-start space-x-4">
                     <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <div className="w-3 h-3 animate-spin rounded-full border border-white border-t-transparent"></div>
                     </div>
                     <div className="flex-1">
-                      <div className="bg-gray-50 rounded-2xl rounded-tl-md p-4 border border-gray-200">
+                      <div className="glass-card rounded-2xl rounded-tl-md p-4">
                         <div className="flex items-center space-x-2">
                           <div className="flex space-x-1">
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
@@ -800,7 +810,7 @@ const CADGenerator: React.FC = () => {
                       </svg>
                     </div>
                     <div className="flex-1">
-                      <div className="bg-red-50 rounded-2xl rounded-tl-md p-4 border border-red-200">
+                      <div className="glass-card rounded-2xl rounded-tl-md p-4 border-red-200">
                         <p className="text-red-800 text-sm">{errorMessage}</p>
                         <p className="text-red-600 text-xs mt-2">Don't worry - we've loaded a sample drawing for you to explore the interface.</p>
                       </div>
@@ -873,10 +883,10 @@ const CADGenerator: React.FC = () => {
               <div className="flex justify-center">
                 <Button 
                   onClick={handleTemplateGeneration}
-                  disabled={selectedTemplate === null || isGenerating}
+                  disabled={selectedTemplate === null || isPending}
                   className="px-8"
                 >
-                  {isGenerating ? <LoadingSpinner size="sm" /> : 'Generate from Template'}
+                  {isPending ? <LoadingSpinner size="sm" /> : 'Generate from Template'}
                 </Button>
               </div>
             </div>
@@ -886,7 +896,7 @@ const CADGenerator: React.FC = () => {
 
       {/* Generated Drawing Display */}
       {generatedDrawing && (
-        <div className="bg-white rounded-lg shadow border p-6" data-generated-drawing>
+        <div className="glass-container p-6" data-generated-drawing>
           <div className="flex justify-between items-start mb-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Generated Drawing</h2>
@@ -940,47 +950,47 @@ const CADGenerator: React.FC = () => {
                   </Button>
                   
                   {/* Dropdown Menu */}
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                  <div className="absolute right-0 mt-2 w-48 glass-card opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
                     <div className="py-1">
                       <button
                         onClick={() => handleDownload('step')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                       >
                         Download STEP (.step)
                       </button>
                       <button
                         onClick={() => handleDownload('stl')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                       >
                         Download STL (.stl)
                       </button>
                       <button
                         onClick={() => handleDownload('obj')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                       >
                         Download OBJ (.obj)
                       </button>
                       <button
                         onClick={() => handleDownload('dxf')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                       >
                         Download DXF (.dxf)
                       </button>
                       <button
                         onClick={() => handleDownload('pdf')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                       >
                         Download PDF (.pdf)
                       </button>
                       <button
                         onClick={() => handleDownload('gltf')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                       >
                         Download glTF (.gltf)
                       </button>
                       <button
                         onClick={() => handleDownload('glb')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                       >
                         Download GLB (.glb)
                       </button>
@@ -995,53 +1005,57 @@ const CADGenerator: React.FC = () => {
             {/* 3D Model Preview */}
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">3D Model Preview</h3>
-              {cadFileForPreview ? (
-                <CADPreview3D
-                  file={cadFileForPreview}
-                  showStats={true}
-                />
-              ) : (
-                <div className="w-full h-96 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                  <div className="text-center p-4">
-                    <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="text-sm text-gray-600">Model preview unavailable</p>
-                    <p className="text-xs text-gray-500 mt-2">Download the file to view in CAD software</p>
+              <div className="glass-card p-4">
+                {cadFileForPreview ? (
+                  <CADPreview3D
+                    file={cadFileForPreview}
+                    showStats={true}
+                  />
+                ) : (
+                  <div className="w-full h-96 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                    <div className="text-center p-4">
+                      <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <p className="text-sm text-gray-600">Model preview unavailable</p>
+                      <p className="text-xs text-gray-500 mt-2">Download the file to view in CAD software</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Parameters */}
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Drawing Parameters</h3>
-              <div className="space-y-3 mb-6">
-                {generatedDrawing.parameters ? (
-                  Object.entries(generatedDrawing.parameters).map(([key, value]) => (
-                    <div key={key} className="flex justify-between py-2 border-b border-gray-100">
-                      <span className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
-                      <span className="font-medium text-gray-900">{String(value)}</span>
+              <div className="glass-card p-4">
+                <div className="space-y-3 mb-6">
+                  {generatedDrawing.parameters ? (
+                    Object.entries(generatedDrawing.parameters).map(([key, value]) => (
+                      <div key={key} className="flex justify-between py-2 border-b border-gray-200/50">
+                        <span className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                        <span className="font-medium text-gray-900">{String(value)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-500 italic">No parameters available</div>
+                  )}
+                </div>
+
+                {/* Compatibility Info */}
+                {generatedDrawing.dxf && (generatedDrawing.dxf.includes('base64') || generatedDrawing.dxf.length > 50) && (
+                  <div className="mt-6 pt-6 border-t border-gray-200/50">
+                    <div className="text-xs text-gray-500">
+                      <p className="flex items-center">
+                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Compatible with AutoCAD, SolidWorks, FreeCAD, Fusion 360
+                      </p>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-gray-500 italic">No parameters available</div>
+                  </div>
                 )}
               </div>
-
-              {/* Compatibility Info */}
-              {generatedDrawing.dxf && (generatedDrawing.dxf.includes('base64') || generatedDrawing.dxf.length > 50) && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <div className="text-xs text-gray-500">
-                    <p className="flex items-center">
-                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Compatible with AutoCAD, SolidWorks, FreeCAD, Fusion 360
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

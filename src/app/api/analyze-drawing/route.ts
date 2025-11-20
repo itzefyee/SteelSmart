@@ -3,6 +3,17 @@ import { APIResponse, DrawingAnalysis, Product } from '@/types';
 import { productMatcher } from '@/lib/product-matcher';
 import { geminiClient } from '@/lib/gemini-client';
 import { getSupabaseServer } from '@/lib/supabase-server';
+import { getCached } from '@/lib/cache/redis-cache';
+import crypto from 'crypto';
+
+/**
+ * Generate a hash from file content for cache key
+ * Uses SHA-256 to create a unique identifier for the file
+ */
+async function generateFileHash(file: File): Promise<string> {
+  const buffer = Buffer.from(await file.arrayBuffer());
+  return crypto.createHash('sha256').update(buffer).digest('hex');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,87 +68,113 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if Gemini API is configured
-    const isGeminiConfigured = await geminiClient.isConfigured();
-    let analysis: DrawingAnalysis;
-
-    if (isGeminiConfigured) {
-      try {
-        // Use real Gemini API for analysis
+    // Generate cache key from file content hash
+    // TTL: 86400 seconds (24 hours) - CAD analysis is expensive and results are stable
+    const fileHash = await generateFileHash(file);
+    const cacheKey = `cad:analysis:${fileHash}`;
+    
+    // Try to get cached analysis result
+    const cachedAnalysis = await getCached<DrawingAnalysis | null>(
+      cacheKey,
+      async () => {
+        // Cache miss - perform analysis
+        console.log(`Performing CAD analysis for file: ${file.name}`);
         
-        // Convert file to buffer
-        const fileBuffer = Buffer.from(await file.arrayBuffer());
+        // Check if Gemini API is configured
+        const isGeminiConfigured = await geminiClient.isConfigured();
+        let analysis: DrawingAnalysis;
 
-        // Call Gemini API with CAD data
-        const geminiResponse = await geminiClient.analyzeDrawing(
-          fileBuffer,
-          file.type,
-          file.name,
-          cadModelData
-        );
+        if (isGeminiConfigured) {
+          try {
+            // Use real Gemini API for analysis
+            
+            // Convert file to buffer
+            const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-        // Create DrawingAnalysis from Gemini response, converting null to undefined
-        analysis = {
-          extractedSpecs: {
-            dimensions: geminiResponse.extractedSpecs.dimensions || undefined,
-            material: geminiResponse.extractedSpecs.material || undefined,
-            loadRequirements: geminiResponse.extractedSpecs.loadRequirements || undefined,
-            componentType: geminiResponse.extractedSpecs.componentType || undefined,
-            tolerance: geminiResponse.extractedSpecs.tolerance || undefined,
-          },
-          recommendedProducts: [],
-          totalRecommendations: 0,
-          confidence: geminiResponse.confidence,
-          reasoning: geminiResponse.reasoning,
-          analysisId: `analysis_${Date.now()}`
-        };
+            // Call Gemini API with CAD data
+            const geminiResponse = await geminiClient.analyzeDrawing(
+              fileBuffer,
+              file.type,
+              file.name,
+              cadModelData
+            );
 
-      } catch (geminiError) {
-        console.error('Gemini API failed, falling back to mock:', geminiError);
-        // Fallback to mock analysis if Gemini fails
-        analysis = getFallbackAnalysis(file.name, cadModelData);
-      }
-    } else {
-      // Use mock analysis if API not configured
-      analysis = getFallbackAnalysis(file.name, cadModelData);
-    }
+            // Create DrawingAnalysis from Gemini response, converting null to undefined
+            analysis = {
+              extractedSpecs: {
+                dimensions: geminiResponse.extractedSpecs.dimensions || undefined,
+                material: geminiResponse.extractedSpecs.material || undefined,
+                loadRequirements: geminiResponse.extractedSpecs.loadRequirements || undefined,
+                componentType: geminiResponse.extractedSpecs.componentType || undefined,
+                tolerance: geminiResponse.extractedSpecs.tolerance || undefined,
+              },
+              recommendedProducts: [],
+              totalRecommendations: 0,
+              confidence: geminiResponse.confidence,
+              reasoning: geminiResponse.reasoning,
+              analysisId: `analysis_${Date.now()}`
+            };
 
-    // Use product matcher to find relevant products
-    const recommendations = productMatcher.findMatchingProducts(analysis);
-    
-    // Set total count before limiting
-    analysis.totalRecommendations = recommendations.length;
-    
-    // Get actual product data for recommendations (limit to 3 for display)
-    const supabaseClient = await getSupabaseServer();
-    const productIds = recommendations.slice(0, 3).map(rec => rec.productId);
-    
-    const { data: products, error: productsError } = await supabaseClient
-      .from('products')
-      .select('*')
-      .in('id', productIds);
-    
-    if (productsError) {
-      console.error('Error fetching products:', productsError);
-      analysis.recommendedProducts = [];
-    } else {
-      // Sort products to match recommendation order
-      analysis.recommendedProducts = productIds
-        .map(id => products?.find(p => p.id === id))
-        .filter(Boolean) as Product[];
-    }
+          } catch (geminiError) {
+            console.error('Gemini API failed, falling back to mock:', geminiError);
+            // Fallback to mock analysis if Gemini fails
+            analysis = getFallbackAnalysis(file.name, cadModelData);
+          }
+        } else {
+          // Use mock analysis if API not configured
+          analysis = getFallbackAnalysis(file.name, cadModelData);
+        }
 
-    // If no catalog products found, get alternative suggestions
-    let alternativeSuggestions = null;
-    if (analysis.recommendedProducts.length === 0 && recommendations.length === 0) {
-      try {
-        alternativeSuggestions = await productMatcher.getAlternativeSuggestions(analysis);
-      } catch (error) {
-        console.error('Error getting alternative suggestions:', error);
-      }
-    }
+        // Use product matcher to find relevant products
+        const recommendations = productMatcher.findMatchingProducts(analysis);
+        
+        // Set total count before limiting
+        analysis.totalRecommendations = recommendations.length;
+        
+        // Get actual product data for recommendations (limit to 3 for display)
+        const supabaseClient = await getSupabaseServer();
+        const productIds = recommendations.slice(0, 3).map(rec => rec.productId);
+        
+        const { data: products, error: productsError } = await supabaseClient
+          .from('products')
+          .select('*')
+          .in('id', productIds);
+        
+        if (productsError) {
+          console.error('Error fetching products:', productsError);
+          analysis.recommendedProducts = [];
+        } else {
+          // Sort products to match recommendation order
+          analysis.recommendedProducts = productIds
+            .map(id => products?.find(p => p.id === id))
+            .filter(Boolean) as Product[];
+        }
+
+        // If no catalog products found, get alternative suggestions
+        let alternativeSuggestions = null;
+        if (analysis.recommendedProducts.length === 0 && recommendations.length === 0) {
+          try {
+            alternativeSuggestions = await productMatcher.getAlternativeSuggestions(analysis);
+          } catch (error) {
+            console.error('Error getting alternative suggestions:', error);
+          }
+        }
+
+        // Add alternative suggestions to analysis if available
+        if (alternativeSuggestions) {
+          analysis.alternativeSuggestions = alternativeSuggestions;
+        }
+
+        return analysis;
+      },
+      86400 // TTL: 24 hours for CAD analysis results
+    );
+
+    // Use the cached or freshly analyzed result
+    const analysis = cachedAnalysis;
 
     // Store drawing and analysis in Supabase (if user is authenticated)
+    // Note: Storage happens regardless of cache hit/miss to track user activity
     try {
       const supabase = await getSupabaseServer();
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -233,11 +270,6 @@ export async function POST(request: NextRequest) {
     } catch (storageError) {
       console.error('Failed to store drawing analysis:', storageError);
       // Don't fail the main request if storage fails
-    }
-
-    // Add alternative suggestions to analysis if available
-    if (alternativeSuggestions) {
-      analysis.alternativeSuggestions = alternativeSuggestions;
     }
 
     return NextResponse.json<APIResponse<DrawingAnalysis>>({

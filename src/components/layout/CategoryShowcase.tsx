@@ -78,7 +78,7 @@ const CategoryShowcase: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white rounded-xl p-6 shadow-sm">
+              <div key={i} className="glass-card p-6">
                 <div className="w-full h-32 bg-gray-200 rounded-lg mb-4 animate-pulse"></div>
                 <div className="h-6 bg-gray-200 rounded mb-2 animate-pulse"></div>
                 <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
@@ -105,7 +105,7 @@ const CategoryShowcase: React.FC = () => {
             <Link 
               key={category.id}
               href={`/catalog?category=${category.id}`} 
-              className="group cursor-pointer bg-white rounded-xl p-6 shadow-sm hover:shadow-lg transition-shadow"
+              className="group cursor-pointer glass-card p-6"
             >
               <div className={`w-full h-32 bg-gradient-to-br ${getCategoryGradient(category.id)} rounded-lg mb-4 flex items-center justify-center`}>
                 {getCategoryIcon(category.id)}
