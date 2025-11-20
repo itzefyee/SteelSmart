@@ -266,10 +266,37 @@ export class ManufacturingAnalyzer {
     // Method 2: Sample thickness at multiple points
     const sampledThicknesses = this.sampleThickness(shape);
 
-    const avgThickness =
+    let avgThickness =
       sampledThicknesses.length > 0
         ? sampledThicknesses.reduce((a, b) => a + b) / sampledThicknesses.length
         : minDimension;
+
+    // CRITICAL FIX: Validate thickness is reasonable for sheet metal
+    // Thickness should be the smallest dimension and typically < 2" for fabricated parts
+    if (avgThickness > 2.0 || avgThickness > minDimension * 2) {
+      console.warn(
+        `Suspicious thickness detected: ${avgThickness.toFixed(3)}". ` +
+        `Using smallest bounding box dimension: ${minDimension.toFixed(3)}"`
+      );
+      avgThickness = minDimension;
+    }
+
+    // Additional validation: For plate/sheet metal, thickness should be much smaller than other dimensions
+    const maxDimension = Math.max(bbox.length, bbox.width, bbox.height);
+    if (avgThickness > maxDimension * 0.5) {
+      console.warn(
+        `Thickness ${avgThickness.toFixed(3)}" is too large relative to max dimension ${maxDimension.toFixed(3)}". ` +
+        `Likely a measurement error. Using smallest dimension.`
+      );
+      avgThickness = minDimension;
+    }
+
+    // Final sanity check: Thickness should be within typical fabrication range
+    if (avgThickness < 0.0625) {
+      console.warn(`Thickness ${avgThickness.toFixed(4)}" is very thin (< 1/16"). Verify measurement.`);
+    } else if (avgThickness > 3.0) {
+      console.warn(`Thickness ${avgThickness.toFixed(3)}" exceeds typical plate thickness (> 3"). Verify measurement.`);
+    }
 
     return {
       estimatedThickness: avgThickness,
@@ -277,31 +304,43 @@ export class ManufacturingAnalyzer {
       samples: sampledThicknesses,
       isStandardGauge: this.checkStandardThickness(avgThickness),
       minWeldSize: this.calculateMinWeldSize(avgThickness),
-      maxWeldSize: avgThickness - 0.0625,
+      maxWeldSize: Math.max(avgThickness - 0.0625, 0.0625), // Ensure positive value
       requiresPreheat: avgThickness > 1.0,
     };
   }
 
   /**
    * Sample thickness at multiple points
+   * IMPROVED: Better algorithm for complex geometries like U-channels, brackets, etc.
    */
   private sampleThickness(shape: any): number[] {
     const thicknesses: number[] = [];
     const props = new this.oc.GProp_GProps_1();
 
     try {
+      // Get volume and surface area
       this.oc.BRepGProp.VolumeProperties_1(shape, props, 1e-6);
       const volume = props.Mass();
 
       this.oc.BRepGProp.SurfaceProperties_1(shape, props);
       const surfaceArea = props.Mass();
 
-      // Estimate average thickness as volume / surface area * 2
-      // (approximation for plate-like geometry)
-      if (surfaceArea > 0) {
+      // Method 1: Volume/Surface Area estimation (works for simple plates)
+      if (surfaceArea > 0 && volume > 0) {
         const estimatedThickness = (volume / surfaceArea) * 2;
-        thicknesses.push(estimatedThickness);
+        
+        // Only use this if it seems reasonable (< 2")
+        if (estimatedThickness < 2.0) {
+          thicknesses.push(estimatedThickness);
+        }
       }
+
+      // Method 2: Analyze face pairs to find parallel faces (better for complex shapes)
+      const faceThicknesses = this.measureFaceToFaceThickness(shape);
+      if (faceThicknesses.length > 0) {
+        thicknesses.push(...faceThicknesses);
+      }
+
     } catch (error) {
       console.warn('Error sampling thickness:', error);
     } finally {
@@ -309,6 +348,83 @@ export class ManufacturingAnalyzer {
     }
 
     return thicknesses;
+  }
+
+  /**
+   * Measure thickness by finding parallel faces and calculating distance
+   * This works better for U-channels, brackets, and complex geometries
+   */
+  private measureFaceToFaceThickness(shape: any): number[] {
+    const thicknesses: number[] = [];
+    
+    try {
+      const faceExplorer = new this.oc.TopExp_Explorer_2(
+        shape,
+        this.oc.TopAbs_ShapeEnum.TopAbs_FACE,
+        this.oc.TopAbs_ShapeEnum.TopAbs_SHAPE
+      );
+
+      const faces: any[] = [];
+      while (faceExplorer.More()) {
+        faces.push(this.oc.TopoDS.Face_1(faceExplorer.Current()));
+        faceExplorer.Next();
+      }
+      faceExplorer.delete();
+
+      // Find pairs of parallel faces
+      for (let i = 0; i < faces.length && i < 20; i++) { // Limit to first 20 faces for performance
+        const normal1 = this.getFaceNormal(faces[i]);
+        const center1 = this.getFaceCenter(faces[i]);
+
+        for (let j = i + 1; j < faces.length && j < 20; j++) {
+          const normal2 = this.getFaceNormal(faces[j]);
+          const center2 = this.getFaceCenter(faces[j]);
+
+          // Check if faces are parallel (normals are opposite)
+          const dotProduct = normal1.x * normal2.x + normal1.y * normal2.y + normal1.z * normal2.z;
+          
+          if (Math.abs(dotProduct + 1.0) < 0.1) { // Normals point opposite directions
+            // Calculate distance between face centers
+            const distance = Math.sqrt(
+              Math.pow(center2.x - center1.x, 2) +
+              Math.pow(center2.y - center1.y, 2) +
+              Math.pow(center2.z - center1.z, 2)
+            );
+
+            // Only consider reasonable thicknesses (0.0625" to 2")
+            if (distance >= 0.0625 && distance <= 2.0) {
+              thicknesses.push(distance);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Error measuring face-to-face thickness:', error);
+    }
+
+    return thicknesses;
+  }
+
+  /**
+   * Get approximate center of a face
+   */
+  private getFaceCenter(face: any): { x: number; y: number; z: number } {
+    try {
+      const props = new this.oc.GProp_GProps_1();
+      this.oc.BRepGProp.SurfaceProperties_1(face, props);
+      const centerOfMass = props.CentreOfMass();
+      
+      const result = {
+        x: centerOfMass.X(),
+        y: centerOfMass.Y(),
+        z: centerOfMass.Z(),
+      };
+      
+      props.delete();
+      return result;
+    } catch (e) {
+      return { x: 0, y: 0, z: 0 };
+    }
   }
 
   /**
@@ -463,6 +579,7 @@ export class ManufacturingAnalyzer {
 
   /**
    * Detect potential weld joints and analyze accessibility
+   * IMPROVED: Filter out insignificant joints and focus on actual weld seams
    */
   analyzeWeldJoints(shape: any): WeldJointAnalysis {
     const joints: WeldJoint[] = [];
@@ -480,17 +597,46 @@ export class ManufacturingAnalyzer {
 
     faceExplorer.delete();
 
-    // Analyze face adjacency
-    for (let i = 0; i < faces.length; i++) {
-      for (let j = i + 1; j < faces.length; j++) {
-        const adjacency = this.checkFaceAdjacency(faces[i], faces[j]);
+    // IMPROVED: Only analyze significant faces (larger than 1 sq in)
+    // This filters out small triangulated faces from meshing
+    const significantFaces = faces.filter((face) => {
+      try {
+        const props = new this.oc.GProp_GProps_1();
+        this.oc.BRepGProp.SurfaceProperties_1(face, props);
+        const area = props.Mass();
+        props.delete();
+        return area > 1.0; // Only faces larger than 1 sq in
+      } catch {
+        return false;
+      }
+    });
 
-        if (adjacency.isAdjacent) {
-          const joint = this.analyzeJointType(faces[i], faces[j], adjacency);
-          joints.push(joint);
+    console.log(`Analyzing weld joints: ${significantFaces.length} significant faces (filtered from ${faces.length} total)`);
+
+    // Analyze face adjacency only for significant faces
+    for (let i = 0; i < significantFaces.length; i++) {
+      for (let j = i + 1; j < significantFaces.length; j++) {
+        const adjacency = this.checkFaceAdjacency(significantFaces[i], significantFaces[j]);
+
+        if (adjacency.isAdjacent && adjacency.sharedEdge) {
+          // Calculate shared edge length
+          const edgeLength = this.calculateEdgeLength(adjacency.sharedEdge);
+          
+          // Only consider joints with significant edge length (> 0.5")
+          if (edgeLength > 0.5) {
+            const joint = this.analyzeJointType(significantFaces[i], significantFaces[j], adjacency);
+            
+            // Only add joints that represent actual weld seams
+            // Filter out joints between coplanar faces (angle ~180°)
+            if (Math.abs(joint.angle - 180) > 5) {
+              joints.push(joint);
+            }
+          }
         }
       }
     }
+
+    console.log(`Detected ${joints.length} potential weld joints`);
 
     return {
       joints: joints,
@@ -589,36 +735,48 @@ export class ManufacturingAnalyzer {
 
   /**
    * Get face normal vector
+   * FIXED: Properly calculate normal from tangent vectors
    */
   private getFaceNormal(face: any): { x: number; y: number; z: number } {
     try {
       const surface = this.oc.BRep_Tool.Surface_2(face);
-      const props = new this.oc.GProp_GProps_1();
-      this.oc.BRepGProp.SurfaceProperties_1(face, props);
 
       // Get approximate center of face
       const u = (surface.FirstUParameter() + surface.LastUParameter()) / 2;
       const v = (surface.FirstVParameter() + surface.LastVParameter()) / 2;
 
       const point = new this.oc.gp_Pnt_1();
-      const normal = new this.oc.gp_Vec_1();
       const tangentU = new this.oc.gp_Vec_1();
+      const tangentV = new this.oc.gp_Vec_1();
 
-      surface.D1(u, v, point, tangentU, normal);
+      // D1 computes first derivatives (tangent vectors)
+      surface.D1(u, v, point, tangentU, tangentV);
 
-      const result = {
-        x: normal.X(),
-        y: normal.Y(),
-        z: normal.Z(),
-      };
+      // Calculate normal as cross product: tangentU × tangentV
+      const ux = tangentU.X(), uy = tangentU.Y(), uz = tangentU.Z();
+      const vx = tangentV.X(), vy = tangentV.Y(), vz = tangentV.Z();
 
-      props.delete();
+      let nx = uy * vz - uz * vy;
+      let ny = uz * vx - ux * vz;
+      let nz = ux * vy - uy * vx;
+
+      // Normalize the normal vector
+      const length = Math.sqrt(nx * nx + ny * ny + nz * nz);
+      if (length > 0) {
+        nx /= length;
+        ny /= length;
+        nz /= length;
+      }
+
+      const result = { x: nx, y: ny, z: nz };
+
       point.delete();
-      normal.delete();
       tangentU.delete();
+      tangentV.delete();
 
       return result;
     } catch (e) {
+      console.warn('Error calculating face normal:', e);
       return { x: 0, y: 0, z: 1 }; // Default normal
     }
   }
