@@ -107,6 +107,7 @@ export interface Category {
 
 export interface UserProfile {
   id: string;
+  email: string | null;
   company: string | null;
   phone: string | null;
   created_at: string | null;
