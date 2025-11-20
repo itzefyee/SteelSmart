@@ -271,76 +271,51 @@ const CADAnalyzerFull: React.FC = () => {
     setTimeout(() => setSampleLoadSuccess(null), 3000); // Hide after 3 seconds
   };
 
-  // Run manufacturing analysis with stage-by-stage progress
+  // Generate manufacturing validation results from CAD model data
+  // Note: Manufacturing analysis now happens automatically during STEP parsing
   const runManufacturingAnalysis = async () => {
-    if (!cadModelData) return;
+    if (!cadModelData) {
+      console.warn('No CAD model data available for analysis');
+      return;
+    }
 
     setIsAnalyzingManufacturing(true);
     setAnalysisProgress(0);
 
     try {
-      // Stage 1: Initialize
-      setAnalysisStage('Initializing analysis...');
-      setAnalysisProgress(10);
+      // Show progress stages (cosmetic, analysis already done during parsing)
+      setAnalysisStage('Preparing analysis...');
+      setAnalysisProgress(20);
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Stage 2: Parse geometry
-      setAnalysisStage('Parsing 3D geometry...');
-      setAnalysisProgress(20);
-      await new Promise(resolve => setTimeout(resolve, 400));
-
-      // Stage 3: Run manufacturing analysis
-      setAnalysisStage('Analyzing manufacturing features...');
-      setAnalysisProgress(35);
-
-      const parser = getCADParser();
-      const analyzedData = await parser.analyzeManufacturing(cadModelData, 'A36');
-
-      // Stage 4: Detect holes
-      setAnalysisStage('Detecting holes and fastener locations...');
+      setAnalysisStage('Generating validation results...');
       setAnalysisProgress(50);
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Stage 5: Measure thickness
-      setAnalysisStage('Measuring material thickness...');
-      setAnalysisProgress(60);
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Generate results for both tabs from already-analyzed data
+      const mfgResults = convertManufacturingDataToUI(cadModelData);
+      const specResults = convertSpecificationDataToUI(cadModelData);
 
-      // Stage 6: Analyze edges
-      setAnalysisStage('Analyzing edges and corners...');
-      setAnalysisProgress(70);
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Stage 7: Check welds
-      setAnalysisStage('Evaluating weld joints...');
       setAnalysisProgress(80);
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Stage 8: Validate bends
-      setAnalysisStage('Validating bend radii...');
-      setAnalysisProgress(90);
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Stage 9: Complete
-      setAnalysisStage('Finalizing analysis...');
-      setAnalysisProgress(100);
       await new Promise(resolve => setTimeout(resolve, 200));
-
-      // Update state with analyzed data
-      setCADModelData(analyzedData);
-
-      // Generate results for both tabs
-      const mfgResults = convertManufacturingDataToUI(analyzedData);
-      const specResults = convertSpecificationDataToUI(analyzedData);
 
       setManufacturabilityResults(mfgResults);
       setSpecificationResults(specResults);
 
       setAnalysisStage('Analysis complete!');
+      setAnalysisProgress(100);
       await new Promise(resolve => setTimeout(resolve, 500));
 
+      console.log('Manufacturing validation results generated:', {
+        manufacturability: mfgResults.length,
+        specifications: specResults.length,
+        holes: cadModelData.holeAnalysis?.count || 0,
+        thickness: cadModelData.thicknessAnalysis?.estimatedThickness || 0,
+        welds: cadModelData.weldJointAnalysis?.totalJoints || 0
+      });
+
     } catch (error) {
-      console.error('Error during manufacturing analysis:', error);
+      console.error('Error generating manufacturing validation:', error);
       setAnalysisStage('Analysis failed');
 
       // Set error messages
@@ -350,7 +325,7 @@ const CADAnalyzerFull: React.FC = () => {
           value: 'Failed',
           requirement: 'N/A',
           status: 'Invalid',
-          message: 'Unable to complete manufacturing analysis. Ensure file is a STEP format.',
+          message: 'Unable to generate validation results. ' + (error instanceof Error ? error.message : 'Unknown error'),
         },
       ]);
     } finally {

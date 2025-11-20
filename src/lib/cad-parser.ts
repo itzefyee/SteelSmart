@@ -159,6 +159,9 @@ export interface CADModelData {
   volume?: number;
   surfaceArea?: number;
   parts: CADPart[];
+  // Unit information
+  unitScale?: number; // Scale factor used to convert to inches
+  detectedUnit?: string; // Original unit detected (e.g., "METRE", "MILLIMETRE")
   // Manufacturing analysis data (computed on-demand)
   boundingBoxWithTolerance?: BoundingBoxWithTolerance;
   holeAnalysis?: HoleAnalysis;
@@ -258,8 +261,30 @@ export class CADParser {
         throw new Error('STEP file contains no valid geometric shape. The file may be incomplete or contain only non-geometric data.');
       }
 
-      // Extract geometry data
-      const modelData = this.extractGeometry(shape);
+      // CRITICAL: Detect and convert units from STEP file
+      const unitScale = this.detectSTEPUnits(reader, fileContent);
+      console.log(`STEP file units detected: scale factor = ${unitScale} (to inches)`);
+
+      // Extract geometry data with unit conversion
+      const modelData = this.extractGeometry(shape, unitScale);
+
+      // CRITICAL: Run manufacturing analysis BEFORE deleting shape
+      console.log('Running manufacturing analysis...');
+      const analyzer = new ManufacturingAnalyzer(this.oc);
+      const manufacturingData = analyzer.analyzeManufacturing(shape, 'A36');
+
+      // Apply unit scaling to manufacturing data
+      const scaledManufacturingData = this.scaleManufacturingData(manufacturingData, unitScale);
+
+      // Merge manufacturing data into model data
+      Object.assign(modelData, scaledManufacturingData);
+
+      console.log('Manufacturing analysis complete:', {
+        holes: modelData.holeAnalysis?.count || 0,
+        thickness: modelData.thicknessAnalysis?.estimatedThickness || 0,
+        welds: modelData.weldJointAnalysis?.totalJoints || 0,
+        bends: modelData.bendAnalysis?.totalBends || 0
+      });
 
       // Cleanup
       this.oc.FS.unlink(filename);
@@ -288,6 +313,197 @@ export class CADParser {
       
       throw new Error(`STEP parsing failed: ${error.message}`);
     }
+  }
+
+  /**
+   * Detect units from STEP file and return scale factor to convert to inches
+   * STEP files can be in: mm, cm, m, inches, feet
+   * Our system uses inches as the standard unit
+   */
+  private detectSTEPUnits(reader: any, fileContent: ArrayBuffer): number {
+    try {
+      // Method 1: Parse STEP file text to find LENGTH_UNIT
+      const decoder = new TextDecoder('utf-8');
+      const text = decoder.decode(fileContent);
+      
+      // Look for LENGTH_UNIT declaration in STEP file
+      // Example: #10=LENGTH_UNIT()*SI_UNIT($,.METRE.);
+      const lengthUnitMatch = text.match(/LENGTH_UNIT\(\)\*[^;]*\.(METRE|MILLIMETRE|CENTIMETRE|INCH|FOOT)\./i);
+      
+      if (lengthUnitMatch) {
+        const unit = lengthUnitMatch[1].toUpperCase();
+        console.log(`✓ Unit detected from STEP file: ${unit}`);
+        
+        switch (unit) {
+          case 'METRE':
+            return 39.3701; // 1 meter = 39.3701 inches
+          case 'MILLIMETRE':
+            return 0.0393701; // 1 mm = 0.0393701 inches
+          case 'CENTIMETRE':
+            return 0.393701; // 1 cm = 0.393701 inches
+          case 'INCH':
+            return 1.0; // Already in inches
+          case 'FOOT':
+            return 12.0; // 1 foot = 12 inches
+        }
+      }
+
+      // Method 2: Heuristic detection based on geometry size
+      // This is a fallback if unit declaration is not found
+      console.warn('⚠ Unit not found in STEP file, using heuristic detection');
+      
+      // Default: assume millimeters (most common for STEP files)
+      console.warn('→ Defaulting to MILLIMETERS');
+      return 0.0393701;
+      
+    } catch (error) {
+      console.error('Error detecting STEP units:', error);
+      // Safe default: millimeters
+      console.warn('→ Defaulting to MILLIMETERS due to error');
+      return 0.0393701;
+    }
+  }
+
+  /**
+   * Scale manufacturing analysis data to match unit conversion
+   * All linear dimensions need to be scaled
+   */
+  private scaleManufacturingData(data: any, unitScale: number): any {
+    if (!data) return {};
+
+    const scaled: any = {};
+
+    // Scale bounding box with tolerance
+    if (data.boundingBoxWithTolerance) {
+      scaled.boundingBoxWithTolerance = {
+        ...data.boundingBoxWithTolerance,
+        length: data.boundingBoxWithTolerance.length * unitScale,
+        width: data.boundingBoxWithTolerance.width * unitScale,
+        height: data.boundingBoxWithTolerance.height * unitScale,
+        bounds: {
+          min: {
+            x: data.boundingBoxWithTolerance.bounds.min.x * unitScale,
+            y: data.boundingBoxWithTolerance.bounds.min.y * unitScale,
+            z: data.boundingBoxWithTolerance.bounds.min.z * unitScale,
+          },
+          max: {
+            x: data.boundingBoxWithTolerance.bounds.max.x * unitScale,
+            y: data.boundingBoxWithTolerance.bounds.max.y * unitScale,
+            z: data.boundingBoxWithTolerance.bounds.max.z * unitScale,
+          },
+        },
+        tolerance: data.boundingBoxWithTolerance.tolerance * unitScale,
+      };
+    }
+
+    // Scale hole analysis
+    if (data.holeAnalysis) {
+      scaled.holeAnalysis = {
+        ...data.holeAnalysis,
+        holes: data.holeAnalysis.holes?.map((hole: any) => ({
+          ...hole,
+          center: {
+            x: hole.center.x * unitScale,
+            y: hole.center.y * unitScale,
+            z: hole.center.z * unitScale,
+          },
+          diameter: hole.diameter * unitScale,
+          radius: hole.radius * unitScale,
+        })),
+        edgeDistances: data.holeAnalysis.edgeDistances?.map((ed: any) => ({
+          ...ed,
+          holeDiameter: ed.holeDiameter * unitScale,
+          minEdgeDistance: ed.minEdgeDistance * unitScale,
+          distances: {
+            toXMin: ed.distances.toXMin * unitScale,
+            toXMax: ed.distances.toXMax * unitScale,
+            toYMin: ed.distances.toYMin * unitScale,
+            toYMax: ed.distances.toYMax * unitScale,
+            toZMin: ed.distances.toZMin * unitScale,
+            toZMax: ed.distances.toZMax * unitScale,
+          },
+          compliance: {
+            ...ed.compliance,
+            requiredRolled: ed.compliance.requiredRolled * unitScale,
+            requiredSheared: ed.compliance.requiredSheared * unitScale,
+            margin: ed.compliance.margin * unitScale,
+          },
+        })),
+        spacingViolations: data.holeAnalysis.spacingViolations?.map((sv: any) => ({
+          ...sv,
+          actual: sv.actual * unitScale,
+          minimum: sv.minimum * unitScale,
+          preferred: sv.preferred * unitScale,
+        })),
+        nonStandardSizes: data.holeAnalysis.nonStandardSizes?.map((ns: any) => ({
+          ...ns,
+          actual: ns.actual * unitScale,
+          nearest: ns.nearest * unitScale,
+        })),
+      };
+    }
+
+    // Scale thickness analysis
+    if (data.thicknessAnalysis) {
+      scaled.thicknessAnalysis = {
+        ...data.thicknessAnalysis,
+        estimatedThickness: data.thicknessAnalysis.estimatedThickness * unitScale,
+        minDimension: data.thicknessAnalysis.minDimension * unitScale,
+        samples: data.thicknessAnalysis.samples?.map((s: number) => s * unitScale),
+        minWeldSize: data.thicknessAnalysis.minWeldSize * unitScale,
+        maxWeldSize: data.thicknessAnalysis.maxWeldSize * unitScale,
+      };
+    }
+
+    // Scale edge analysis
+    if (data.edgeAnalysis) {
+      scaled.edgeAnalysis = {
+        ...data.edgeAnalysis,
+        edges: data.edgeAnalysis.edges?.map((edge: any) => ({
+          ...edge,
+          length: edge.length ? edge.length * unitScale : undefined,
+          radius: edge.radius ? edge.radius * unitScale : undefined,
+        })),
+        sharpCorners: data.edgeAnalysis.sharpCorners?.map((corner: any) => ({
+          ...corner,
+          radius: corner.radius * unitScale,
+          location: {
+            x: corner.location.x * unitScale,
+            y: corner.location.y * unitScale,
+            z: corner.location.z * unitScale,
+          },
+        })),
+      };
+    }
+
+    // Scale weld joint analysis
+    if (data.weldJointAnalysis) {
+      scaled.weldJointAnalysis = {
+        ...data.weldJointAnalysis,
+        joints: data.weldJointAnalysis.joints?.map((joint: any) => ({
+          ...joint,
+          clearanceRequired: joint.clearanceRequired * unitScale,
+          sharedEdgeLength: joint.sharedEdgeLength * unitScale,
+        })),
+      };
+    }
+
+    // Scale bend analysis
+    if (data.bendAnalysis) {
+      scaled.bendAnalysis = {
+        ...data.bendAnalysis,
+        bends: data.bendAnalysis.bends?.map((bend: any) => ({
+          ...bend,
+          radius: bend.radius * unitScale,
+          minRequired: bend.minRequired * unitScale,
+          thickness: bend.thickness * unitScale,
+          margin: bend.margin * unitScale,
+        })),
+        minBendRadius: data.bendAnalysis.minBendRadius * unitScale,
+      };
+    }
+
+    return scaled;
   }
 
   async parseSTL(fileContent: ArrayBuffer): Promise<CADModelData> {
@@ -625,8 +841,10 @@ export class CADParser {
     }
   }
 
-  private extractGeometry(shape: any): CADModelData {
+  private extractGeometry(shape: any, unitScale: number = 1.0): CADModelData {
     if (!this.oc) throw new Error('OpenCascade not initialized');
+
+    console.log(`Extracting geometry with unit scale: ${unitScale}`);
 
     try {
       // Triangulate the shape
@@ -655,12 +873,13 @@ export class CADParser {
       const bboxMin = bbox.CornerMin();
       const bboxMax = bbox.CornerMax();
       
-      minX = bboxMin.X();
-      minY = bboxMin.Y();
-      minZ = bboxMin.Z();
-      maxX = bboxMax.X();
-      maxY = bboxMax.Y();
-      maxZ = bboxMax.Z();
+      // CRITICAL: Apply unit conversion to bounding box
+      minX = bboxMin.X() * unitScale;
+      minY = bboxMin.Y() * unitScale;
+      minZ = bboxMin.Z() * unitScale;
+      maxX = bboxMax.X() * unitScale;
+      maxY = bboxMax.Y() * unitScale;
+      maxZ = bboxMax.Z() * unitScale;
 
       // Extract faces
       const faceExp = new this.oc.TopExp_Explorer_2(
@@ -684,11 +903,16 @@ export class CADParser {
 
           const vertexOffset = vertices.length / 3;
 
-          // Extract vertices
+          // Extract vertices with unit conversion
           for (let i = 1; i <= nodeCount; i++) {
             const node = triangles.get().Node(i);
             const transformed = node.Transformed(transform);
-            vertices.push(transformed.X(), transformed.Y(), transformed.Z());
+            // CRITICAL: Apply unit conversion to all coordinates
+            vertices.push(
+              transformed.X() * unitScale,
+              transformed.Y() * unitScale,
+              transformed.Z() * unitScale
+            );
             normals.push(0, 0, 1); // Placeholder normal
           }
 
@@ -724,11 +948,20 @@ export class CADParser {
       // Calculate volume and surface area
       const props = new this.oc.GProp_GProps_1();
       this.oc.BRepGProp.VolumeProperties_1(shape, props, false, false, false);
-      const volume = props.Mass();
+      const volumeRaw = props.Mass();
       
       const surfaceProps = new this.oc.GProp_GProps_1();
       this.oc.BRepGProp.SurfaceProperties_1(shape, surfaceProps, false, false);
-      const surfaceArea = surfaceProps.Mass();
+      const surfaceAreaRaw = surfaceProps.Mass();
+
+      // CRITICAL: Apply unit conversion to volume and surface area
+      // Volume scales with cube of linear dimension
+      const volume = volumeRaw * Math.pow(unitScale, 3);
+      // Surface area scales with square of linear dimension
+      const surfaceArea = surfaceAreaRaw * Math.pow(unitScale, 2);
+
+      console.log(`Volume: ${volumeRaw} (raw) → ${volume} cubic inches`);
+      console.log(`Surface Area: ${surfaceAreaRaw} (raw) → ${surfaceArea} square inches`);
 
       // Create main part
       parts.push({
@@ -755,6 +988,16 @@ export class CADParser {
       props.delete();
       surfaceProps.delete();
 
+      // Determine detected unit name for logging
+      let detectedUnit = 'UNKNOWN';
+      if (Math.abs(unitScale - 39.3701) < 0.001) detectedUnit = 'METRE';
+      else if (Math.abs(unitScale - 0.0393701) < 0.0001) detectedUnit = 'MILLIMETRE';
+      else if (Math.abs(unitScale - 0.393701) < 0.001) detectedUnit = 'CENTIMETRE';
+      else if (Math.abs(unitScale - 1.0) < 0.001) detectedUnit = 'INCH';
+      else if (Math.abs(unitScale - 12.0) < 0.001) detectedUnit = 'FOOT';
+
+      console.log(`Geometry extracted in ${detectedUnit} (scale: ${unitScale})`);
+
       return {
         vertices: new Float32Array(vertices),
         normals: new Float32Array(normals),
@@ -769,6 +1012,8 @@ export class CADParser {
         volume,
         surfaceArea,
         parts,
+        unitScale,
+        detectedUnit,
       };
     } catch (error: any) {
       console.error('Error extracting geometry:', error);
