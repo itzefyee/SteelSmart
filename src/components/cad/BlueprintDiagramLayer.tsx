@@ -11,9 +11,9 @@ interface BlueprintDiagramLayerProps {
   className?: string;
 }
 
-const strokePrimary = 'rgba(191,219,254,0.95)';
-const strokeMuted = 'rgba(148,186,255,0.55)';
-const strokeAccent = 'rgba(96,165,250,0.95)';
+const strokePrimary = '#0f172a';
+const strokeMuted = '#0f172a';
+const strokeAccent = '#0f172a';
 
 const BlueprintCard = ({ children, grid = false }: BlueprintCardProps) => (
   <div className="relative w-full h-full rounded-[28px] border border-blue-100/70 bg-gradient-to-br from-blue-900/35 via-blue-900/15 to-blue-950/5 shadow-[0_15px_45px_rgba(15,23,42,0.55)] overflow-hidden backdrop-blur-md">
@@ -35,7 +35,7 @@ const BlueprintCard = ({ children, grid = false }: BlueprintCardProps) => (
 
 const ParabolaGraph = () => (
   <BlueprintCard grid>
-    <svg className="w-full h-full" viewBox="0 0 220 160">
+    <svg className="w-full h-full text-blue-900" viewBox="0 0 220 160">
       <defs>
         <marker id="arrow-x" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
           <path d="M0,0 L6,3 L0,6" fill={strokePrimary} />
@@ -48,10 +48,10 @@ const ParabolaGraph = () => (
       <line x1="40" y1="150" x2="40" y2="20" stroke={strokePrimary} strokeWidth="1.4" markerEnd="url(#arrow-y)" />
       <path d="M20 130 Q110 -20 200 130" fill="none" stroke={strokeAccent} strokeWidth="2" />
       <path d="M20 120 Q110 0 200 120" fill="none" stroke="rgba(59,130,246,0.55)" strokeWidth="1" strokeDasharray="6 4" />
-      <text x="120" y="32" fill={strokePrimary} fontSize="10" fontFamily="'Space Mono','IBM Plex Mono',monospace">
+      <text x="120" y="32" fill="#0f172a" fontSize="10" fontFamily="'Space Mono','IBM Plex Mono',monospace">
         f(x)=ax^2+bx+c
       </text>
-      <text x="46" y="26" fill={strokePrimary} fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
+      <text x="46" y="26" fill="#0f172a" fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
         delta=b^2-4ac
       </text>
     </svg>
@@ -60,14 +60,14 @@ const ParabolaGraph = () => (
 
 const QuadraticFormulaCard = () => (
   <BlueprintCard>
-    <div className="text-blue-100/90 font-mono text-[11px] space-y-3 leading-relaxed tracking-[0.08em]">
-      <div className="text-[10px] uppercase text-blue-300/80">Roots</div>
-      <div className="text-[12px]">
+    <div className="text-blue-900 font-mono text-[12px] space-y-3 leading-relaxed tracking-[0.08em] drop-shadow-[0_0_12px_rgba(255,255,255,0.7)]">
+      <div className="text-[11px] uppercase font-semibold text-blue-800">Roots</div>
+      <div className="text-[14px] font-semibold">
         {'x_{1,2} = (-b +- sqrt(b^2 - 4ac))/(2a)'}
       </div>
-      <div className="text-[10px] uppercase text-blue-300/80 pt-1">vertex</div>
-      <div className="text-[12px]">h = -b/(2a)</div>
-      <div className="flex justify-between text-[10px] text-blue-200/70 pt-2 border-t border-blue-100/30">
+      <div className="text-[11px] uppercase font-semibold text-blue-800 pt-1">vertex</div>
+      <div className="text-[13px] font-semibold">h = -b/(2a)</div>
+      <div className="flex justify-between text-[11px] font-semibold pt-3 border-t border-blue-900/40">
         <span>tolerance</span>
         <span>+-0.025 mm</span>
       </div>
@@ -94,10 +94,10 @@ const SineWaveCard = () => (
           strokeWidth={idx === 0 ? 1.6 : 1}
         />
       ))}
-      <text x="24" y="18" fill={strokePrimary} fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
+      <text x="24" y="18" fill="#0f172a" fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
         signal(t)
       </text>
-      <text x="150" y="134" fill={strokePrimary} fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
+      <text x="150" y="134" fill="#0f172a" fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
         freq=2.8hz
       </text>
     </svg>
@@ -121,8 +121,8 @@ const GearSectionCard = () => {
   return (
     <BlueprintCard grid>
       <svg className="w-full h-full" viewBox="0 0 220 160">
-        <circle cx="110" cy="80" r="55" fill="none" stroke={strokeAccent} strokeWidth="1.8" />
-        <circle cx="110" cy="80" r="25" fill="none" stroke={strokePrimary} strokeWidth="1.2" strokeDasharray="6 4" />
+        <circle cx="110" cy="80" r="55" fill="none" stroke="#0f172a" strokeWidth="1.8" />
+        <circle cx="110" cy="80" r="25" fill="none" stroke="#0f172a" strokeWidth="1.2" strokeDasharray="6 4" />
         {gearTeeth.map((tooth, i) => (
           <line
             key={i}
@@ -134,10 +134,10 @@ const GearSectionCard = () => {
             strokeWidth="1"
           />
         ))}
-        <line x1="30" y1="20" x2="90" y2="20" stroke={strokePrimary} strokeWidth="1" />
+        <line x1="30" y1="20" x2="90" y2="20" stroke="#0f172a" strokeWidth="1" />
         <line x1="30" y1="20" x2="30" y2="35" stroke={strokePrimary} strokeWidth="1" />
         <line x1="90" y1="20" x2="90" y2="35" stroke={strokePrimary} strokeWidth="1" />
-        <text x="42" y="36" fill={strokePrimary} fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
+        <text x="42" y="36" fill="#0f172a" fontSize="9" fontFamily="'Space Mono','IBM Plex Mono',monospace">
           32 teeth
         </text>
       </svg>
@@ -287,23 +287,23 @@ const DimensionBlockCard = () => (
 
 const WaveEquationCard = () => (
   <BlueprintCard>
-    <div className="flex flex-col gap-3 text-blue-100/85 font-mono text-[11px] tracking-[0.06em]">
-      <div className="flex justify-between text-[10px] uppercase text-blue-300/75">
+    <div className="flex flex-col gap-4 text-blue-900 font-mono text-[12px] tracking-[0.08em] drop-shadow-[0_0_12px_rgba(255,255,255,0.7)]">
+      <div className="flex justify-between text-[11px] uppercase font-semibold text-blue-800">
         <span>analysis</span>
         <span>rev 03</span>
       </div>
-      <div className="text-[12px] leading-relaxed">
+      <div className="text-[14px] leading-relaxed font-semibold">
         tau = r x F
         <br />
         sigma = F / A
         <br />
         shear = 0.58 * sigma
       </div>
-      <div className="border-t border-blue-100/30 pt-2 text-[10px] uppercase text-blue-200/70 flex justify-between">
+      <div className="border-t border-blue-900/40 pt-3 text-[11px] uppercase font-semibold flex justify-between">
         <span>material</span>
         <span>6061-T6</span>
       </div>
-      <div className="flex justify-between text-[10px]">
+      <div className="flex justify-between text-[11px] font-semibold text-blue-800">
         <span>factor</span>
         <span>2.4</span>
       </div>
@@ -331,44 +331,44 @@ const blueprintElements = [
     node: <GearSectionCard />,
   },
   {
+    id: 'wave-equation',
+    className: 'absolute top-[70%] right-[16%] w-[240px] h-[190px] opacity-95',
+    animation: 'blueprintFloat 10s ease-in-out infinite, blueprintPulse 8s ease-in-out infinite 2.8s',
+    node: <WaveEquationCard />,
+  },
+  {
     id: 'formula',
-    className: 'absolute top-[26%] left-[8%] w-[220px] h-[170px] opacity-90',
-    animation: 'blueprintFloatAlt 12s ease-in-out infinite, blueprintPulse 10s ease-in-out infinite 1.5s',
+    className: 'absolute top-[46%] left-[3%] w-[240px] h-[190px] opacity-95',
+    animation: 'blueprintFloatAlt 12s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 3.2s',
     node: <QuadraticFormulaCard />,
   },
   {
     id: 'cylinder',
-    className: 'absolute top-[26%] left-[36%] w-[250px] h-[200px] opacity-90',
+    className: 'absolute top-[43%] left-[38%] w-[250px] h-[200px] opacity-90',
     animation: 'blueprintFloat 11s ease-in-out infinite, blueprintPulse 7s ease-in-out infinite 2s',
     node: <CylinderSectionCard />,
   },
   {
     id: 'dot-matrix',
-    className: 'absolute top-[26%] right-[6%] w-[230px] h-[190px] opacity-90',
+    className: 'absolute top-[46%] right-[6%] w-[230px] h-[190px] opacity-90',
     animation: 'blueprintFloatAlt 14s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 2.4s',
     node: <DotMatrixCard />,
   },
   {
     id: 'exploded',
-    className: 'absolute top-[48%] left-[4%] w-[260px] h-[200px] opacity-88',
+    className: 'absolute top-[80%] right-[44%] w-[240px] h-[190px] opacity-95',
     animation: 'blueprintFloat 12s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 2.6s',
     node: <ExplodedStackCard />,
   },
   {
     id: 'dimension',
-    className: 'absolute top-[48%] left-[34%] w-[260px] h-[200px] opacity-90',
+    className: 'absolute top-[62%] left-[50%] w-[260px] h-[200px] opacity-90',
     animation: 'blueprintFloatAlt 12s ease-in-out infinite, blueprintPulse 9s ease-in-out infinite 3s',
     node: <DimensionBlockCard />,
   },
   {
-    id: 'wave-equation',
-    className: 'absolute top-[50%] right-[6%] w-[230px] h-[180px] opacity-88',
-    animation: 'blueprintFloat 10s ease-in-out infinite, blueprintPulse 8s ease-in-out infinite 2.8s',
-    node: <WaveEquationCard />,
-  },
-  {
     id: 'polar',
-    className: 'absolute bottom-[8%] left-[8%] w-[240px] h-[220px] opacity-90',
+    className: 'absolute bottom-[8%] left-[3%] w-[240px] h-[220px] opacity-90',
     animation: 'blueprintFloatAlt 13s ease-in-out infinite, blueprintPulse 8s ease-in-out infinite 3.4s',
     node: <PolarNetworkCard />,
   },

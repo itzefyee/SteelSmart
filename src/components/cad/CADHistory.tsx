@@ -315,13 +315,13 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
       <div className={`glass-card overflow-hidden ${className}`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50">
           <div className="flex items-center space-x-3 pl-1">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500 font-medium">History</p>
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500 font-medium">History</p>
               <h3 className="text-xl font-bold text-slate-900">Generation Log</h3>
             </div>
           </div>

@@ -34,7 +34,7 @@ export default function ProductDetailPage() {
         setRelatedProducts([]);
         setLoading(true);
         setError(null);
-
+        
         console.log('[Product Details] Fetching product from API...');
 
         // Fetch main product via API route (server-side Supabase, cached)
