@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import TechnicalPattern from '@/components/TechnicalPattern';
+import BlueprintSketchLayer from '@/components/BlueprintSketchLayer';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -30,9 +32,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-lg shadow-xl p-8">
+    <div className="min-h-[110vh] flex items-center justify-center relative bg-gradient-to-br from-primary via-blue-600 to-blue-700 overflow-hidden px-4 py-12">
+      <TechnicalPattern />
+      <div className="absolute inset-0 bg-black/30"></div>
+      <BlueprintSketchLayer variant="hero" />
+      <div className="max-w-md w-full relative z-10">
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
             <p className="text-gray-600">Sign in to your StealSmart account</p>
@@ -96,7 +101,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-center text-gray-500 text-sm mt-8">
+        <p className="text-center text-white/80 text-sm mt-8">
           By signing in, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>

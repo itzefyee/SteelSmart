@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import TechnicalPattern from '@/components/TechnicalPattern';
+import BlueprintSketchLayer from '@/components/BlueprintSketchLayer';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -56,9 +58,12 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 px-4">
-        <div className="max-w-md w-full">
-          <div className="bg-white rounded-lg shadow-xl p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center relative bg-gradient-to-br from-primary via-blue-600 to-blue-700 overflow-hidden px-4">
+        <TechnicalPattern />
+        <div className="absolute inset-0 bg-black/30"></div>
+        <BlueprintSketchLayer variant="hero" />
+        <div className="max-w-md w-full relative z-10">
+          <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-8 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -75,9 +80,12 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-12">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-lg shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center relative bg-gradient-to-br from-primary via-blue-600 to-blue-700 overflow-hidden px-4 py-12">
+      <TechnicalPattern />
+      <div className="absolute inset-0 bg-black/30"></div>
+      <BlueprintSketchLayer variant="hero" />
+      <div className="max-w-md w-full relative z-10">
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
             <p className="text-gray-600">Join StealSmart today</p>
@@ -188,7 +196,7 @@ export default function SignupPage() {
           </div>
         </div>
 
-        <p className="text-center text-gray-500 text-sm mt-8">
+        <p className="text-center text-white/80 text-sm mt-8">
           By creating an account, you agree to our Terms of Service and Privacy Policy
         </p>
       </div>
