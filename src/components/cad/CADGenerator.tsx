@@ -277,12 +277,18 @@ const CADGenerator: React.FC = () => {
 
   // Convert generated drawing to File for preview whenever it changes
   useEffect(() => {
+    // Clear previous file first to ensure CADPreview3D reloads
+    setCadFileForPreview(null);
+    
     if (generatedDrawing?.dxf) {
-      const format = (generatedDrawing.parameters?.format || 'step') as string;
-      const file = base64ToFile(generatedDrawing.dxf, format);
-      setCadFileForPreview(file);
-    } else {
-      setCadFileForPreview(null);
+      // Use a small delay to ensure state is cleared before setting new file
+      const timer = setTimeout(() => {
+        const format = (generatedDrawing.parameters?.format || 'step') as string;
+        const file = base64ToFile(generatedDrawing.dxf, format);
+        setCadFileForPreview(file);
+      }, 50);
+      
+      return () => clearTimeout(timer);
     }
   }, [generatedDrawing]);
 
@@ -355,6 +361,10 @@ const CADGenerator: React.FC = () => {
   const handleTextGeneration = async () => {
     if (!textInput.trim()) return;
     
+    // Clear previous drawing to show loading state
+    setGeneratedDrawing(null);
+    setCadFileForPreview(null);
+    
     setErrorMessage('');
     setGenerationProgress('Initializing CAD generation...');
     clearDebugSteps();
@@ -407,6 +417,10 @@ const CADGenerator: React.FC = () => {
 
   const handleTemplateGeneration = async () => {
     if (selectedTemplate === null) return;
+
+    // Clear previous drawing to show loading state
+    setGeneratedDrawing(null);
+    setCadFileForPreview(null);
 
     setErrorMessage('');
     setGenerationProgress('Preparing template for generation...');
@@ -1035,6 +1049,7 @@ const CADGenerator: React.FC = () => {
               <div className="glass-card p-4">
                 {cadFileForPreview ? (
                   <CADPreview3D
+                    key={`cad-preview-${generatedDrawing?.id}-${Date.now()}`}
                     file={cadFileForPreview}
                     showStats={true}
                   />
