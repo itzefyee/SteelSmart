@@ -11,6 +11,9 @@ import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
+import * as dotenv from 'dotenv';
+
+dotenv.config({ path: path.join(process.cwd(), '.env.local') });
 
 const readdir = promisify(fs.readdir);
 const readFile = promisify(fs.readFile);
@@ -29,11 +32,12 @@ if (!supabaseUrl || !supabaseServiceKey) {
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const BUCKET_NAME = 'product-images';
-const PRODUCTS_IMAGES_DIR = path.join(process.cwd(), 'public', 'products-images');
+const PRODUCTS_IMAGES_DIR = path.join(process.cwd(), 'public', 'product-images');
 
 // View priority (higher = better for preview)
 const VIEW_PRIORITY: Record<string, number> = {
   // Perspective views (best for preview)
+  'preview': 1000,
   'iso-front-top-right': 100,  // Best angle - shows most features
   'iso-front-top-left': 95,
   'iso-front-bottom-right': 90,
@@ -65,8 +69,12 @@ interface ImageFile {
  * Get view type from filename
  */
 function getViewType(fileName: string): string {
-  const match = fileName.match(/_([^_]+)_view\.(png|jpg|jpeg)$/i);
-  return match ? match[1] : 'unknown';
+  const legacyMatch = fileName.match(/(?:_wit_)?(.+?)_view\.(png|jpg|jpeg)$/i);
+  if (legacyMatch) {
+    return legacyMatch[1].replace(/_/g, '-');
+  }
+
+  return path.parse(fileName).name;
 }
 
 /**
@@ -180,7 +188,7 @@ async function ensureBucketExists(): Promise<void> {
 async function uploadImage(image: ImageFile): Promise<string | null> {
   try {
     const fileBuffer = await readFile(image.filePath);
-    const storagePath = `${image.productId}/${image.fileName}`;
+    const storagePath = `products/${image.productId}/${image.fileName}`;
 
     const { data, error } = await supabase.storage
       .from(BUCKET_NAME)
@@ -241,10 +249,13 @@ async function uploadAllImages(): Promise<void> {
       if (url) {
         console.log('✅');
 
-        if (image.isPerspective) {
+      if (image.fileName === 'preview.png') {
+        previewImage = url;
+        console.log('   ⭐ Found explicit preview image');
+      } else if (image.isPerspective) {
           perspectiveImages.push(url);
           // First perspective image is the preview
-          if (!previewImage) {
+        if (!previewImage) {
             previewImage = url;
             console.log(`   ⭐ Set as preview image`);
           }

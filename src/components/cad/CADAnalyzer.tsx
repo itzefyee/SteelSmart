@@ -277,67 +277,67 @@ const CADAnalyzer: React.FC = () => {
               Test the CAD analyzer with our sample technical drawings to see AI recommendations.
             </p>
             
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {/* Servo Motor Sample */}
-                      <div className="glass-card-compact text-center flex flex-col h-full">
-                        <img 
-                          src="/images/sample-cad-preview.svg" 
-                          alt="Servo Motor Drawing"
-                          className="w-16 h-12 mx-auto rounded border border-gray-200"
-                        />
-                        <div className="flex-1 flex flex-col justify-center text-center">
-                          <p className="text-sm font-medium text-gray-900">Servo Motor</p>
-                          <p className="text-xs text-gray-600">50Nm Torque</p>
-                        </div>
-                        <button
-                          onClick={() => tryWithSample('servo-motor-drawing.pdf', 'Servo Motor')}
-                          className="w-full text-xs text-primary hover:text-blue-700 underline font-medium py-1 mt-auto"
-                          disabled={uploadState.status === 'uploading'}
-                        >
-                          Load Sample
-                        </button>
-                      </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {/* I-Beam Sample */}
+              <div className="glass-card-compact text-center flex flex-col h-full">
+                <img 
+                  src="https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/steel-beam-001/preview.png" 
+                  alt="I-Beam Drawing"
+                  className="w-full h-20 object-contain mx-auto rounded"
+                />
+                <div className="flex-1 flex flex-col justify-center text-center mt-2">
+                  <p className="text-sm font-medium text-gray-900">I-Beam</p>
+                  <p className="text-xs text-gray-600">Structural Steel</p>
+                </div>
+                <button
+                  onClick={() => tryWithSample('i-beam-drawing.pdf', 'I-Beam')}
+                  className="w-full text-xs text-primary hover:text-blue-700 underline font-medium py-1 mt-auto"
+                  disabled={uploadState.status === 'uploading'}
+                >
+                  Load Sample
+                </button>
+              </div>
 
-                      {/* Bracket Sample */}
-                      <div className="glass-card-compact text-center flex flex-col h-full">
-                        <img 
-                          src="/images/bracket-cad-preview.svg" 
-                          alt="Bracket Drawing"
-                          className="w-16 h-12 mx-auto rounded border border-gray-200"
-                        />
-                        <div className=" flex-1 flex flex-col justify-center text-center">
-                          <p className="text-sm font-medium text-gray-900">Mounting Bracket</p>
-                          <p className="text-xs text-gray-600">Steel, 500N Load</p>
-                        </div>
-                        <button
-                          onClick={() => tryWithSample('bracket-drawing.pdf', 'Mounting Bracket')}
-                          className="w-full text-xs text-primary hover:text-blue-700 underline font-medium py-1 mt-auto"
-                          disabled={uploadState.status === 'uploading'}
-                        >
-                          Load Sample
-                        </button>
-                      </div>
+              {/* Drill Guide Sample */}
+              <div className="glass-card-compact text-center flex flex-col h-full">
+                <img 
+                  src="https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical_drill_guide/preview.png" 
+                  alt="Drill Guide Drawing"
+                  className="w-full h-20 object-contain mx-auto rounded"
+                />
+                <div className="flex-1 flex flex-col justify-center text-center mt-2">
+                  <p className="text-sm font-medium text-gray-900">Drill Guide</p>
+                  <p className="text-xs text-gray-600">Surgical Tool</p>
+                </div>
+                <button
+                  onClick={() => tryWithSample('drill-guide-drawing.pdf', 'Drill Guide')}
+                  className="w-full text-xs text-primary hover:text-blue-700 underline font-medium py-1 mt-auto"
+                  disabled={uploadState.status === 'uploading'}
+                >
+                  Load Sample
+                </button>
+              </div>
 
-                      {/* Steel Beam Sample */}
-                      <div className="glass-card-compact text-center flex flex-col h-full">
-                        <img 
-                          src="/images/steel-beam-cad-preview.svg" 
-                          alt="Steel Beam Drawing"
-                          className="w-16 h-12 mx-auto rounded border border-gray-200"
-                        />
-                        <div className="flex-1 flex flex-col justify-center text-center">
-                          <p className="text-sm font-medium text-gray-900">I-Beam Steel</p>
-                          <p className="text-xs text-gray-600">200x100mm</p>
-                        </div>
-                        <button
-                          onClick={() => tryWithSample('steel-beam-drawing.pdf', 'I-Beam Steel')}
-                          className="w-full text-xs text-primary hover:text-blue-700 underline font-medium py-1 mt-auto"
-                          disabled={uploadState.status === 'uploading'}
-                        >
-                          Load Sample
-                        </button>
-                      </div>
-                    </div>
+              {/* Brake Rotor Sample */}
+              <div className="glass-card-compact text-center flex flex-col h-full">
+                <img 
+                  src="https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake_rotor/preview.png" 
+                  alt="Brake Rotor Drawing"
+                  className="w-full h-20 object-contain mx-auto rounded"
+                />
+                <div className="flex-1 flex flex-col justify-center text-center mt-2">
+                  <p className="text-sm font-medium text-gray-900">Brake Rotor</p>
+                  <p className="text-xs text-gray-600">Automotive</p>
+                </div>
+                <button
+                  onClick={() => tryWithSample('brake-rotor-drawing.pdf', 'Brake Rotor')}
+                  className="w-full text-xs text-primary hover:text-blue-700 underline font-medium py-1 mt-auto"
+                  disabled={uploadState.status === 'uploading'}
+                >
+                  Load Sample
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

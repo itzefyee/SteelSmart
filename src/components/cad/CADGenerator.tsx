@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { sampleDrawings, cadTemplates, sampleTextGenerations, mlPromptTemplates } from '@/data/sample-data';
+import { cadTemplates, mlPromptTemplates } from '@/data/sample-data';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
@@ -94,22 +94,6 @@ const CADGenerator: React.FC = () => {
       addToast({
         type: 'error',
         title: 'CAD generation failed'
-      });
-
-      // Fallback to sample data for demo purposes
-      const matchingGeneration = sampleTextGenerations.find(gen => 
-        textInput.toLowerCase().includes('beam') && gen.input.includes('beam') ||
-        textInput.toLowerCase().includes('bracket') && gen.input.includes('bracket')
-      ) || sampleTextGenerations[0];
-      
-      const drawing = sampleDrawings.find(d => d.id === matchingGeneration.result.drawingId) || sampleDrawings[0];
-      
-      setGeneratedDrawing({
-        ...drawing,
-        parameters: {
-          ...matchingGeneration.result.parameters,
-          note: 'Using sample data - API unavailable'
-        }
       });
     }
   });
@@ -653,41 +637,22 @@ const CADGenerator: React.FC = () => {
                 {/* ML Prompt Templates */}
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-gray-600 ml-12">Try these professional templates:</p>
-                  <div className="ml-12 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="ml-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {mlPromptTemplates.map((template) => (
                       <button
                         key={template.id}
                         onClick={() => setTextInput(template.prompt)}
-                        className="text-left p-4 glass-card group"
+                        className="text-left p-3 glass-card group hover:shadow-md transition-all"
                       >
-                        <div className="flex items-start space-x-3">
-                          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-colors">
-                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <h4 className="font-semibold text-gray-900 text-sm">{template.title}</h4>
-                              {template.category && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 capitalize">
-                                  {template.category}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-600 mb-2">{template.description}</p>
-                            <p className="text-xs text-gray-500 line-clamp-2 italic">"{template.prompt}"</p>
-                            {template.tags && template.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {template.tags.slice(0, 3).map((tag, idx) => (
-                                  <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-50 text-gray-500">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="font-semibold text-gray-900 text-sm">{template.title}</h4>
+                          {template.category && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 capitalize">
+                              {template.category}
+                            </span>
+                          )}
                         </div>
+                        <p className="text-xs text-gray-600 line-clamp-2">{template.description}</p>
                       </button>
                     ))}
                   </div>

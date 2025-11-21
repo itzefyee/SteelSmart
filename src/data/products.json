@@ -44,19 +44,23 @@
       "id": "steel-beam-001",
       "name": "I-Beam Steel 200x100mm",
       "category": "structural",
-      "material": "Grade S355 Steel",
+      "material": "Grade S355 Structural Steel",
       "specifications": {
-        "dimensions": "200mm x 100mm x 6m length",
+        "dimensions": "Length 12 in • Height 4 in • Flange 2.66 in",
         "weight": "89.4 kg/m",
-        "loadCapacity": "120 kN/m²",
-        "tolerance": "±2mm",
+        "loadCapacity": "120 kN/m² design load",
+        "tolerance": "±0.5 mm rolled tolerance",
         "operatingTemp": "-40°C to +200°C"
       },
       "price": 156.75,
-      "images": ["/images/products/steel-beam-sample.svg"],
-      "description": "Standard I-beam for structural applications with excellent load-bearing capacity.",
-      "technicalDetails": "Hot-rolled steel, compliant with EN 10025-2, galvanized coating available",
-      "compatibleWith": ["steel-plate-001", "connection-bracket-001"],
+      "images": [
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/steel-beam-001/preview.png",
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/steel-beam-001/iso-front-top-left.png",
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/steel-beam-001/iso-back-top-right.png"
+      ],
+      "description": "Standard S355 structural I-beam with 12\" length and tuned flange thickness for medium span frames.",
+      "technicalDetails": "Hot rolled, stress relieved, 0.29\" flange thickness, 0.19\" web thickness, 0.46\" root radius, shot blasted & primed finish.",
+      "compatibleWith": ["steel-plate-001", "connection-bracket-001", "hex-bolt-m12"],
       "inStock": true,
       "leadTime": "5-7 business days"
     },
@@ -79,6 +83,54 @@
       "compatibleWith": ["steel-beam-001", "welding-rod-001"],
       "inStock": false,
       "leadTime": "10-14 business days"
+    },
+    {
+      "id": "gallows-frame-001",
+      "name": "Gallows Frame 2400 x 1250 x 450 mm",
+      "category": "structural",
+      "material": "Hot Dip Galvanized Steel",
+      "specifications": {
+        "dimensions": "2400 x 1250 x 450 mm envelope",
+        "weight": "180 kg assembled",
+        "loadCapacity": "Safe working load 8 kN",
+        "tolerance": "Frame squareness ±2 mm",
+        "operatingTemp": "-20°C to +80°C"
+      },
+      "price": 1420,
+      "images": [
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/gallows_frame/gallows_frame_iso-front-top-right_view.png",
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/gallows_frame/gallows_frame_iso-front-bottom-left_view.png",
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/gallows_frame/gallows_frame_front_view.png"
+      ],
+      "description": "Heavy-duty gallows frame built from angle iron with six integrated brackets for modular lifting systems.",
+      "technicalDetails": "Angle iron construction, 6 removable brackets, pre-drilled for M12 hardware, supplied with leveling feet.",
+      "compatibleWith": ["steel-beam-001", "steel-angle-001", "connection-bracket-001"],
+      "inStock": false,
+      "leadTime": "10-12 business days"
+    },
+    {
+      "id": "brake-rotor-001",
+      "name": "Brake Rotor 320mm Vented 5x114.3",
+      "category": "structural",
+      "material": "High Carbon Cast Iron",
+      "specifications": {
+        "dimensions": "Ø320 mm x 32 mm vented rotor",
+        "weight": "9.2 kg per rotor",
+        "loadCapacity": "Clamp load up to 45 kN",
+        "tolerance": "Face runout ≤ 0.03 mm",
+        "operatingTemp": "Up to 650°C continuous"
+      },
+      "price": 215,
+      "images": [
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake_rotor/brake_rotor_wit_iso-front-top-right_view.png",
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake_rotor/brake_rotor_wit_iso-back-top-right_view.png",
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake_rotor/brake_rotor_wit_front_view.png"
+      ],
+      "description": "320 mm vented brake rotor with 5x114.3 bolt pattern and machined M12 stud bores for motorsport-grade stopping power.",
+      "technicalDetails": "Vented twin-disc construction, dynamically balanced, heat-treated and machined M12 bolt holes on 114.3 mm PCD.",
+      "compatibleWith": ["hex-bolt-m12", "hex-nut-m12", "washer-m12"],
+      "inStock": true,
+      "leadTime": "4-6 business days"
     },
     {
       "id": "hex-bolt-m12",
@@ -139,6 +191,30 @@
       "compatibleWith": ["servo-motor-001", "linear-actuator-001"],
       "inStock": false,
       "leadTime": "7-10 business days"
+    },
+    {
+      "id": "surgical-drill-guide-001",
+      "name": "Surgical Drill Guide 150mm Handle",
+      "category": "custom",
+      "material": "Surgical Grade Stainless Steel",
+      "specifications": {
+        "dimensions": "150 mm handle • Twin Ø2 / Ø3.2 mm sleeves",
+        "weight": "0.45 kg assembly",
+        "loadCapacity": "Manual surgical guidance",
+        "tolerance": "Sleeve runout ±0.02 mm",
+        "operatingTemp": "Autoclave safe to 134°C"
+      },
+      "price": 495,
+      "images": [
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical_drill_guide/surgical_drill_guide_iso-front-top-right_view.png",
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical_drill_guide/surgical_drill_guide_iso-front-bottom-left_view.png",
+        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical_drill_guide/surgical_drill_guide_front_view.png"
+      ],
+      "description": "Precision surgical drill guide featuring twin rotating bit mounts for Ø2 mm and Ø3.2 mm instrumentation.",
+      "technicalDetails": "Ergonomic rotating grip, autoclavable stainless construction, locking sleeves with laser depth markings.",
+      "compatibleWith": ["custom-bracket-001", "mounting-bracket-001"],
+      "inStock": true,
+      "leadTime": "7-9 business days"
     },
     {
       "id": "pressure-sensor-001",

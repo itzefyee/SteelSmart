@@ -10,7 +10,6 @@ import CADPreview3D from '@/components/cad/CADPreview3D';
 import CAD2DViewExtractor from '@/components/cad/CAD2DViewExtractor';
 import { DrawingAnalysis, FileUploadState, APIResponse } from '@/types';
 import { formatFileSize } from '@/lib/utils';
-import { sampleAnalysisReport } from '@/data/sample-data';
 import { CADModelData, getCADParser } from '@/lib/cad-parser';
 import { ComplianceChecker, convertCADModelToGeometry } from '@/lib/compliance-checker';
 import { useToast } from '@/components/ui/ToastProvider';

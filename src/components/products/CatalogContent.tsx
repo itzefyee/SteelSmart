@@ -25,7 +25,8 @@ export default function CatalogContent() {
   const { categories: categoriesData, loading: categoriesLoading } = useCategories();
 
   // Fetch products from Supabase using React Query
-  const { data: productsData, isLoading: productsLoading, error: productsError, refetch } = useProducts();
+  // Set limit to 100 to fetch all products (we have 21 currently)
+  const { data: productsData, isLoading: productsLoading, error: productsError, refetch } = useProducts({ limit: 100 });
 
   // Extract products array from React Query response
   const products: Product[] = productsData?.products || [];
