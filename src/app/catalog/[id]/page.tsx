@@ -6,7 +6,6 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ProductDetailClient from '@/components/products/ProductDetailClient';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { getSupabaseClient } from '@/lib/supabase';
 import type { Product } from '@/lib/supabase';
 
 export default function ProductDetailPage() {
@@ -35,39 +34,42 @@ export default function ProductDetailPage() {
         setRelatedProducts([]);
         setLoading(true);
         setError(null);
-        
-        console.log('[Product Details] Fetching product from Supabase...');
-        const supabase = getSupabaseClient();
-        
-        // Fetch the product
-        const { data: productData, error: productError } = await supabase
-          .from('products')
-          .select('*')
-          .eq('id', id)
-          .single();
-        
-        console.log('[Product Details] Product fetch result:', { hasData: !!productData, error: productError?.code });
-        
-        if (productError || !productData) {
+
+        console.log('[Product Details] Fetching product from API...');
+
+        // Fetch main product via API route (server-side Supabase, cached)
+        const productRes = await fetch(`/api/products/${encodeURIComponent(id)}`);
+
+        if (!productRes.ok) {
+          const body = await productRes.json().catch(() => ({}));
+          throw new Error(body.error || `Failed to load product (${productRes.status})`);
+        }
+
+        const productJson = await productRes.json();
+        const productData = productJson.product as Product | undefined;
+
+        if (!productData) {
           throw new Error('Product not found');
         }
 
-        const typedProduct = productData as Product;
-        setProduct(typedProduct);
+        setProduct(productData);
 
-        // Get related products (same category, excluding current product)
-        console.log('[Product Details] Fetching related products...');
-        const { data: relatedData, error: relatedError } = await supabase
-          .from('products')
-          .select('*')
-          .eq('category', typedProduct.category)
-          .neq('id', typedProduct.id)
-          .limit(4);
-        
-        console.log('[Product Details] Related products count:', relatedData?.length || 0);
-        
-        if (!relatedError && relatedData) {
-          setRelatedProducts(relatedData as Product[]);
+        // Fetch related products (same category) via list API, then filter out current product
+        console.log('[Product Details] Fetching related products via API...');
+        const params = new URLSearchParams({
+          category: productData.category ?? '',
+          limit: '8',
+        });
+        const relatedRes = await fetch(`/api/products?${params.toString()}`);
+
+        if (relatedRes.ok) {
+          const relatedJson = await relatedRes.json();
+          const allRelated = (relatedJson.products || []) as Product[];
+          const filtered = allRelated.filter((p) => p.id !== productData.id).slice(0, 4);
+          console.log('[Product Details] Related products count:', filtered.length);
+          setRelatedProducts(filtered);
+        } else {
+          console.warn('[Product Details] Related products API returned non-OK status:', relatedRes.status);
         }
       } catch (err) {
         console.error('[Product Details] Error:', err);

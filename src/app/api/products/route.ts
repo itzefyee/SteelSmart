@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase';
 import { getCached } from '@/lib/cache/redis-cache';
 
 export const dynamic = 'force-dynamic';
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       cacheKey,
       async () => {
         // Database query fetcher function
-        const supabase = getSupabaseClient();
+        const supabase = getSupabaseServerClient();
         
         // Build query
         let query = supabase

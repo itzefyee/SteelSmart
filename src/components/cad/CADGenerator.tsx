@@ -924,12 +924,12 @@ const CADGenerator: React.FC = () => {
       {/* Generated Drawing Display */}
       {generatedDrawing && (
         <div className="glass-container p-6" data-generated-drawing>
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex justify-between items-center mb-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Generated Drawing</h2>
               <p className="text-gray-600">{generatedDrawing.description}</p>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex items-center space-x-3">
               <Button 
                 variant="outline" 
                 onClick={() => {
@@ -954,14 +954,14 @@ const CADGenerator: React.FC = () => {
                     alert('Failed to prepare file for analysis. Please try downloading and uploading manually.');
                   }
                 }}
-                className="flex items-center space-x-2"
+                className="flex items-center justify-center space-x-2 h-auto"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
                 <span>Analyze Drawing</span>
               </Button>
-              <Button variant="outline" onClick={handleEditDrawing}>
+              <Button variant="outline" onClick={handleEditDrawing} className="h-auto">
                 Edit Drawing
               </Button>
               <div className="flex space-x-2">
@@ -977,8 +977,8 @@ const CADGenerator: React.FC = () => {
                   </Button>
                   
                   {/* Dropdown Menu */}
-                  <div className="absolute right-0 mt-2 w-48 glass-card opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                    <div className="py-1">
+                  <div className="absolute top-full right-0 mt-2 w-48 opacity-0 invisible pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-hover:visible transition-all duration-200 z-30">
+                    <div className="glass-card py-1">
                       <button
                         onClick={() => handleDownload('step')}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"

@@ -106,3 +106,6 @@ Write-Host "==================================================" -ForegroundColor
 Write-Host "Setup complete! Follow the steps above." -ForegroundColor Green
 Write-Host "==================================================" -ForegroundColor Cyan
 
+
+
+

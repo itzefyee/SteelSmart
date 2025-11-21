@@ -312,33 +312,30 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
 
   if (!isExpanded) {
     return (
-      <div className={`glass-card ${className}`}>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-500 font-medium">History</p>
-                <h3 className="text-xl font-bold text-slate-900">Recent Generations</h3>
-              </div>
+      <div className={`glass-card overflow-hidden ${className}`}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50">
+          <div className="flex items-center space-x-3 pl-1">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500 font-medium">History</p>
+              <h3 className="text-xl font-bold text-slate-900">Generation Log</h3>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pr-1">
             {history.length > 0 && (
               <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
                 {history.length} saved
               </span>
             )}
-          </div>
-          <div className="flex items-center justify-between text-sm text-slate-600">
-            <p>Review the last 20 prompts you generated.</p>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsExpanded(true)}
-              className="text-slate-700 border-slate-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400"
+              className="border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400"
             >
               View History
             </Button>

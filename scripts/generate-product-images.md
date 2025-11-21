@@ -180,3 +180,6 @@ As a temporary solution, you can reuse the sample images in `public/images/produ
 
 Just update the product records to point to these files, but note they are generic samples.
 
+
+
+

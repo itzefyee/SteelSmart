@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseServerClient();
     
     const { data: categories, error } = await supabase
       .from('categories')

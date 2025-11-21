@@ -150,11 +150,11 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
 
                             {/* Product Name and Price */}
                             <div>
-                                <h1 className="mb-2 text-4xl font-bold text-slate-900">{product.name}</h1>
-                                <div className="text-4xl font-bold text-blue-600 mb-4">
+                                <h1 className="mb-2 text-4xl font-bold text-white">{product.name}</h1>
+                                <div className="text-4xl font-bold text-sky-100 mb-4">
                                     {formatPrice(product.price)}
                                 </div>
-                                <p className="text-base leading-relaxed text-slate-700">{product.description}</p>
+                                <p className="text-base leading-relaxed text-slate-200">{product.description}</p>
                             </div>
 
                             {/* Key Specifications */}
@@ -242,9 +242,9 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
 
                 {/* Technical Details */}
                 <div className="catalog-glass-container p-8 mb-12 bg-white/95 text-slate-900">
-                    <h2 className="mb-6 text-3xl font-bold text-slate-900">Technical Details</h2>
+                    <h2 className="mb-6 text-3xl font-bold text-white">Technical Details</h2>
                     <div className="prose max-w-none">
-                        <p className="text-lg leading-relaxed text-slate-700">
+                        <p className="text-lg leading-relaxed text-slate-200">
                             {product.technical_details}
                         </p>
                     </div>
@@ -252,7 +252,7 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
                     {/* Compatibility */}
                     {product.compatible_with && product.compatible_with.length > 0 && (
                         <div className="mt-8 border-t border-slate-200 pt-8">
-                            <h3 className="mb-4 text-xl font-semibold text-slate-900">Compatible Products</h3>
+                            <h3 className="mb-4 text-xl font-semibold text-white">Compatible Products</h3>
                             <div className="flex flex-wrap gap-2">
                                 {product.compatible_with.map((compatibleId) => (
                                     <span

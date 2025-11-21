@@ -7,11 +7,34 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // Client-side Supabase client (for use in browser and client components)
 // Using SSR package for better cookie handling
-export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+// IMPORTANT: create a single shared client instance so auth state and
+// subscriptions stay consistent across the app. Creating a new client on
+// every call can cause subtle auth / loading issues.
+const browserSupabaseClient = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+export const supabase = browserSupabaseClient;
 
 // For client components (uses cookies automatically)
+// Always return the singleton client above so that:
+// - AuthProvider, Header, account page, RFQ, and product detail pages
+//   all share the same auth/session state
+// - We avoid multiple overlapping onAuthStateChange subscriptions
+// - Requests reuse the same cached session instead of re-negotiating
 export function getSupabaseClient() {
-  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+  return browserSupabaseClient;
+}
+
+let serverSupabaseClient: ReturnType<typeof createClient<Database>> | null = null;
+
+export function getSupabaseServerClient() {
+  if (!serverSupabaseClient) {
+    serverSupabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+  }
+  return serverSupabaseClient;
 }
 
 // Server-side admin client (bypasses RLS, use with caution)

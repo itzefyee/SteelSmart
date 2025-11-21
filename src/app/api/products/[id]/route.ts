@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase';
 import { getSupabaseServer } from '@/lib/supabase-server';
 import { deleteCached, invalidateCachePattern } from '@/lib/cache/redis-cache';
 import { generateProductDetailCacheKey, generateProductCacheKey } from '@/lib/cache/cache-keys';
@@ -25,7 +25,7 @@ export async function GET(
       );
     }
     
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseServerClient();
     
     const { data: product, error } = await supabase
       .from('products')
