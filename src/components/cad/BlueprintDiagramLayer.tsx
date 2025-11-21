@@ -16,9 +16,9 @@ const strokeMuted = '#0f172a';
 const strokeAccent = '#0f172a';
 
 const BlueprintCard = ({ children, grid = false }: BlueprintCardProps) => (
-  <div className="relative w-full h-full rounded-[28px] border border-blue-100/70 bg-gradient-to-br from-blue-900/35 via-blue-900/15 to-blue-950/5 shadow-[0_15px_45px_rgba(15,23,42,0.55)] overflow-hidden backdrop-blur-md">
+  <div className="relative w-full h-full rounded-[24px] border border-blue-100/30 bg-gradient-to-br from-blue-900/15 via-blue-900/05 to-blue-950/0 shadow-[0_8px_24px_rgba(15,23,42,0.25)] overflow-hidden backdrop-blur-[6px]">
     {grid && (
-      <div className="absolute inset-0 opacity-45">
+      <div className="absolute inset-0 opacity-25">
         <svg className="w-full h-full" viewBox="0 0 200 200" preserveAspectRatio="none">
           {[...Array(20)].map((_, i) => (
             <g key={`grid-${i}`}>
