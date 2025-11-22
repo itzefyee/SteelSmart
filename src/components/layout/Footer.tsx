@@ -96,19 +96,19 @@ const Footer: React.FC = () => {
             <ul className="space-y-2 text-sm text-gray-400">
               <li>
                 <span className="block">Email:</span>
-                <a href="mailto:info@metalyze.com" className="hover:text-white transition-colors">
-                  info@metalyze.com
+                <a href="mailto:metalyze.cad@gmail.com" className="hover:text-white transition-colors">
+                  metalyze.cad@gmail.com
                 </a>
               </li>
               <li>
                 <span className="block">Phone:</span>
-                <a href="tel:+1-555-0123" className="hover:text-white transition-colors">
-                  +1 (555) 012-3456
+                <a href="tel:+6016-297-6106" className="hover:text-white transition-colors">
+                  +6016 297-6106
                 </a>
               </li>
               <li>
                 <span className="block">Hours:</span>
-                <span>Mon-Fri 8AM-6PM EST</span>
+                <span>Mon-Fri 8AM-6PM UTC+8</span>
               </li>
             </ul>
           </div>
@@ -119,7 +119,7 @@ const Footer: React.FC = () => {
           <div className="text-gray-400 text-sm space-y-1">
             <p>© 2025 Metalyze. All rights reserved.</p>
             <p>
-              Designed by Efye Ching & Tan Ja Man, licensed under{' '}
+              Designed by Team Metalyze, licensed under{' '}
               <a 
                 href="https://creativecommons.org/licenses/by-nc/4.0/deed.en" 
                 target="_blank" 
