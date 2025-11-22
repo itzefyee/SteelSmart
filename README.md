@@ -1,4 +1,4 @@
-# Metalyze AI Marketplace
+# SteelSmart AI Marketplace
 
 An AI-enhanced metal & steel parts marketplace built with Next.js 16, featuring advanced CAD capabilities powered by Google Gemini AI and Zoo Dev API. A comprehensive platform for engineers and manufacturers to discover, analyze, generate, and source metal & steel components with intelligent AI assistance.
 
@@ -57,7 +57,7 @@ An AI-enhanced metal & steel parts marketplace built with Next.js 16, featuring 
 
 ### 📱 **Modern UI/UX**
 - **Responsive Design**: Mobile-first approach with Tailwind CSS
-- **Professional Branding**: Consistent Metalyze logo and colors
+- **Professional Branding**: Consistent SteelSmart logo and colors
 - **Clean Typography**: Inter font with proper hierarchy
 - **Accessibility**: Proper alt texts, semantic HTML, keyboard navigation
 - **Loading States**: Smooth transitions and feedback
@@ -115,7 +115,7 @@ An AI-enhanced metal & steel parts marketplace built with Next.js 16, featuring 
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd Metalyze
+cd SteelSmart
 ```
 
 2. Install dependencies:
@@ -199,7 +199,7 @@ npm run dev
 ## 📁 **Project Structure**
 
 ```
-Metalyze/
+SteelSmart/
 ├── src/
 │   ├── app/                          # Next.js 16 App Router
 │   │   ├── api/                     # API Routes
@@ -530,9 +530,9 @@ This project is licensed under the **MIT License** - see the LICENSE file for de
 
 ## 📞 **Support & Contact**
 
-**Metalyze Team**
-- **Email**: [info@metalyze.com](mailto:info@metalyze.com)
-- **Website**: [metalyze.com](https://metalyze.com)
+**SteelSmart Team**
+- **Email**: [info@steelsmart.com](mailto:info@steelsmart.com)
+- **Website**: [steelsmart.com](https://steelsmart.com)
 - **Business Hours**: Monday-Friday, 9AM-6PM EST
 
 ## 🗺️ **Roadmap**

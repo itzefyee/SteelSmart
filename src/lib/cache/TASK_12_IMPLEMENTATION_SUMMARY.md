@@ -1,7 +1,7 @@
 # Task 12: Cache Invalidation for Mutations - Implementation Summary
 
 ## Overview
-This document summarizes the implementation of cache invalidation for mutations in the Metalyze application, completing Task 12 from the state management and caching specification.
+This document summarizes the implementation of cache invalidation for mutations in the SteelSmart application, completing Task 12 from the state management and caching specification.
 
 ## Requirements Addressed
 
@@ -225,10 +225,10 @@ const deleteManyProducts = useMutation({
 
 ## Related Documentation
 
-- **Design Document**: `Metalyze/.kiro/specs/state-management-caching/design.md`
-- **Requirements**: `Metalyze/.kiro/specs/state-management-caching/requirements.md`
-- **Cache Guide**: `Metalyze/src/lib/cache/CACHE_INVALIDATION_GUIDE.md`
-- **Examples**: `Metalyze/src/components/examples/CacheInvalidationExample.tsx`
+- **Design Document**: `SteelSmart/.kiro/specs/state-management-caching/design.md`
+- **Requirements**: `SteelSmart/.kiro/specs/state-management-caching/requirements.md`
+- **Cache Guide**: `SteelSmart/src/lib/cache/CACHE_INVALIDATION_GUIDE.md`
+- **Examples**: `SteelSmart/src/components/examples/CacheInvalidationExample.tsx`
 
 ## Conclusion
 

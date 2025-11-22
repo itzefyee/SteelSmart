@@ -2,7 +2,7 @@
  * Cache Invalidation Examples
  * 
  * This file demonstrates how to use cache invalidation and manual refetch
- * functionality with React Query hooks in the Metalyze application.
+ * functionality with React Query hooks in the SteelSmart application.
  * 
  * These examples satisfy requirement 10.4: Manual cache invalidation via refetch function
  */

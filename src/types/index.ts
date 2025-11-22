@@ -1,4 +1,4 @@
-// TypeScript type definitions for Metalyze AI Marketplace
+// TypeScript type definitions for SteelSmart AI Marketplace
 
 // Import and re-export Product type from Supabase for consistency
 import type { Product as SupabaseProduct } from '@/lib/supabase';

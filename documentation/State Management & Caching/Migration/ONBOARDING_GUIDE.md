@@ -1,10 +1,10 @@
-# 🚀 Metalyze Project Onboarding Guide
+# 🚀 SteelSmart Project Onboarding Guide
 
-Welcome to the Metalyze project! This guide will help you understand the codebase and get started with your tasks.
+Welcome to the SteelSmart project! This guide will help you understand the codebase and get started with your tasks.
 
 ## 📋 Project Overview
 
-**Metalyze** is an AI-enhanced metal & steel parts marketplace built with Next.js 16. It features:
+**SteelSmart** is an AI-enhanced metal & steel parts marketplace built with Next.js 16. It features:
 - **CAD Analysis**: AI-powered technical drawing analysis using Google Gemini
 - **CAD Generation**: Text-to-CAD conversion using Zoo Dev API
 - **3D Visualization**: Interactive model viewer with Three.js
@@ -170,7 +170,7 @@ const { data, isLoading, error, refetch } = useQuery({
 - Temporary form data
 - Client-only state that doesn't need server sync
 
-**Use Cases in Metalyze**:
+**Use Cases in SteelSmart**:
 1. **CAD Generator State**
    - Current generation progress
    - Selected format/units
@@ -235,7 +235,7 @@ export const useCADStore = create<CADStore>()(
 - Rate limiting (with @upstash/ratelimit)
 - Session storage
 
-**Use Cases in Metalyze**:
+**Use Cases in SteelSmart**:
 1. **Product Catalog Caching**
    - Cache product lists (5-10 minutes)
    - Cache product details (15 minutes)
@@ -316,7 +316,7 @@ export async function getCachedProducts(filters: string) {
 ### Step 1: Install Dependencies
 
 ```bash
-cd Metalyze
+cd SteelSmart
 npm install @tanstack/react-query @upstash/redis zustand
 npm install -D @tanstack/react-query-devtools
 ```

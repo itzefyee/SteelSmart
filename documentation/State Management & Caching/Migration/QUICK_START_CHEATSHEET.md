@@ -3,7 +3,7 @@
 ## 🚀 Installation (Run First!)
 
 ```bash
-cd Metalyze
+cd SteelSmart
 npm install @tanstack/react-query @upstash/redis zustand
 npm install -D @tanstack/react-query-devtools
 ```

@@ -630,7 +630,7 @@ const CADGenerator: React.FC = () => {
                         Just describe what you need, and I'll create precise CAD drawings with proper dimensions and specifications.
                       </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2 ml-4">Metalyze AI</p>
+                    <p className="text-xs text-gray-500 mt-2 ml-4">SteelSmart AI</p>
                   </div>
                 </div>
 
@@ -802,7 +802,7 @@ const CADGenerator: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-2 ml-4">Metalyze AI • Powered by Zoo Dev</p>
+                      <p className="text-xs text-gray-500 mt-2 ml-4">SteelSmart AI • Powered by Zoo Dev</p>
                     </div>
                   </div>
                 )}
@@ -820,7 +820,7 @@ const CADGenerator: React.FC = () => {
                         <p className="text-red-800 text-sm">{errorMessage}</p>
                         <p className="text-red-600 text-xs mt-2">Don't worry - we've loaded a sample drawing for you to explore the interface.</p>
                       </div>
-                      <p className="text-xs text-gray-500 mt-2 ml-4">Metalyze AI</p>
+                      <p className="text-xs text-gray-500 mt-2 ml-4">SteelSmart AI</p>
                     </div>
                   </div>
                 )}

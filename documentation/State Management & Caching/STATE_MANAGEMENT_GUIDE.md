@@ -1,6 +1,6 @@
 # State Management Guide
 
-Complete guide to using React Query and Zustand in the Metalyze application.
+Complete guide to using React Query and Zustand in the SteelSmart application.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ Complete guide to using React Query and Zustand in the Metalyze application.
 
 ## Overview
 
-The Metalyze application uses a three-layer state management architecture:
+The SteelSmart application uses a three-layer state management architecture:
 
 ```
 ┌─────────────────────────────────────────┐

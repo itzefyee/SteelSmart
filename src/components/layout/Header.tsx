@@ -35,10 +35,7 @@ const Header: React.FC = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <img src="/images/metalyze_logo_white.png" alt="Metalyze" className="h-12 w-auto" />
-              <span className="text-lg font-bold tracking-wider text-[#0074e6]">
-                METALYZE
-              </span>
+              <img src="/images/logo.svg" alt="SteelSmart" className="h-11 w-auto" />
             </Link>
           </div>
 

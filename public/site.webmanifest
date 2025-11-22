@@ -1,6 +1,6 @@
 {
-  "name": "Metalyze - AI-Powered Metal & Steel Parts Marketplace",
-  "short_name": "Metalyze",
+  "name": "SteelSmart - AI-Powered Metal & Steel Parts Marketplace",
+  "short_name": "SteelSmart",
   "description": "Discover and source robotic components, structural steel, and custom fabricated parts with AI-powered CAD drawing analysis.",
   "start_url": "/",
   "display": "standalone",
@@ -8,9 +8,9 @@
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "/images/metalyze_logo.png",
+      "src": "/images/logo.svg",
       "sizes": "any",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],

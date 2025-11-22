@@ -1,7 +1,7 @@
 # Authentication Architecture
 
 ## Overview
-Metalyze uses Supabase for authentication with proper SSR (Server-Side Rendering) support via the `@supabase/ssr` package.
+SteelSmart uses Supabase for authentication with proper SSR (Server-Side Rendering) support via the `@supabase/ssr` package.
 
 ## Architecture Flow
 

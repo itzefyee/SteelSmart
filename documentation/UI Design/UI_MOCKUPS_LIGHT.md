@@ -1,4 +1,4 @@
-# Metalyze UI Mockups - Light Theme (3D Model Focus)
+# SteelSmart UI Mockups - Light Theme (3D Model Focus)
 
 ## 🎨 Logo Variations - Light Theme
 
@@ -9,7 +9,7 @@
    ╱    ╲
   ╱──────╲
  ╱ ╱╲  ╱╲ ╲
-╱ ╱  ╲╱  ╲ ╲    METALYZE
+╱ ╱  ╲╱  ╲ ╲    STEELSMART
 ╲╱    ╲   ╲╱    AI-Powered CAD Analysis
  ╲────────╱
 
@@ -33,7 +33,7 @@ Perfect for: Favicon, app icon, small sizes
 ### Horizontal Lockup - Professional
 ```
 ┌─────┐
-│ ╱╲  │  METALYZE
+│ ╱╲  │  STEELSMART
 │╱  ╲ │  ─────────
 │╲  ╱ │  3D CAD Analysis
 └─────┘
@@ -48,14 +48,14 @@ Text: Dark gray (#111827)
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  ╱╲ METALYZE    [CAD Generator] [Analyzer] [Catalog] [Login]  │
+│  ╱╲ STEELSMART    [CAD Generator] [Analyzer] [Catalog] [Login]  │
 │  Blue gradient  Dark gray text                    Blue buttons │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐  │
 │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │  │
 │  │ ░                                                       ░ │  │
-│  │ ░   ╱╲  ╱╲  ╱╲     METALYZE                           ░ │  │
+│  │ ░   ╱╲  ╱╲  ╱╲     STEELSMART                           ░ │  │
 │  │ ░  ╱  ╲╱  ╲╱  ╲    ────────                           ░ │  │
 │  │ ░ ╱    ╲   ╲   ╲   AI-Powered 3D CAD Analysis        ░ │  │
 │  │ ░                                                       ░ │  │
@@ -150,7 +150,7 @@ Text: Dark gray (#111827)
 │  │ White card           │  │ Light gray card              │   │
 │  ├──────────────────────┤  ├──────────────────────────────┤   │
 │  │                      │  │                              │   │
-│  │ 🤖 Metalyze AI       │  │        ╱╲                    │   │
+│  │ 🤖 SteelSmart AI       │  │        ╱╲                    │   │
 │  │ Blue gradient icon   │  │       ╱  ╲                   │   │
 │  │ ─────────────        │  │      ╱    ╲                  │   │
 │  │ Describe your        │  │     ╱──────╲                 │   │
@@ -391,7 +391,7 @@ Hover: Scale up + stronger shadow
 
 ```
 ┌─────────────────────┐
-│  ╱╲ METALYZE    ☰  │
+│  ╱╲ STEELSMART    ☰  │
 │  Blue logo   Gray  │
 ├─────────────────────┤
 │ ░░░░░░░░░░░░░░░░░░░ │
@@ -458,7 +458,7 @@ Frame 4:  ╱────╲
           Add details
 
 Frame 5:  ╱╲  ╱╲╲
-          Full logo + "METALYZE" slide in
+          Full logo + "STEELSMART" slide in
           Blue gradient applied
 ```
 
@@ -731,7 +731,7 @@ Blue gradient bars
 ### Top Navigation Bar
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  ╱╲ METALYZE    [Generator] [Analyzer] [Catalog]  [Login]    │
+│  ╱╲ STEELSMART    [Generator] [Analyzer] [Catalog]  [Login]    │
 │  Blue logo      Dark gray links                   Blue button │
 │                 Hover: Blue underline                          │
 └────────────────────────────────────────────────────────────────┘
@@ -741,7 +741,7 @@ White background, subtle bottom border
 ### Sidebar Navigation
 ```
 ┌──────────────────┐
-│  ╱╲ METALYZE     │
+│  ╱╲ STEELSMART     │
 │  Blue logo       │
 ├──────────────────┤
 │                  │

@@ -1,7 +1,7 @@
-# Lovable Prompt: Metalyze Dark Theme UI Prototype
+# Lovable Prompt: SteelSmart Dark Theme UI Prototype
 
 ## Project Overview
-Create a cutting-edge, futuristic web application for **Metalyze** - an AI-powered 3D CAD analysis platform. The design should emphasize dark mode aesthetics, holographic effects, metallic elements, and 3D modeling capabilities with a tech-forward, hackathon-ready visual style.
+Create a cutting-edge, futuristic web application for **SteelSmart** - an AI-powered 3D CAD analysis platform. The design should emphasize dark mode aesthetics, holographic effects, metallic elements, and 3D modeling capabilities with a tech-forward, hackathon-ready visual style.
 
 ---
 
@@ -77,7 +77,7 @@ Model Shadows: rgba(0,0,0,0.5)
 ### Homepage Layout
 
 **Header/Navigation**
-- Logo on left (wireframe cube + "METALYZE" text with gradient)
+- Logo on left (wireframe cube + "STEELSMART" text with gradient)
 - Navigation links: CAD Generator, Analyzer, Catalog
 - Login button on right (holographic gradient)
 - Dark background (#1A1F26) with subtle cyan border bottom
@@ -88,7 +88,7 @@ Model Shadows: rgba(0,0,0,0.5)
 - Dark gradient background (#0F1419 → #1A1F26)
 - Radial gradient overlays (cyan and purple at 5% opacity)
 - Animated 3D wireframe cube (large, rotating)
-- Heading: "METALYZE" with cyan-to-white gradient text
+- Heading: "STEELSMART" with cyan-to-white gradient text
 - Subheading: "AI-Powered 3D CAD Analysis"
 - Description: "Transform technical drawings into intelligent 3D models"
 - Two CTAs:
@@ -136,7 +136,7 @@ Model Shadows: rgba(0,0,0,0.5)
 - Dark glassmorphism card
 - Background: rgba(26, 31, 38, 0.95)
 - Backdrop blur
-- AI icon with "Metalyze AI" heading (gradient text)
+- AI icon with "SteelSmart AI" heading (gradient text)
 - Large textarea:
   - Placeholder: "Describe your component..."
   - Background: rgba(255, 255, 255, 0.05)

@@ -1,4 +1,4 @@
-# Metalyze UI Mockups - 3D Model Focus
+# SteelSmart UI Mockups - 3D Model Focus
 
 ## 🎨 Logo Variations
 
@@ -9,7 +9,7 @@
    ╱    ╲
   ╱──────╲
  ╱ ╱╲  ╱╲ ╲
-╱ ╱  ╲╱  ╲ ╲    METALYZE
+╱ ╱  ╲╱  ╲ ╲    STEELSMART
 ╲╱    ╲   ╲╱    AI-Powered CAD Analysis
  ╲────────╱
 
@@ -31,7 +31,7 @@ Perfect for: Favicon, app icon, social media
 ### Horizontal Lockup
 ```
 ┌─────┐
-│ ╱╲  │  METALYZE
+│ ╱╲  │  STEELSMART
 │╱  ╲ │  ─────────
 │╲  ╱ │  3D CAD Analysis
 └─────┘
@@ -43,12 +43,12 @@ Perfect for: Favicon, app icon, social media
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  ╱╲ METALYZE    [CAD Generator] [Analyzer] [Catalog] [Login]  │
+│  ╱╲ STEELSMART    [CAD Generator] [Analyzer] [Catalog] [Login]  │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐  │
 │  │                                                          │  │
-│  │   ╱╲  ╱╲  ╱╲     METALYZE                              │  │
+│  │   ╱╲  ╱╲  ╱╲     STEELSMART                              │  │
 │  │  ╱  ╲╱  ╲╱  ╲    ────────                              │  │
 │  │ ╱    ╲   ╲   ╲   AI-Powered 3D CAD Analysis           │  │
 │  │ ╲    ╱   ╱   ╱                                          │  │
@@ -124,7 +124,7 @@ Perfect for: Favicon, app icon, social media
 │  │ Input Panel          │  │ Preview Panel                │   │
 │  ├──────────────────────┤  ├──────────────────────────────┤   │
 │  │                      │  │                              │   │
-│  │ 🤖 Metalyze AI       │  │        ╱╲                    │   │
+│  │ 🤖 SteelSmart AI       │  │        ╱╲                    │   │
 │  │ ─────────────        │  │       ╱  ╲                   │   │
 │  │ Describe your        │  │      ╱    ╲                  │   │
 │  │ component:           │  │     ╱──────╲                 │   │
@@ -284,7 +284,7 @@ Generating model...
 
 ```
 ┌─────────────────────┐
-│  ╱╲ METALYZE    ☰  │
+│  ╱╲ STEELSMART    ☰  │
 ├─────────────────────┤
 │                     │
 │   ╱╲  ╱╲  ╱╲       │
@@ -324,7 +324,7 @@ Frame 1:  ·
 Frame 2:  ╱╲
 Frame 3:  ╱  ╲
 Frame 4:  ╱────╲
-Frame 5:  ╱╲  ╱╲╲  + "METALYZE" fade in
+Frame 5:  ╱╲  ╱╲╲  + "STEELSMART" fade in
 ```
 
 ### 2. Card Hover Effect

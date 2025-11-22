@@ -1,6 +1,6 @@
 # Redis Caching Strategy
 
-Complete guide to server-side caching with Upstash Redis in the Metalyze application.
+Complete guide to server-side caching with Upstash Redis in the SteelSmart application.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ Complete guide to server-side caching with Upstash Redis in the Metalyze applica
 
 ## Overview
 
-The Metalyze application uses **Upstash Redis** for server-side caching to:
+The SteelSmart application uses **Upstash Redis** for server-side caching to:
 
 - ✅ Reduce database load by 80-90%
 - ✅ Improve API response times (<50ms for cache hits)

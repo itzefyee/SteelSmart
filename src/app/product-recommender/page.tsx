@@ -6,7 +6,7 @@ import PageHero from '@/components/layout/PageHero';
 import ProductRecommenderBlueprintLayer from '@/components/cad/ProductRecommenderBlueprintLayer';
 
 export const metadata = {
-  title: 'Product Recommender - Metalyze AI Marketplace',
+  title: 'Product Recommender - SteelSmart AI Marketplace',
   description: 'Get AI-powered product recommendations based on your CAD drawings and component requirements.',
 };
 

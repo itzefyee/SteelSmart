@@ -1,5 +1,5 @@
 /**
- * Sample Data for Metalyze Application
+ * Sample Data for SteelSmart Application
  * 
  * This file contains static data for:
  * - CAD Generator templates (cadTemplates, mlPromptTemplates)

@@ -1,7 +1,7 @@
-# Lovable Prompt: Metalyze Light Theme UI Prototype
+# Lovable Prompt: SteelSmart Light Theme UI Prototype
 
 ## Project Overview
-Create a modern, professional web application for **Metalyze** - an AI-powered 3D CAD analysis platform. The design should emphasize clean aesthetics, technical precision, and 3D modeling capabilities with a light theme optimized for presentations and professional environments.
+Create a modern, professional web application for **SteelSmart** - an AI-powered 3D CAD analysis platform. The design should emphasize clean aesthetics, technical precision, and 3D modeling capabilities with a light theme optimized for presentations and professional environments.
 
 ---
 
@@ -65,7 +65,7 @@ Mesh Gradient: linear-gradient(135deg, #0066CC 0%, #00D4FF 50%, #6B46C1 100%)
 ### Homepage Layout
 
 **Header/Navigation**
-- Logo on left (wireframe cube + "METALYZE" text)
+- Logo on left (wireframe cube + "STEELSMART" text)
 - Navigation links: CAD Generator, Analyzer, Catalog
 - Login button on right (blue gradient)
 - White background with subtle bottom border (#E5E7EB)
@@ -75,7 +75,7 @@ Mesh Gradient: linear-gradient(135deg, #0066CC 0%, #00D4FF 50%, #6B46C1 100%)
 - White to light gray gradient background (#FFFFFF → #F9FAFB)
 - Subtle radial gradient overlays (cyan and purple at 3-5% opacity)
 - Large wireframe cube illustration (blue gradient)
-- Heading: "METALYZE" with gradient text effect
+- Heading: "STEELSMART" with gradient text effect
 - Subheading: "AI-Powered 3D CAD Analysis"
 - Description: "Transform technical drawings into intelligent 3D models"
 - Two CTAs:
@@ -119,7 +119,7 @@ Mesh Gradient: linear-gradient(135deg, #0066CC 0%, #00D4FF 50%, #6B46C1 100%)
 
 **Left Panel - Input**
 - White card background
-- AI icon with "Metalyze AI" heading
+- AI icon with "SteelSmart AI" heading
 - Large textarea:
   - Placeholder: "Describe your component..."
   - White background

@@ -1,6 +1,6 @@
 # Cache Invalidation Strategy
 
-This document outlines the cache invalidation strategy for the Metalyze application. Cache invalidation ensures that users see updated data after mutations (create, update, delete operations).
+This document outlines the cache invalidation strategy for the SteelSmart application. Cache invalidation ensures that users see updated data after mutations (create, update, delete operations).
 
 ## Overview
 

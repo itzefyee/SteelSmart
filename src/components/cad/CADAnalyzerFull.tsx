@@ -1076,7 +1076,7 @@ const CADAnalyzerFull: React.FC = () => {
           <div class="report">
             <div class="header">
               <div>
-                <div class="badge">Metalyze CAD Report</div>
+                <div class="badge">SteelSmart CAD Report</div>
                 <h1 style="margin: 12px 0 8px; font-size: 28px; color: #0f172a;">${analysis?.analysisId || 'Analysis Report'}</h1>
                 <p style="color: #475569; font-size: 14px;">Generated ${reportTimestamp || new Date().toLocaleString()}</p>
               </div>

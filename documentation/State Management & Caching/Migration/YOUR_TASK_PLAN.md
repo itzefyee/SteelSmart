@@ -16,14 +16,14 @@ You need to implement:
 ### Step 1.1: Install Dependencies
 
 ```bash
-cd Metalyze
+cd SteelSmart
 npm install @tanstack/react-query @upstash/redis zustand
 npm install -D @tanstack/react-query-devtools
 ```
 
 ### Step 1.2: Set Up Environment Variables
 
-Add to `Metalyze/.env.local`:
+Add to `SteelSmart/.env.local`:
 ```bash
 # Upstash Redis - Get from https://console.upstash.com/
 UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
@@ -39,7 +39,7 @@ UPSTASH_REDIS_REST_TOKEN=your_token_here
 
 ### Step 1.3: Create React Query Provider
 
-**Create**: `Metalyze/src/app/providers.tsx`
+**Create**: `SteelSmart/src/app/providers.tsx`
 
 ```typescript
 'use client';
@@ -73,7 +73,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
 ### Step 1.4: Update Root Layout
 
-**Update**: `Metalyze/src/app/layout.tsx`
+**Update**: `SteelSmart/src/app/layout.tsx`
 
 Find the existing layout and wrap children with Providers:
 
@@ -99,7 +99,7 @@ export default function RootLayout({
 
 ### Step 1.5: Create Redis Cache Utility
 
-**Create**: `Metalyze/src/lib/cache/redis-cache.ts`
+**Create**: `SteelSmart/src/lib/cache/redis-cache.ts`
 
 ```typescript
 import { Redis } from '@upstash/redis';
@@ -187,7 +187,7 @@ export async function invalidateCachePattern(keys: string[]): Promise<void> {
 
 ### Step 1.6: Test Setup
 
-**Create**: `Metalyze/src/app/test-setup/page.tsx`
+**Create**: `SteelSmart/src/app/test-setup/page.tsx`
 
 ```typescript
 'use client';
@@ -234,7 +234,7 @@ export default function TestSetupPage() {
 
 ### Step 2.1: Create Service Layer
 
-**Create**: `Metalyze/src/services/product.service.ts`
+**Create**: `SteelSmart/src/services/product.service.ts`
 
 ```typescript
 import type { Product } from '@/lib/supabase';
@@ -304,7 +304,7 @@ export class ProductService {
 
 ### Step 2.2: Create React Query Hook
 
-**Update**: `Metalyze/src/hooks/useProducts.ts`
+**Update**: `SteelSmart/src/hooks/useProducts.ts`
 
 ```typescript
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
@@ -354,7 +354,7 @@ export function useProduct(id: string): UseQueryResult<Product, Error> {
 
 ### Step 2.3: Add Redis Caching to API Route
 
-**Update**: `Metalyze/src/app/api/products/route.ts`
+**Update**: `SteelSmart/src/app/api/products/route.ts`
 
 Add Redis caching at the top of the GET handler:
 
@@ -417,7 +417,7 @@ export async function GET(request: NextRequest) {
 
 ### Step 2.4: Update Components
 
-**Update**: `Metalyze/src/app/catalog/page.tsx`
+**Update**: `SteelSmart/src/app/catalog/page.tsx`
 
 Replace the old hook usage with the new one:
 
@@ -458,7 +458,7 @@ export default function CatalogPage() {
 
 ### Step 3.1: Create Zustand Store
 
-**Create**: `Metalyze/src/stores/cad.store.ts`
+**Create**: `SteelSmart/src/stores/cad.store.ts`
 
 ```typescript
 import { create } from 'zustand';
@@ -522,7 +522,7 @@ export const useCADStore = create<CADStore>()(
 
 ### Step 3.2: Create CAD Service
 
-**Create**: `Metalyze/src/services/cad.service.ts`
+**Create**: `SteelSmart/src/services/cad.service.ts`
 
 ```typescript
 export interface CADGenerationRequest {
@@ -578,7 +578,7 @@ export class CADService {
 
 ### Step 3.3: Create React Query Hook
 
-**Update**: `Metalyze/src/hooks/useCADGeneration.ts`
+**Update**: `SteelSmart/src/hooks/useCADGeneration.ts`
 
 ```typescript
 import { useMutation, useQuery, useQueryClient, UseMutationResult } from '@tanstack/react-query';
@@ -634,7 +634,7 @@ export function useCADHistory() {
 
 ### Step 3.4: Update CAD Generator Component
 
-**Update**: `Metalyze/src/app/cad-generator/page.tsx`
+**Update**: `SteelSmart/src/app/cad-generator/page.tsx`
 
 ```typescript
 'use client';

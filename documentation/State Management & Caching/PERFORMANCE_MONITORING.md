@@ -1,6 +1,6 @@
 # Performance Monitoring Guide
 
-This document describes the performance monitoring system implemented for the Metalyze application's state management and caching architecture.
+This document describes the performance monitoring system implemented for the SteelSmart application's state management and caching architecture.
 
 ## Overview
 

@@ -1,4 +1,4 @@
-// Custom hooks for Metalyze application
+// Custom hooks for SteelSmart application
 export { useFileUpload } from './useFileUpload';
 export { useCADGeneration } from './useCADGeneration';
 export { useCADAnalysis } from './useCADAnalysis';

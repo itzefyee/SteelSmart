@@ -1,4 +1,4 @@
-# Metalyze Design System - 3D Model Focus
+# SteelSmart Design System - 3D Model Focus
 
 ## 🎨 Brand Identity
 
@@ -62,33 +62,33 @@ Colors:
 
 ### Primary Colors
 ```css
---metalyze-primary: #00D4FF;        /* Electric Cyan - Main brand */
---metalyze-primary-dark: #0099CC;   /* Deep Cyan */
---metalyze-primary-light: #66E5FF;  /* Light Cyan */
+--steelsmart-primary: #00D4FF;        /* Electric Cyan - Main brand */
+--steelsmart-primary-dark: #0099CC;   /* Deep Cyan */
+--steelsmart-primary-light: #66E5FF;  /* Light Cyan */
 
---metalyze-secondary: #6B46C1;      /* Deep Purple - Tech accent */
---metalyze-secondary-dark: #553399; /* Dark Purple */
---metalyze-secondary-light: #9B7FD9;/* Light Purple */
+--steelsmart-secondary: #6B46C1;      /* Deep Purple - Tech accent */
+--steelsmart-secondary-dark: #553399; /* Dark Purple */
+--steelsmart-secondary-light: #9B7FD9;/* Light Purple */
 
---metalyze-accent: #FF6B9D;         /* Pink accent - CTAs */
---metalyze-metallic: #C0C0C0;       /* Silver - 3D elements */
+--steelsmart-accent: #FF6B9D;         /* Pink accent - CTAs */
+--steelsmart-metallic: #C0C0C0;       /* Silver - 3D elements */
 ```
 
 ### Neutral Colors
 ```css
---metalyze-dark: #0F1419;           /* Almost black background */
---metalyze-dark-surface: #1A1F26;   /* Card backgrounds */
---metalyze-dark-elevated: #252B35;  /* Elevated surfaces */
+--steelsmart-dark: #0F1419;           /* Almost black background */
+--steelsmart-dark-surface: #1A1F26;   /* Card backgrounds */
+--steelsmart-dark-elevated: #252B35;  /* Elevated surfaces */
 
---metalyze-gray-900: #1F2937;
---metalyze-gray-800: #374151;
---metalyze-gray-700: #4B5563;
---metalyze-gray-600: #6B7280;
---metalyze-gray-500: #9CA3AF;
---metalyze-gray-400: #D1D5DB;
---metalyze-gray-300: #E5E7EB;
---metalyze-gray-200: #F3F4F6;
---metalyze-gray-100: #F9FAFB;
+--steelsmart-gray-900: #1F2937;
+--steelsmart-gray-800: #374151;
+--steelsmart-gray-700: #4B5563;
+--steelsmart-gray-600: #6B7280;
+--steelsmart-gray-500: #9CA3AF;
+--steelsmart-gray-400: #D1D5DB;
+--steelsmart-gray-300: #E5E7EB;
+--steelsmart-gray-200: #F3F4F6;
+--steelsmart-gray-100: #F9FAFB;
 ```
 
 ### Gradient Definitions
@@ -355,7 +355,7 @@ code, .technical {
   
   <div className="hero-content">
     <h1 className="hero-title">
-      <span className="gradient-text">Metalyze</span>
+      <span className="gradient-text">SteelSmart</span>
       <br />
       AI-Powered 3D CAD Analysis
     </h1>

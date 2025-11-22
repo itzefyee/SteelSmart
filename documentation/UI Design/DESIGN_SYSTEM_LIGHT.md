@@ -1,4 +1,4 @@
-# Metalyze Design System - Light Theme (3D Model Focus)
+# SteelSmart Design System - Light Theme (3D Model Focus)
 
 ## 🎨 Brand Identity - Light Mode
 
@@ -35,34 +35,34 @@ Alternative (Solid):
 ### Primary Colors
 ```css
 /* Main Brand Colors */
---metalyze-primary: #0066CC;        /* Deep Blue - Professional */
---metalyze-primary-dark: #004C99;   /* Darker Blue */
---metalyze-primary-light: #3399FF;  /* Light Blue */
+--steelsmart-primary: #0066CC;        /* Deep Blue - Professional */
+--steelsmart-primary-dark: #004C99;   /* Darker Blue */
+--steelsmart-primary-light: #3399FF;  /* Light Blue */
 
---metalyze-secondary: #6B46C1;      /* Purple - Innovation */
---metalyze-secondary-dark: #553399; /* Dark Purple */
---metalyze-secondary-light: #9B7FD9;/* Light Purple */
+--steelsmart-secondary: #6B46C1;      /* Purple - Innovation */
+--steelsmart-secondary-dark: #553399; /* Dark Purple */
+--steelsmart-secondary-light: #9B7FD9;/* Light Purple */
 
---metalyze-accent: #00D4FF;         /* Cyan - Tech accent */
---metalyze-accent-warm: #FF6B9D;    /* Pink - CTAs */
---metalyze-success: #10B981;        /* Green - Success states */
---metalyze-warning: #F59E0B;        /* Amber - Warnings */
---metalyze-error: #EF4444;          /* Red - Errors */
+--steelsmart-accent: #00D4FF;         /* Cyan - Tech accent */
+--steelsmart-accent-warm: #FF6B9D;    /* Pink - CTAs */
+--steelsmart-success: #10B981;        /* Green - Success states */
+--steelsmart-warning: #F59E0B;        /* Amber - Warnings */
+--steelsmart-error: #EF4444;          /* Red - Errors */
 ```
 
 ### Neutral Colors (Light Theme)
 ```css
---metalyze-white: #FFFFFF;          /* Pure white */
---metalyze-gray-50: #F9FAFB;        /* Lightest gray - backgrounds */
---metalyze-gray-100: #F3F4F6;       /* Light gray - surfaces */
---metalyze-gray-200: #E5E7EB;       /* Borders */
---metalyze-gray-300: #D1D5DB;       /* Dividers */
---metalyze-gray-400: #9CA3AF;       /* Disabled text */
---metalyze-gray-500: #6B7280;       /* Secondary text */
---metalyze-gray-600: #4B5563;       /* Body text */
---metalyze-gray-700: #374151;       /* Headings */
---metalyze-gray-800: #1F2937;       /* Dark text */
---metalyze-gray-900: #111827;       /* Darkest - emphasis */
+--steelsmart-white: #FFFFFF;          /* Pure white */
+--steelsmart-gray-50: #F9FAFB;        /* Lightest gray - backgrounds */
+--steelsmart-gray-100: #F3F4F6;       /* Light gray - surfaces */
+--steelsmart-gray-200: #E5E7EB;       /* Borders */
+--steelsmart-gray-300: #D1D5DB;       /* Dividers */
+--steelsmart-gray-400: #9CA3AF;       /* Disabled text */
+--steelsmart-gray-500: #6B7280;       /* Secondary text */
+--steelsmart-gray-600: #4B5563;       /* Body text */
+--steelsmart-gray-700: #374151;       /* Headings */
+--steelsmart-gray-800: #1F2937;       /* Dark text */
+--steelsmart-gray-900: #111827;       /* Darkest - emphasis */
 ```
 
 ### Surface Colors

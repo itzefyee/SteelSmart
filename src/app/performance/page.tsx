@@ -34,7 +34,7 @@ export default function PerformancePage() {
           
           <div className="space-y-4 text-gray-600 dark:text-gray-400">
             <p>
-              The Metalyze application uses a sophisticated caching and state management
+              The SteelSmart application uses a sophisticated caching and state management
               architecture to deliver fast, responsive user experiences. This page provides
               insights into how well the system is performing.
             </p>

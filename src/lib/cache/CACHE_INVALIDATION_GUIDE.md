@@ -1,6 +1,6 @@
 # Cache Invalidation Strategy Guide
 
-This document describes the cache invalidation strategy for the Metalyze application using React Query and Redis.
+This document describes the cache invalidation strategy for the SteelSmart application using React Query and Redis.
 
 ## Overview
 
