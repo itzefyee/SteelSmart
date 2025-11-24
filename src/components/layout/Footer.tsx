@@ -116,7 +116,7 @@ const Footer: React.FC = () => {
           <div className="text-gray-400 text-sm space-y-1">
             <p>© 2025 SteelSmart. All rights reserved.</p>
             <p>
-              Designed by Team SteelSmart, licensed under{' '}
+              Designed by Efye Ching & Tan Ja Man, licensed under{' '}
               <a 
                 href="https://creativecommons.org/licenses/by-nc/4.0/deed.en" 
                 target="_blank" 
