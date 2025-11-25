@@ -1,46 +1,68 @@
-// Product matching and recommendation logic
-import { LegacyProduct, RecommendationScore, DrawingAnalysis } from '@/types';
-import productsData from '@/data/products.json';
+// Product matching and recommendation logic backed by Supabase data
+import { RecommendationScore, DrawingAnalysis } from '@/types';
 import { alternativeSuggester, type AlternativeSuggestionResponse } from './alternative-product-suggester';
+import { getSupabaseServer } from './supabase-server';
+import type { Tables } from './database.types';
+
+type SupabaseClient = Awaited<ReturnType<typeof getSupabaseServer>>;
+type ProductRow = Tables<'products'>;
+type ProductSpecsRow = Tables<'product_specs'>;
+type ComponentTaxonomyRow = Tables<'component_taxonomy'>;
+type MaterialSynonymRow = Tables<'material_synonyms'>;
+
+interface ProductWithStructuredSpecs extends ProductRow {
+  structuredSpecs?: ProductSpecsRow;
+}
+
+interface NormalizedSpecs {
+  raw: DrawingAnalysis['extractedSpecs'];
+  componentTokens: string[];
+  componentTypeId?: string;
+  categoryHint?: string;
+  materialFamily?: string;
+  materialToken?: string;
+  dimensionValues: number[];
+  loadValues: number[];
+}
 
 export class ProductMatcher {
-  private products: LegacyProduct[];
-
-  constructor() {
-    this.products = productsData.products as LegacyProduct[];
-  }
+  private taxonomyCache: { data: ComponentTaxonomyRow[]; expires: number } | null = null;
+  private materialCache: { data: MaterialSynonymRow[]; expires: number } | null = null;
 
   /**
    * Find products that match extracted specifications from CAD analysis
    */
-  findMatchingProducts(analysis: DrawingAnalysis): RecommendationScore[] {
-    const { extractedSpecs } = analysis;
-    const recommendations: RecommendationScore[] = [];
+  async findMatchingProducts(
+    analysis: DrawingAnalysis,
+    client?: SupabaseClient
+  ): Promise<RecommendationScore[]> {
+    return this.findMatchesFromSpecs(analysis.extractedSpecs, client);
+  }
 
-    for (const product of this.products) {
-      const score = this.calculateMatchScore(product, extractedSpecs);
-      if (score > 0.1) { // Lowered threshold to include more products
-        recommendations.push({
-          productId: product.id,
-          score,
-          reasoning: this.generateReasoning(product, extractedSpecs, score),
-          matchedSpecs: this.getMatchedSpecs(product, extractedSpecs)
-        });
-      }
-    }
+  /**
+   * Find matches directly from normalized spec inputs (used by Product Recommender page)
+   */
+  async matchFromSpecs(
+    specs: Partial<{
+      material: string;
+      dimensions: string;
+      loadCapacity: string;
+      category: string;
+      componentType: string;
+    }>,
+    client?: SupabaseClient
+  ): Promise<RecommendationScore[]> {
+    const componentType =
+      specs.componentType ||
+      (specs.category && specs.category !== 'all' ? specs.category : undefined);
 
-    // If no recommendations found, try to get alternative suggestions
-    if (recommendations.length === 0) {
-      // First try fallback products from catalog
-      const fallbackProducts = this.getFallbackProducts(extractedSpecs);
-      if (fallbackProducts.length > 0) {
-        recommendations.push(...fallbackProducts);
-      }
-    }
-
-    // Sort by score (highest first) and return all recommendations
-    return recommendations
-      .sort((a, b) => b.score - a.score);
+    const extractedSpecs: DrawingAnalysis['extractedSpecs'] = {
+      material: specs.material,
+      dimensions: specs.dimensions,
+      loadRequirements: specs.loadCapacity,
+      componentType,
+    };
+    return this.findMatchesFromSpecs(extractedSpecs, client);
   }
 
   /**
@@ -51,8 +73,7 @@ export class ProductMatcher {
     analysis: DrawingAnalysis
   ): Promise<AlternativeSuggestionResponse | null> {
     const { extractedSpecs } = analysis;
-    
-    // Only suggest alternatives if we have meaningful specifications
+
     if (!extractedSpecs.componentType && !extractedSpecs.dimensions && !extractedSpecs.material) {
       return null;
     }
@@ -71,174 +92,416 @@ export class ProductMatcher {
   /**
    * Get compatible products for a given product
    */
-  getCompatibleProducts(productId: string): RecommendationScore[] {
-    const product = this.products.find(p => p.id === productId);
-    if (!product) return [];
+  async getCompatibleProducts(
+    productId: string,
+    client?: SupabaseClient
+  ): Promise<RecommendationScore[]> {
+    const supabase = client ?? await getSupabaseServer();
+    const { data: product, error } = await supabase
+      .from('products')
+      .select('id, category, compatible_with')
+      .eq('id', productId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to load product for compatibility lookup', error);
+      return [];
+    }
+
+    if (!product) {
+      return [];
+    }
 
     const compatibleProducts: RecommendationScore[] = [];
 
-    // Direct compatibility
-    for (const compatibleId of product.compatibleWith) {
-      const compatibleProduct = this.products.find(p => p.id === compatibleId);
-      if (compatibleProduct) {
+    if (product.compatible_with?.length) {
+      const { data: matches } = await supabase
+        .from('products')
+        .select('id')
+        .in('id', product.compatible_with);
+
+      matches?.forEach(match => {
         compatibleProducts.push({
-          productId: compatibleId,
+          productId: match.id,
           score: 0.95,
           reasoning: 'Direct compatibility specified by manufacturer',
           matchedSpecs: ['compatibility']
         });
-      }
+      });
     }
 
-    // Category-based recommendations
-    const categoryMatches = this.products.filter(p => 
-      p.id !== productId && 
-      p.category === product.category &&
-      !product.compatibleWith.includes(p.id)
-    );
+    if (compatibleProducts.length < 4) {
+      const { data: categoryMatches } = await supabase
+        .from('products')
+        .select('id')
+        .eq('category', product.category)
+        .neq('id', productId)
+        .limit(5);
 
-    for (const match of categoryMatches.slice(0, 3)) {
-      compatibleProducts.push({
-        productId: match.id,
-        score: 0.7,
-        reasoning: `Similar ${product.category} component`,
-        matchedSpecs: ['category']
+      categoryMatches?.forEach(match => {
+        if (!compatibleProducts.some(c => c.productId === match.id)) {
+          compatibleProducts.push({
+            productId: match.id,
+            score: 0.7,
+            reasoning: `Similar ${product.category} component`,
+            matchedSpecs: ['category']
+          });
+        }
       });
     }
 
     return compatibleProducts.slice(0, 4);
   }
 
-  private calculateMatchScore(product: LegacyProduct, specs: DrawingAnalysis['extractedSpecs']): number {
+  private async findMatchesFromSpecs(
+    extractedSpecs: DrawingAnalysis['extractedSpecs'],
+    client?: SupabaseClient
+  ): Promise<RecommendationScore[]> {
+    const supabase = client ?? await getSupabaseServer();
+    const normalized = await this.normalizeSpecs(extractedSpecs, supabase);
+    const candidates = await this.fetchCandidateProducts(normalized, supabase);
+    const scored = candidates
+      .map(product => this.scoreProduct(product, normalized))
+      .filter((score): score is RecommendationScore => Boolean(score))
+      .sort((a, b) => b.score - a.score);
+
+    if (scored.length === 0) {
+      return this.getFallbackProducts(normalized, supabase);
+    }
+
+    return scored;
+  }
+
+  private async normalizeSpecs(
+    specs: DrawingAnalysis['extractedSpecs'],
+    client: SupabaseClient
+  ): Promise<NormalizedSpecs> {
+    const componentTokens = this.tokenize(specs.componentType);
+    const taxonomy = await this.getComponentTaxonomy(client);
+    const materialSynonyms = await this.getMaterialSynonyms(client);
+
+    let componentTypeId: string | undefined;
+    let categoryHint = this.getCategoryFromComponentTokens(componentTokens);
+
+    for (const component of taxonomy) {
+      const keywords = [
+        component.canonical_name,
+        ...(component.keywords ?? [])
+      ].map(token => token.toLowerCase());
+
+      if (componentTokens.some(token => keywords.includes(token))) {
+        componentTypeId = component.id;
+        categoryHint = component.category ?? categoryHint;
+        break;
+      }
+    }
+
+    const materialToken = specs.material?.toLowerCase().split(/[\s,/]+/).filter(Boolean)[0];
+    const normalizedMaterial = specs.material?.toLowerCase();
+    let materialFamily = undefined as string | undefined;
+
+    if (normalizedMaterial) {
+      materialFamily = this.resolveMaterialFamily(normalizedMaterial, materialSynonyms);
+    }
+
+    return {
+      raw: specs,
+      componentTokens,
+      componentTypeId,
+      categoryHint,
+      materialFamily,
+      materialToken,
+      dimensionValues: this.extractNumbers(specs.dimensions ?? ''),
+      loadValues: this.extractNumbers(specs.loadRequirements ?? ''),
+    };
+  }
+
+  private resolveMaterialFamily(
+    normalizedMaterial: string,
+    materials: MaterialSynonymRow[]
+  ): string | undefined {
+    for (const family of materials) {
+      const synonyms = family.synonyms?.map(s => s.toLowerCase()) ?? [];
+      if (synonyms.some(keyword => normalizedMaterial.includes(keyword))) {
+        return family.family;
+      }
+    }
+
+    if (normalizedMaterial.includes('steel')) return 'steel';
+    if (normalizedMaterial.includes('aluminum') || normalizedMaterial.includes('aluminium')) return 'aluminum';
+    if (normalizedMaterial.includes('stainless')) return 'stainless';
+    if (normalizedMaterial.includes('carbon')) return 'carbon';
+
+    return undefined;
+  }
+
+  private async fetchCandidateProducts(
+    specs: NormalizedSpecs,
+    client: SupabaseClient
+  ): Promise<ProductWithStructuredSpecs[]> {
+    let query = client
+      .from('products')
+      .select('*')
+      .limit(100);
+
+    if (specs.componentTypeId) {
+      query = query.eq('component_type_id', specs.componentTypeId);
+    } else if (specs.categoryHint) {
+      query = query.eq('category', specs.categoryHint);
+    }
+
+    if (specs.materialFamily) {
+      query = query.eq('material_family', specs.materialFamily);
+    } else if (specs.materialToken) {
+      query = query.ilike('material', `%${specs.materialToken}%`);
+    }
+
+    const { data: products, error } = await query;
+
+    if (error) {
+      console.error('Failed to query products', error);
+      return [];
+    }
+
+    if (!products || products.length === 0) {
+      return [];
+    }
+
+    const specsMap = await this.getStructuredSpecsMap(products.map(p => p.id), client);
+
+    return products.map(product => ({
+      ...product,
+      structuredSpecs: specsMap.get(product.id),
+    }));
+  }
+
+  private async getStructuredSpecsMap(
+    productIds: string[],
+    client: SupabaseClient
+  ): Promise<Map<string, ProductSpecsRow>> {
+    if (productIds.length === 0) {
+      return new Map();
+    }
+
+    const { data, error } = await client
+      .from('product_specs')
+      .select('*')
+      .in('product_id', productIds);
+
+    if (error || !data) {
+      return new Map();
+    }
+
+    return new Map(data.map(row => [row.product_id, row]));
+  }
+
+  private scoreProduct(
+    product: ProductWithStructuredSpecs,
+    specs: NormalizedSpecs
+  ): RecommendationScore | null {
     let score = 0;
+    const matchedSpecs: string[] = [];
 
-    // Component type matching (highest weight)
-    if (specs.componentType) {
-      if (this.matchesComponentType(product, specs.componentType)) {
-        score += 0.4;
-      }
-    }
-
-    // Material matching  
-    if (specs.material) {
-      if (this.matchesMaterial(product, specs.material)) {
-        score += 0.2;
-      }
+    if (specs.componentTypeId && product.component_type_id === specs.componentTypeId) {
+      score += 0.45;
+      matchedSpecs.push('componentType');
+    } else if (this.keywordMatch(product, specs.componentTokens)) {
+      score += 0.35;
+      matchedSpecs.push('componentType');
     }
 
-    // Dimension compatibility
-    if (specs.dimensions) {
-      const dimScore = this.calculateDimensionScore(product, specs.dimensions);
-      score += dimScore * 0.25;
+    if (specs.materialFamily && product.material_family === specs.materialFamily) {
+      score += 0.2;
+      matchedSpecs.push('material');
+    } else if (specs.materialToken && (product.material ?? '').toLowerCase().includes(specs.materialToken)) {
+      score += 0.15;
+      matchedSpecs.push('material');
     }
 
-    // Load requirements
-    if (specs.loadRequirements) {
-      if (this.matchesLoadRequirements(product, specs.loadRequirements)) {
-        score += 0.15;
-      }
+    const dimensionScore = this.calculateDimensionContribution(product, specs);
+    if (dimensionScore > 0) {
+      score += dimensionScore * 0.2;
+      matchedSpecs.push('dimensions');
     }
 
-    // Category bonus - if no specific component type match, give category bonus
-    if (!specs.componentType || !this.matchesComponentType(product, specs.componentType)) {
-      const categoryBonus = this.getCategoryBonus(product, specs);
-      score += categoryBonus;
+    const loadScore = this.calculateLoadContribution(product, specs);
+    if (loadScore > 0) {
+      score += loadScore * 0.15;
+      matchedSpecs.push('loadRequirements');
     }
 
-    return score;
-  }
-
-  private matchesComponentType(product: LegacyProduct, componentType: string): boolean {
-    const type = componentType.toLowerCase();
-    const productName = product.name.toLowerCase();
-    const productDescription = product.description.toLowerCase();
-
-    // Direct matches
-    if (type.includes('servo') && (productName.includes('servo') || productDescription.includes('servo'))) {
-      return true;
-    }
-    if (type.includes('actuator') && (productName.includes('actuator') || productDescription.includes('actuator'))) {
-      return true;
-    }
-    if (type.includes('motor') && (productName.includes('motor') || productDescription.includes('motor'))) {
-      return true;
-    }
-    if (type.includes('beam') && (productName.includes('beam') || productDescription.includes('beam'))) {
-      return true;
-    }
-    if (type.includes('bolt') && (productName.includes('bolt') || productDescription.includes('bolt'))) {
-      return true;
+    if (product.in_stock) {
+      score += 0.05;
+      matchedSpecs.push('availability');
     }
 
-    // Category matching
-    const categoryMatches: { [key: string]: string[] } = {
-      'robotic': ['servo', 'motor', 'actuator', 'sensor', 'encoder'],
-      'structural': ['beam', 'plate', 'angle', 'channel'],
-      'fasteners': ['bolt', 'nut', 'screw', 'washer'],
-      'custom': ['bracket', 'mount', 'adapter', 'custom']
+    if (score <= 0.05) {
+      return null;
+    }
+
+    return {
+      productId: product.id,
+      score: Math.min(score, 0.99),
+      reasoning: this.buildReasoning(product, specs, matchedSpecs),
+      matchedSpecs: Array.from(new Set(matchedSpecs)),
     };
-
-    const categoryKeywords = categoryMatches[product.category] || [];
-    return categoryKeywords.some(keyword => type.includes(keyword));
   }
 
-  private matchesMaterial(product: LegacyProduct, material: string): boolean {
-    const specMaterial = material.toLowerCase();
-    const productMaterial = product.material.toLowerCase();
+  private buildReasoning(
+    product: ProductRow,
+    specs: NormalizedSpecs,
+    matchedSpecs: string[]
+  ): string {
+    const reasons: string[] = [];
 
-    // Direct matches
-    if (productMaterial.includes(specMaterial) || specMaterial.includes(productMaterial)) {
-      return true;
+    if (matchedSpecs.includes('componentType') && specs.raw.componentType) {
+      reasons.push(`Matches component type (${specs.raw.componentType})`);
     }
 
-    // Material family matching
-    const materialFamilies: { [key: string]: string[] } = {
-      'steel': ['steel', 'carbon', 'alloy'],
-      'aluminum': ['aluminum', 'aluminium', 'al'],
-      'stainless': ['stainless', 'corrosion', 'resistant']
-    };
-
-    for (const [, keywords] of Object.entries(materialFamilies)) {
-      const specInFamily = keywords.some(k => specMaterial.includes(k));
-      const productInFamily = keywords.some(k => productMaterial.includes(k));
-      if (specInFamily && productInFamily) {
-        return true;
-      }
+    if (matchedSpecs.includes('material') && specs.raw.material) {
+      reasons.push(`Compatible material (${product.material})`);
     }
 
-    return false;
+    if (matchedSpecs.includes('dimensions')) {
+      reasons.push('Dimensions align within tolerance');
+    }
+
+    if (matchedSpecs.includes('loadRequirements')) {
+      reasons.push('Meets load requirements');
+    }
+
+    if (matchedSpecs.includes('availability') && product.in_stock) {
+      reasons.push('In stock');
+    }
+
+    if (reasons.length === 0) {
+      return 'General compatibility based on catalog metadata';
+    }
+
+    return reasons.join(', ');
   }
 
-  private calculateDimensionScore(product: LegacyProduct, dimensions: string): number {
-    // This is a simplified dimension matching
-    // In a real implementation, you'd parse dimensions and compare them properly
-    const specDims = this.extractNumbers(dimensions);
-    const productDims = this.extractNumbers(product.specifications.dimensions);
+  private keywordMatch(product: ProductRow, tokens: string[]): boolean {
+    if (!tokens.length) return false;
+    const haystack = `${product.name} ${product.description ?? ''}`.toLowerCase();
+    return tokens.some(token => haystack.includes(token));
+  }
 
-    if (specDims.length === 0 || productDims.length === 0) {
-      return 0.5; // neutral score if we can't parse dimensions
+  private calculateDimensionContribution(
+    product: ProductWithStructuredSpecs,
+    specs: NormalizedSpecs
+  ): number {
+    if (!specs.dimensionValues.length) {
+      return 0;
     }
 
-    // Simple overlap check
-    const overlap = specDims.filter(dim => 
-      productDims.some(pDim => Math.abs(dim - pDim) / Math.max(dim, pDim) < 0.2)
+    const productValues = this.getProductDimensionValues(product);
+    if (!productValues.length) {
+      return 0;
+    }
+
+    const overlap = specs.dimensionValues.filter(dim =>
+      productValues.some(value => this.withinTolerance(dim, value, 0.2))
     );
 
-    return overlap.length / Math.max(specDims.length, productDims.length);
-  }
-
-  private matchesLoadRequirements(product: LegacyProduct, loadReqs: string): boolean {
-    const specLoad = this.extractNumbers(loadReqs);
-    const productLoad = this.extractNumbers(product.specifications.loadCapacity || '');
-
-    if (specLoad.length === 0 || productLoad.length === 0) {
-      return false;
+    if (!overlap.length) {
+      return 0;
     }
 
-    // Check if product can handle the required load (with some margin)
-    return productLoad.some(pLoad => 
-      specLoad.some(sLoad => pLoad >= sLoad * 0.8)
+    return overlap.length / Math.max(specs.dimensionValues.length, productValues.length);
+  }
+
+  private getProductDimensionValues(product: ProductWithStructuredSpecs): number[] {
+    const structured = product.structuredSpecs;
+    const values: number[] = [];
+
+    if (structured) {
+      const { width_mm, height_mm, depth_mm, diameter_mm, length_mm, thickness_mm } = structured;
+      [width_mm, height_mm, depth_mm, diameter_mm, length_mm, thickness_mm]
+        .filter((value): value is number => typeof value === 'number')
+        .forEach(value => values.push(Number(value)));
+    }
+
+    if (!values.length && product.specifications) {
+      const specsJson = product.specifications as Record<string, any>;
+      if (typeof specsJson?.dimensions === 'string') {
+        values.push(...this.extractNumbers(specsJson.dimensions));
+      }
+    }
+
+    return values;
+  }
+
+  private calculateLoadContribution(
+    product: ProductWithStructuredSpecs,
+    specs: NormalizedSpecs
+  ): number {
+    if (!specs.loadValues.length) {
+      return 0;
+    }
+
+    const productLoads = this.getProductLoadValues(product);
+
+    if (!productLoads.length) {
+      return 0;
+    }
+
+    const meetsRequirement = specs.loadValues.some(required =>
+      productLoads.some(capacity => capacity >= required * 0.9)
     );
+
+    return meetsRequirement ? 1 : 0;
+  }
+
+  private getProductLoadValues(product: ProductWithStructuredSpecs): number[] {
+    const structured = product.structuredSpecs;
+    const loads: number[] = [];
+
+    if (structured) {
+      const { load_max_kn, load_min_kn } = structured;
+      [load_max_kn, load_min_kn]
+        .filter((value): value is number => typeof value === 'number')
+        .forEach(value => loads.push(Number(value)));
+    }
+
+    if (!loads.length && product.specifications) {
+      const specsJson = product.specifications as Record<string, any>;
+      if (typeof specsJson?.loadCapacity === 'string') {
+        loads.push(...this.extractNumbers(specsJson.loadCapacity));
+      }
+    }
+
+    return loads;
+  }
+
+  private withinTolerance(value: number, baseline: number, tolerance: number) {
+    const delta = Math.abs(value - baseline);
+    return delta / Math.max(value, baseline) <= tolerance;
+  }
+
+  private tokenize(input?: string): string[] {
+    if (!input) return [];
+    return input
+      .toLowerCase()
+      .split(/[\s,;/\-]+/)
+      .map(token => token.trim())
+      .filter(Boolean);
+  }
+
+  private getCategoryFromComponentTokens(tokens: string[]): string | undefined {
+    if (tokens.some(token => ['servo', 'motor', 'actuator', 'sensor'].includes(token))) {
+      return 'robotic';
+    }
+    if (tokens.some(token => ['beam', 'plate', 'frame', 'steel'].includes(token))) {
+      return 'structural';
+    }
+    if (tokens.some(token => ['bolt', 'nut', 'screw', 'washer'].includes(token))) {
+      return 'fasteners';
+    }
+    if (tokens.some(token => ['bracket', 'mount', 'adapter'].includes(token))) {
+      return 'custom';
+    }
+    return undefined;
   }
 
   private extractNumbers(text: string): number[] {
@@ -246,114 +509,73 @@ export class ProductMatcher {
     return matches ? matches.map(Number) : [];
   }
 
-  private generateReasoning(product: LegacyProduct, specs: DrawingAnalysis['extractedSpecs'], score: number): string {
-    const reasons: string[] = [];
+  private async getFallbackProducts(
+    specs: NormalizedSpecs,
+    client: SupabaseClient
+  ): Promise<RecommendationScore[]> {
+    let query = client.from('products').select('id').limit(4);
 
-    if (specs.componentType && this.matchesComponentType(product, specs.componentType)) {
-      reasons.push(`matches component type (${specs.componentType})`);
+    if (specs.categoryHint) {
+      query = query.eq('category', specs.categoryHint);
     }
 
-    if (specs.material && this.matchesMaterial(product, specs.material)) {
-      reasons.push(`compatible material (${specs.material})`);
+    let { data: fallbacks } = await query;
+
+    if (!fallbacks?.length) {
+      const fallbackResult = await client.from('products').select('id').limit(4);
+      fallbacks = fallbackResult.data ?? [];
     }
 
-    if (specs.loadRequirements && this.matchesLoadRequirements(product, specs.loadRequirements)) {
-      reasons.push('meets load requirements');
-    }
-
-    if (reasons.length === 0) {
-      return `General compatibility based on specifications (${Math.round(score * 100)}% match)`;
-    }
-
-    return `High compatibility: ${reasons.join(', ')}`;
+    return (fallbacks ?? []).map((product, index) => ({
+      productId: product.id,
+      score: 0.35 - index * 0.05,
+      reasoning: specs.categoryHint
+        ? `Related ${specs.categoryHint} component`
+        : 'Popular product in our catalog',
+      matchedSpecs: specs.categoryHint ? ['category'] : [],
+    }));
   }
 
-  private getMatchedSpecs(product: LegacyProduct, specs: DrawingAnalysis['extractedSpecs']): string[] {
-    const matched: string[] = [];
-
-    if (specs.componentType && this.matchesComponentType(product, specs.componentType)) {
-      matched.push('componentType');
-    }
-    if (specs.material && this.matchesMaterial(product, specs.material)) {
-      matched.push('material');
-    }
-    if (specs.dimensions) {
-      matched.push('dimensions');
-    }
-    if (specs.loadRequirements && this.matchesLoadRequirements(product, specs.loadRequirements)) {
-      matched.push('loadRequirements');
+  private async getComponentTaxonomy(client: SupabaseClient): Promise<ComponentTaxonomyRow[]> {
+    if (this.taxonomyCache && this.taxonomyCache.expires > Date.now()) {
+      return this.taxonomyCache.data;
     }
 
-    return matched;
+    const { data, error } = await client.from('component_taxonomy').select('*');
+
+    if (error) {
+      console.error('Failed to fetch component taxonomy', error);
+      this.taxonomyCache = { data: [], expires: Date.now() + 60_000 };
+      return [];
+    }
+
+    this.taxonomyCache = {
+      data: data ?? [],
+      expires: Date.now() + 5 * 60 * 1000,
+    };
+
+    return this.taxonomyCache.data;
   }
 
-  private getCategoryBonus(product: LegacyProduct, specs: DrawingAnalysis['extractedSpecs']): number {
-    // Give a small bonus for products in relevant categories
-    if (specs.componentType) {
-      const type = specs.componentType.toLowerCase();
-      
-      if ((type.includes('servo') || type.includes('motor')) && product.category === 'robotic') {
-        return 0.3;
-      }
-      if (type.includes('bracket') && product.category === 'custom') {
-        return 0.3;
-      }
-      if ((type.includes('beam') || type.includes('structural')) && product.category === 'structural') {
-        return 0.3;
-      }
-      if ((type.includes('bolt') || type.includes('fastener')) && product.category === 'fasteners') {
-        return 0.3;
-      }
+  private async getMaterialSynonyms(client: SupabaseClient): Promise<MaterialSynonymRow[]> {
+    if (this.materialCache && this.materialCache.expires > Date.now()) {
+      return this.materialCache.data;
     }
-    
-    return 0.1; // Small bonus for any product
-  }
 
-  private getFallbackProducts(specs: DrawingAnalysis['extractedSpecs']): RecommendationScore[] {
-    const fallbacks: RecommendationScore[] = [];
-    
-    // Get some products from relevant categories
-    if (specs.componentType) {
-      const type = specs.componentType.toLowerCase();
-      let targetCategory = '';
-      
-      if (type.includes('servo') || type.includes('motor')) {
-        targetCategory = 'robotic';
-      } else if (type.includes('bracket')) {
-        targetCategory = 'custom';
-      } else if (type.includes('beam') || type.includes('structural')) {
-        targetCategory = 'structural';
-      } else if (type.includes('bolt') || type.includes('fastener')) {
-        targetCategory = 'fasteners';
-      }
-      
-      if (targetCategory) {
-        const categoryProducts = this.products.filter(p => p.category === targetCategory).slice(0, 3);
-        categoryProducts.forEach(product => {
-          fallbacks.push({
-            productId: product.id,
-            score: 0.5,
-            reasoning: `Related ${targetCategory} component`,
-            matchedSpecs: ['category']
-          });
-        });
-      }
+    const { data, error } = await client.from('material_synonyms').select('*');
+
+    if (error) {
+      console.error('Failed to fetch material synonyms', error);
+      this.materialCache = { data: [], expires: Date.now() + 60_000 };
+      return [];
     }
-    
-    // If still no fallbacks, add some popular products
-    if (fallbacks.length === 0) {
-      const popularProducts = this.products.slice(0, 3);
-      popularProducts.forEach(product => {
-        fallbacks.push({
-          productId: product.id,
-          score: 0.3,
-          reasoning: 'Popular product in our catalog',
-          matchedSpecs: []
-        });
-      });
-    }
-    
-    return fallbacks;
+
+    this.materialCache = {
+      data: data ?? [],
+      expires: Date.now() + 5 * 60 * 1000,
+    };
+
+    return this.materialCache.data;
   }
 }
 

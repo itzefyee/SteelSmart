@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { getSupabaseClient } from '@/lib/supabase';
 import type { Product } from '@/lib/supabase';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -43,6 +42,14 @@ interface RecommendationItem {
   reasoning: string;
 }
 
+interface CatalogMatchResult {
+  product: Product;
+  matchScore: number;
+  rawScore: number;
+  reasoning: string;
+  matchedSpecs: string[];
+}
+
 const buildStageTemplate = (): StagedProgressItem[] => ([
   { id: 'catalog', label: 'Catalog Search', status: 'pending' },
   { id: 'alternatives', label: 'AI Alternatives', status: 'pending' },
@@ -58,7 +65,7 @@ const ProductRecommenderNew: React.FC = () => {
   });
 
   const { addToast } = useToast();
-  const [catalogMatches, setCatalogMatches] = useState<Product[]>([]);
+  const [catalogMatches, setCatalogMatches] = useState<CatalogMatchResult[]>([]);
   const [alternatives, setAlternatives] = useState<AlternativeProduct[]>([]);
   const [rankedRecommendations, setRankedRecommendations] = useState<RecommendationItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -66,6 +73,7 @@ const ProductRecommenderNew: React.FC = () => {
   const [sortBy, setSortBy] = useState<'score' | 'price'>('score');
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [loadingStages, setLoadingStages] = useState<StagedProgressItem[]>(() => buildStageTemplate());
+  const catalogCacheRef = useRef<Map<string, CatalogMatchResult[]>>(new Map());
 
   const stageProgressActive = useMemo(
     () => isLoading || loadingStages.some(stage => stage.status === 'active' || stage.status === 'error'),
@@ -202,7 +210,7 @@ const ProductRecommenderNew: React.FC = () => {
             title: 'Catalog search failed',
             description: error instanceof Error ? error.message : 'Unknown error during catalog search.'
           });
-          return [] as Product[];
+          return [] as CatalogMatchResult[];
         }),
         getAlternativeSuggestions(searchSpecs).catch(error => {
           console.error('❌ Alternative suggestions error:', error);
@@ -289,55 +297,43 @@ const ProductRecommenderNew: React.FC = () => {
     }
   };
 
-  const searchCatalog = async (specs: any): Promise<Product[]> => {
+  const searchCatalog = async (specs: any): Promise<CatalogMatchResult[]> => {
+    const normalizedSpecs = {
+      material: (specs.material || '').trim(),
+      dimensions: (specs.dimensions || '').trim(),
+      loadCapacity: (specs.loadCapacity || '').trim(),
+      category: specs.category || 'all',
+      componentType: specs.componentType
+    };
+
+    const cacheKey = JSON.stringify(normalizedSpecs);
+    const cached = catalogCacheRef.current.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     try {
-      const supabase = getSupabaseClient();
-      
-      // OPTIMIZATION: Select only required fields instead of '*'
-      const fields = 'id, name, price, category, material, description, in_stock, lead_time, images';
-      let query = supabase.from('products').select(fields);
-      
-      // Filter by category if specified (not 'all')
-      if (specs.category && specs.category !== 'all') {
-        query = query.eq('category', specs.category);
-      }
-      
-      // Filter by material if specified (case-insensitive partial match)
-      if (specs.material && specs.material.trim() !== '') {
-        query = query.ilike('material', `%${specs.material}%`);
-      }
-      
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Catalog search timeout')), 20000);
+      const response = await fetch('/api/recommendations/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ specs: normalizedSpecs })
       });
-      
-      const queryPromise = query.limit(50);
-      
-      // Execute query with timeout
-      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
-      
-      if (error) {
-        console.error('Catalog search error:', error);
-        return [];
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch catalog matches');
       }
-      
-      const results = (data as Product[]) || [];
-      
-      // If no results with filters, try without material filter as fallback
-      if (results.length === 0 && specs.material) {
-        console.log('No results with material filter, trying without...');
-        let fallbackQuery = supabase.from('products').select(fields);
-        
-        if (specs.category && specs.category !== 'all') {
-          fallbackQuery = fallbackQuery.eq('category', specs.category);
-        }
-        
-        const { data: fallbackData } = await fallbackQuery.limit(50);
-        return (fallbackData as Product[]) || [];
-      }
-      
-      return results;
+
+      const result = await response.json();
+      const matches: CatalogMatchResult[] = (result.matches || []).map((match: any) => ({
+        product: match.product as Product,
+        matchScore: typeof match.matchScore === 'number' ? match.matchScore : Math.round((match.score || 0) * 100),
+        rawScore: typeof match.rawScore === 'number' ? match.rawScore : (match.score || 0),
+        reasoning: match.reasoning || 'General compatibility based on specifications',
+        matchedSpecs: match.matchedSpecs || []
+      }));
+
+      catalogCacheRef.current.set(cacheKey, matches);
+      return matches;
     } catch (error) {
       console.error('Catalog search exception:', error);
       return [];
@@ -365,20 +361,19 @@ const ProductRecommenderNew: React.FC = () => {
   };
 
   const combineAndRank = (
-    catalog: Product[],
+    catalog: CatalogMatchResult[],
     alternatives: AlternativeProduct[],
-    specs: any
+    _specs: any
   ): RecommendationItem[] => {
     const recommendations: RecommendationItem[] = [];
     
     // Add catalog products with match scores
-    catalog.forEach(product => {
-      const matchScore = calculateMatchScore(product, specs);
+    catalog.forEach(match => {
       recommendations.push({
         type: 'catalog',
-        product,
-        matchScore,
-        reasoning: generateMatchReasoning(product, specs, matchScore)
+        product: match.product,
+        matchScore: match.matchScore,
+        reasoning: match.reasoning
       });
     });
     
@@ -394,53 +389,6 @@ const ProductRecommenderNew: React.FC = () => {
     
     // Sort by match score
     return recommendations.sort((a, b) => b.matchScore - a.matchScore);
-  };
-
-  const calculateMatchScore = (product: Product, specs: any): number => {
-    let score = 70; // Base score
-    
-    // Material match
-    if (specs.material && product.material) {
-      if (product.material.toLowerCase().includes(specs.material.toLowerCase())) {
-        score += 15;
-      }
-    }
-    
-    // Category match
-    if (specs.category && specs.category !== 'all') {
-      if (product.category === specs.category) {
-        score += 10;
-      }
-    }
-    
-    // Availability bonus
-    if (product.in_stock) {
-      score += 5;
-    }
-    
-    return Math.min(score, 100);
-  };
-
-  const generateMatchReasoning = (product: Product, specs: any, score: number): string => {
-    const reasons: string[] = [];
-    
-    if (specs.material && product.material?.toLowerCase().includes(specs.material.toLowerCase())) {
-      reasons.push(`Material match: ${product.material}`);
-    }
-    
-    if (product.in_stock) {
-      reasons.push('In stock');
-    }
-    
-    if (product.lead_time) {
-      reasons.push(`Lead time: ${product.lead_time}`);
-    }
-    
-    if (reasons.length === 0) {
-      return 'General compatibility based on category and specifications';
-    }
-    
-    return reasons.join(' • ');
   };
 
   const getScoreColor = (score: number) => {
@@ -639,9 +587,10 @@ const ProductRecommenderNew: React.FC = () => {
               <div>
                 {catalogMatches.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {catalogMatches.map((product) => {
-                      const score = calculateMatchScore(product, requirements);
-                      const reasoning = generateMatchReasoning(product, requirements, score);
+                    {catalogMatches.map((match) => {
+                      const { product } = match;
+                      const score = match.matchScore;
+                      const reasoning = match.reasoning;
 
                       return (
                         <div key={product.id} className="glass-card p-6 flex flex-col">
@@ -696,6 +645,18 @@ const ProductRecommenderNew: React.FC = () => {
                                 <div className="flex-1">
                                   <h4 className="text-xs font-semibold text-blue-900 mb-1">Match Analysis</h4>
                                   <p className="text-xs text-blue-800">{reasoning}</p>
+                                  {match.matchedSpecs.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                      {match.matchedSpecs.map(spec => (
+                                        <span
+                                          key={`${product.id}-${spec}`}
+                                          className="px-2 py-0.5 bg-white/60 text-blue-700 text-[11px] font-medium rounded-full border border-blue-200 capitalize"
+                                        >
+                                          {spec}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>

@@ -79,7 +79,7 @@ const Header: React.FC = () => {
             </Link>
             
             {/* Authentication Navigation */}
-            {loading ? (
+            {loading && !user ? (
               <div className="flex items-center">
                 <div className="h-4 w-20 bg-gray-200 animate-pulse rounded"></div>
               </div>
@@ -96,7 +96,7 @@ const Header: React.FC = () => {
                   Account
                 </Link>
                 <span className="text-sm text-gray-600">
-                  {user?.email || 'User'}
+                  {user?.email || profile?.email || 'User'}
                 </span>
                 <button
                   onClick={handleLogout}

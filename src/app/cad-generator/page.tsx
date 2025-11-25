@@ -128,11 +128,11 @@ export default function CADGeneratorPage() {
               title="CAD Drawing Generator"
               highlightPlacement="side"
               theme="light"
-              description="Turn a short prompt or preset into production-ready STEP, STL, or DXF files without leaving the page."
+              description="Turn a short prompt or preset into production-ready STEP files without leaving the page."
               highlights={[
-                { label: 'Templates', value: '40 Ready' },
+                { label: 'Templates', value: '4 Ready' },
                 { label: 'Avg Render', value: '~6s' },
-                { label: 'Formats', value: 'STEP • STL • DXF' },
+                { label: 'Formats', value: 'STEP' },
                 { label: 'Edits', value: 'Live Parametric' },
               ]}
             />

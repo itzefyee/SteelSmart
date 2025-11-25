@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import ProfileSection from './ProfileSection';
 import CADHistorySection from './CADHistorySection';
@@ -16,6 +16,12 @@ export default function AccountPageClient({ initialProfile }: AccountPageClientP
   const [profile, setProfile] = useState<UserProfile>(initialProfile);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Keep local profile state in sync with parent data so dependent sections (stats/history)
+  // rerun their data loads when the parent fetches newer profile info (e.g. first load).
+  useEffect(() => {
+    setProfile(initialProfile);
+  }, [initialProfile]);
 
   const handleUpdateProfile = async (updates: Partial<UserProfile>) => {
     setSuccessMessage(null);

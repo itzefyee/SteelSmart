@@ -101,7 +101,7 @@ export default function CADHistoryDetailModal({
           </div>
 
           {/* Content */}
-          <div className="px-6 py-6 space-y-6">
+          <div className="px-6 py-6 space-y-6 max-h-[60vh] overflow-y-auto pr-2">
             {/* Status */}
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-2">Status</h3>
@@ -181,9 +181,11 @@ export default function CADHistoryDetailModal({
             {item.status === 'completed' && item.model_data_url && (
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-2">3D Model Preview</h3>
-                <div className="bg-gray-100 border border-gray-200 rounded-md p-4 h-96 flex items-center justify-center">
-                  <p className="text-gray-600">3D preview will be displayed here</p>
-                  {/* TODO: Integrate CADPreview component when implementing 3D preview enhancement */}
+                <div className="bg-gray-100 border border-gray-200 rounded-md p-4 h-96 flex flex-col items-center justify-center text-center">
+                  <p className="text-gray-700 font-medium">3D Preview (In Development)</p>
+                  <p className="text-sm text-gray-600 mt-2 max-w-sm">
+                    We&apos;re polishing the live preview experience. Download the model to inspect it in your preferred CAD software.
+                  </p>
                 </div>
               </div>
             )}

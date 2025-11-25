@@ -76,7 +76,7 @@ export default function ProfileSection({ profile, onUpdate }: ProfileSectionProp
             Email
           </label>
           <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-600">
-            {user?.email}
+            {profile.email || user?.email || 'Not available'}
           </div>
           <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
         </div>

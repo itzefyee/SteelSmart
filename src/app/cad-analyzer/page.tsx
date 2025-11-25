@@ -24,7 +24,7 @@ export default function CADAnalyzerPage() {
               description="Upload a drawing once to get normalized dimensions, tolerance checks, and ready-to-use catalog matches."
               highlights={[
                 { label: 'Files Parsed', value: '12K+' },
-                { label: 'Spec Match', value: '99%' },
+                { label: 'Spec Match', value: '98%' },
                 { label: 'Views', value: '3D + 2D' },
                 { label: 'Formats', value: 'STEP • PDF' },
               ]}

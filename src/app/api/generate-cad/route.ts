@@ -56,13 +56,13 @@ interface CADGenerationResponse {
  * Poll a text-to-CAD operation until it completes or fails
  * @param operationId - The ID of the operation to poll
  * @param format - The output format (step, stl, obj)
- * @param maxAttempts - Maximum number of polling attempts (default: 60 = 2 minutes)
+ * @param maxAttempts - Maximum number of polling attempts (default: 150 = 5 minutes)
  * @param pollInterval - Interval between polls in milliseconds (default: 2000ms)
  */
 async function pollTextToCadOperation(
   operationId: string, 
   format: string,
-  maxAttempts: number = 60,
+  maxAttempts: number = 150,
   pollInterval: number = 2000
 ): Promise<any> {
   

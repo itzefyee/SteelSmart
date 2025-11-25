@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import { CADModelData } from '@/lib/cad-parser';
 import { CADViewGenerator, GeneratedView } from '@/lib/cad-view-generator';
@@ -8,21 +8,37 @@ import { CADViewGenerator, GeneratedView } from '@/lib/cad-view-generator';
 interface CAD2DViewExtractorProps {
   cadModelData: CADModelData | null;
   fileName?: string;
-  onAnalysisComplete?: (analysisResult: any) => void;
+  initialOrthographicViews?: GeneratedView[];
+  initialPerspectiveViews?: GeneratedView[];
 }
 
 const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
   cadModelData,
   fileName = 'model',
-  onAnalysisComplete,
+  initialOrthographicViews,
+  initialPerspectiveViews,
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedViews, setGeneratedViews] = useState<GeneratedView[]>([]);
   const [perspectiveViews, setPerspectiveViews] = useState<GeneratedView[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
-  const [isGeneratingPerspective, setIsGeneratingPerspective] = useState(false);
+  const [hasShownViews, setHasShownViews] = useState(false);
+
+  useEffect(() => {
+    if (initialOrthographicViews && initialOrthographicViews.length > 0) {
+      setGeneratedViews(initialOrthographicViews);
+    }
+  }, [initialOrthographicViews]);
+
+  useEffect(() => {
+    if (initialPerspectiveViews && initialPerspectiveViews.length > 0) {
+      setPerspectiveViews(initialPerspectiveViews);
+    }
+  }, [initialPerspectiveViews]);
+
+  useEffect(() => {
+    setHasShownViews(false);
+  }, [fileName]);
 
   const createViewGenerator = () =>
     new CADViewGenerator({
@@ -33,7 +49,7 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
       showAxes: false,
     });
 
-  const handleGenerateViews = async () => {
+  const generateAllViews = async () => {
     if (!cadModelData) {
       setError('No CAD model data available');
       return;
@@ -42,47 +58,41 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
     setIsGenerating(true);
     setError(null);
 
+    const viewGenerator = createViewGenerator();
+
     try {
-      const viewGenerator = createViewGenerator();
-      // Load model
       viewGenerator.loadModel(cadModelData);
+      const orthoViews = viewGenerator.generateAllViews();
+      const perspViews = viewGenerator.generatePerspectiveViews();
 
-      // Generate all 6 views
-      const views = viewGenerator.generateAllViews();
-
-      setGeneratedViews(views);
-
-      // Cleanup
-      viewGenerator.dispose();
+      setGeneratedViews(orthoViews);
+      setPerspectiveViews(perspViews);
+      setHasShownViews(true);
     } catch (err) {
       console.error('Error generating views:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate views');
     } finally {
+      viewGenerator.dispose();
       setIsGenerating(false);
     }
   };
 
-  const handleGeneratePerspectiveViews = async () => {
-    if (!cadModelData) {
-      setError('No CAD model data available');
+  const handleExtractViews = async () => {
+    if (hasShownViews) {
       return;
     }
 
-    setIsGeneratingPerspective(true);
-    setError(null);
-
-    try {
-      const viewGenerator = createViewGenerator();
-      viewGenerator.loadModel(cadModelData);
-      const views = viewGenerator.generatePerspectiveViews();
-      setPerspectiveViews(views);
-      viewGenerator.dispose();
-    } catch (err) {
-      console.error('Error generating perspective views:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate perspective views');
-    } finally {
-      setIsGeneratingPerspective(false);
+    const hasPrefetchedViews = generatedViews.length > 0 || perspectiveViews.length > 0;
+    if (hasPrefetchedViews) {
+      setHasShownViews(true);
+      return;
     }
+
+    await generateAllViews();
+  };
+
+  const handleRegenerateViews = async () => {
+    await generateAllViews();
   };
 
   const handleDownloadView = (view: GeneratedView) => {
@@ -105,58 +115,7 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
     setGeneratedViews([]);
     setPerspectiveViews([]);
     setError(null);
-    setAnalysisResult(null);
-  };
-
-  const handleAnalyzeWithAI = async () => {
-    const allViews = [...generatedViews, ...perspectiveViews];
-
-    if (allViews.length === 0) {
-      setError('Please generate views first');
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setError(null);
-
-    try {
-      // Create FormData with all views
-      const formData = new FormData();
-      
-      allViews.forEach((view) => {
-        formData.append(`view_${view.name}`, view.blob, `${view.name}.png`);
-      });
-
-      // Send to multi-view analysis API
-      const response = await fetch('/api/analyze-multiview', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Analysis failed');
-      }
-
-      const result = await response.json();
-
-      if (result.success && result.data) {
-        setAnalysisResult(result.data);
-        
-        // Notify parent component
-        if (onAnalysisComplete) {
-          onAnalysisComplete(result.data);
-        }
-      } else {
-        throw new Error(result.error || 'Analysis failed');
-      }
-
-    } catch (err) {
-      console.error('Error analyzing views:', err);
-      setError(err instanceof Error ? err.message : 'Failed to analyze views with AI');
-    } finally {
-      setIsAnalyzing(false);
-    }
+    setHasShownViews(false);
   };
 
   return (
@@ -166,35 +125,24 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
           2D View Extraction
         </h3>
         <p className="text-sm text-gray-600">
-          Extract 2D orthographic views (top, bottom, front, back, left, right) from your 3D CAD model.
+          Capture orthographic and perspective snapshots from the loaded 3D preview to document every critical angle.
         </p>
       </div>
 
       {/* Generate Button */}
-      {generatedViews.length === 0 && perspectiveViews.length === 0 && (
-                <div className="mb-4 space-y-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              onClick={handleGenerateViews}
-              disabled={!cadModelData || isGenerating}
-              isLoading={isGenerating}
-              className="flex-1 sm:flex-none"
-            >
-              {isGenerating ? 'Generating Views...' : 'Extract 2D Views'}
-            </Button>
-            <Button
-              onClick={handleGeneratePerspectiveViews}
-              disabled={!cadModelData || isGeneratingPerspective}
-              isLoading={isGeneratingPerspective}
-              variant="outline"
-              className="flex-1 sm:flex-none"
-            >
-              {isGeneratingPerspective ? 'Rendering Angles...' : 'Generate Perspective Views'}
-            </Button>
-          </div>
-          {!cadModelData && (
+      {!hasShownViews && (
+        <div className="mb-4 space-y-3">
+          <Button
+            onClick={handleExtractViews}
+            disabled={isGenerating}
+            isLoading={isGenerating}
+            className="w-full"
+          >
+            {isGenerating ? 'Preparing Views...' : 'Extract 2D + Perspective Views'}
+          </Button>
+          {!cadModelData && generatedViews.length === 0 && perspectiveViews.length === 0 && (
             <p className="text-sm text-gray-500 mt-2">
-              Upload a 3D CAD file (STEP, STL, OBJ) to enable view extraction
+              Upload a compatible 3D CAD file to unlock automated view extraction.
             </p>
           )}
         </div>
@@ -208,45 +156,33 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
       )}
 
       {/* Generated Views Display */}
-      {(generatedViews.length > 0 || perspectiveViews.length > 0) && (
+      {hasShownViews && (generatedViews.length > 0 || perspectiveViews.length > 0) && (
         <div className="space-y-4">
           {/* Action Buttons */}
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <Button
-              onClick={handleAnalyzeWithAI}
-              disabled={isAnalyzing}
-              isLoading={isAnalyzing}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              onClick={handleRegenerateViews}
+              variant="outline"
+              size="sm"
+              disabled={isGenerating}
+              isLoading={isGenerating}
+              className="w-full"
             >
-              {isAnalyzing ? 'Analyzing with AI...' : '🤖 Analyze with Gemini AI'}
+              Regenerate Views
             </Button>
             <Button
               onClick={handleDownloadAll}
               variant="outline"
               size="sm"
+              className="w-full"
             >
-              Download All Views
-            </Button>
-            <Button
-              onClick={handleGenerateViews}
-              variant="outline"
-              size="sm"
-            >
-              Regenerate Views
-            </Button>
-            <Button
-              onClick={handleGeneratePerspectiveViews}
-              variant="outline"
-              size="sm"
-              disabled={!cadModelData || isGeneratingPerspective}
-              isLoading={isGeneratingPerspective}
-            >
-              {perspectiveViews.length > 0 ? 'Regenerate Perspective Views' : 'Generate Perspective Views'}
+              Download Views
             </Button>
             <Button
               onClick={handleClearViews}
               variant="outline"
               size="sm"
+              className="w-full"
             >
               Clear Views
             </Button>
@@ -326,161 +262,6 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
             </div>
           )}
 
-          {/* AI Analysis Results */}
-          {analysisResult && (
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6">
-              <div className="flex items-start space-x-3 mb-4">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-lg font-semibold text-green-900 mb-1">
-                    AI Multi-View Analysis Complete
-                  </h4>
-                  <p className="text-sm text-green-700">
-                    Analyzed {analysisResult.viewCount || (generatedViews.length + perspectiveViews.length)} multi-angle views with Gemini AI
-                    {' • '}
-                    Confidence: {Math.round((analysisResult.confidence || 0) * 100)}%
-                  </p>
-                </div>
-              </div>
-
-              {/* Extracted Specifications */}
-              <div className="space-y-3">
-                <div className="bg-white rounded-lg p-4 border border-green-200">
-                  <h5 className="font-semibold text-gray-900 mb-3">Extracted Specifications</h5>
-                  <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    {analysisResult.extractedSpecs?.dimensions && (
-                      <div>
-                        <dt className="font-medium text-gray-700">Dimensions</dt>
-                        <dd className="text-gray-900 mt-1">{analysisResult.extractedSpecs.dimensions}</dd>
-                      </div>
-                    )}
-                    {analysisResult.extractedSpecs?.material && (
-                      <div>
-                        <dt className="font-medium text-gray-700">Material</dt>
-                        <dd className="text-gray-900 mt-1">{analysisResult.extractedSpecs.material}</dd>
-                      </div>
-                    )}
-                    {analysisResult.extractedSpecs?.componentType && (
-                      <div>
-                        <dt className="font-medium text-gray-700">Component Type</dt>
-                        <dd className="text-gray-900 mt-1">{analysisResult.extractedSpecs.componentType}</dd>
-                      </div>
-                    )}
-                    {analysisResult.extractedSpecs?.tolerance && (
-                      <div>
-                        <dt className="font-medium text-gray-700">Tolerance</dt>
-                        <dd className="text-gray-900 mt-1">{analysisResult.extractedSpecs.tolerance}</dd>
-                      </div>
-                    )}
-                    {analysisResult.extractedSpecs?.features && (
-                      <div>
-                        <dt className="font-medium text-gray-700">Features</dt>
-                        <dd className="text-gray-900 mt-1">
-                          {typeof analysisResult.extractedSpecs.features === 'string' 
-                            ? analysisResult.extractedSpecs.features
-                            : (
-                              <div className="space-y-1">
-                                {analysisResult.extractedSpecs.features.holes && (
-                                  <div>Holes: {analysisResult.extractedSpecs.features.holes}</div>
-                                )}
-                                {analysisResult.extractedSpecs.features.cutouts && (
-                                  <div>Cutouts: {analysisResult.extractedSpecs.features.cutouts}</div>
-                                )}
-                                {analysisResult.extractedSpecs.features.mountingPoints && (
-                                  <div>Mounting: {analysisResult.extractedSpecs.features.mountingPoints}</div>
-                                )}
-                              </div>
-                            )
-                          }
-                        </dd>
-                      </div>
-                    )}
-                    {analysisResult.extractedSpecs?.loadRequirements && (
-                      <div>
-                        <dt className="font-medium text-gray-700">Load Requirements</dt>
-                        <dd className="text-gray-900 mt-1">{analysisResult.extractedSpecs.loadRequirements}</dd>
-                      </div>
-                    )}
-                  </dl>
-                </div>
-
-                {/* AI Reasoning */}
-                {analysisResult.reasoning && (
-                  <div className="bg-white rounded-lg p-4 border border-green-200">
-                    <h5 className="font-semibold text-gray-900 mb-2">AI Analysis</h5>
-                    <p className="text-sm text-gray-700">{analysisResult.reasoning}</p>
-                  </div>
-                )}
-
-                {/* View-Specific Analysis */}
-                {analysisResult.viewAnalysis && (
-                  <div className="bg-white rounded-lg p-4 border border-green-200">
-                    <h5 className="font-semibold text-gray-900 mb-3">View-Specific Insights</h5>
-                    <div className="space-y-2 text-sm">
-                      {analysisResult.viewAnalysis.topView && (
-                        <div>
-                          <span className="font-medium text-gray-700">Top View:</span>
-                          <span className="text-gray-600 ml-2">{analysisResult.viewAnalysis.topView}</span>
-                        </div>
-                      )}
-                      {analysisResult.viewAnalysis.frontView && (
-                        <div>
-                          <span className="font-medium text-gray-700">Front View:</span>
-                          <span className="text-gray-600 ml-2">{analysisResult.viewAnalysis.frontView}</span>
-                        </div>
-                      )}
-                      {analysisResult.viewAnalysis.sideView && (
-                        <div>
-                          <span className="font-medium text-gray-700">Side Views:</span>
-                          <span className="text-gray-600 ml-2">{analysisResult.viewAnalysis.sideView}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Manufacturing Notes */}
-                {analysisResult.manufacturingNotes && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <h5 className="font-semibold text-amber-900 mb-2">Manufacturing Considerations</h5>
-                    <p className="text-sm text-amber-800">{analysisResult.manufacturingNotes}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <svg
-                className="w-5 h-5 text-blue-600 mt-0.5"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <div className="flex-1">
-                <h4 className="text-sm font-medium text-blue-900 mb-1">
-                  Generated {generatedViews.length} orthographic and {perspectiveViews.length} perspective views
-                </h4>
-                <p className="text-sm text-blue-700">
-                  These captures can be used for manufacturing drawings, documentation, or AI analysis.
-                  Click "Analyze with Gemini AI" to send every available view—orthographic plus the new perspective angles.
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       )}
     </div>

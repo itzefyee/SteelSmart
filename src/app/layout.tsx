@@ -22,11 +22,11 @@ export const metadata: Metadata = {
   applicationName: 'SteelSmart Marketplace',
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/images/logo.svg', type: 'image/svg+xml', sizes: '32x32' }
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.svg', sizes: 'any' }
     ],
-    apple: '/images/logo.svg',
-    shortcut: '/favicon.ico'
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg'
   },
   manifest: '/site.webmanifest',
   openGraph: {

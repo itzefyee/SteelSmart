@@ -288,9 +288,9 @@ const RFQTracking: React.FC = () => {
 
       {/* RFQ Details Modal */}
       {selectedRFQ && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="glass-container glass-container-with-liquid max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center p-4 sm:p-6 z-50">
+          <div className="glass-container glass-container-with-liquid max-w-2xl w-full max-h-[85vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white/80 backdrop-blur px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">
                   RFQ #{selectedRFQ.id.slice(-8).toUpperCase()} Details

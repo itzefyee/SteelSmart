@@ -41,6 +41,14 @@ export function useCADHistory({
   const [formatFilterState, setFormatFilterState] = useState<string | null>(formatFilter);
 
   const fetchHistory = useCallback(async () => {
+    if (!userId) {
+      setHistory([]);
+      setTotalCount(0);
+      setError('Missing account information. Please sign in again.');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 

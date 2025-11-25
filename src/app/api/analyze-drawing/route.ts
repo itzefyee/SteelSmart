@@ -126,13 +126,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Use product matcher to find relevant products
-        const recommendations = productMatcher.findMatchingProducts(analysis);
+        const supabaseClient = await getSupabaseServer();
+        const recommendations = await productMatcher.findMatchingProducts(analysis, supabaseClient);
         
         // Set total count before limiting
         analysis.totalRecommendations = recommendations.length;
         
         // Get actual product data for recommendations (limit to 3 for display)
-        const supabaseClient = await getSupabaseServer();
         const productIds = recommendations.slice(0, 3).map(rec => rec.productId);
         
         const { data: products, error: productsError } = await supabaseClient

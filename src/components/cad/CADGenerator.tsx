@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { cadTemplates, mlPromptTemplates } from '@/data/sample-data';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import CADHistory from '@/components/cad/CADHistory';
-import CADGenerationDebug from '@/components/cad/CADGenerationDebug';
 import CADPreview3D from '@/components/cad/CADPreview3D';
 import { useToast } from '@/components/ui/ToastProvider';
 import { StagedProgress, StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
@@ -45,7 +44,119 @@ const normalizeCategory = (category?: string): CADGenerationRequest['category'] 
   return isSupportedCategory(category) ? category : 'custom';
 };
 
+interface TemplateCardButtonProps {
+  title: string;
+  description: string;
+  badge?: string;
+  onClick: () => void;
+  isActive?: boolean;
+  previewSrc?: string;
+  children?: React.ReactNode;
+  accentColor?: 'blue' | 'yellow';
+  extraBadges?: React.ReactNode;
+}
+
+const TemplateCardButton: React.FC<TemplateCardButtonProps> = ({
+  title,
+  description,
+  badge,
+  onClick,
+  isActive = false,
+  previewSrc,
+  children,
+  accentColor = 'blue',
+  extraBadges,
+}) => {
+  const accent =
+    accentColor === 'yellow'
+      ? {
+          baseBorder: 'border-amber-200',
+          hoverBorder: 'hover:border-amber-400',
+          activeBorder: 'border-amber-500',
+          activeRing: 'ring-amber-300',
+          activeBg: 'bg-gradient-to-br from-white via-amber-50 to-amber-100',
+          checkBg: 'bg-amber-500',
+        }
+      : {
+          baseBorder: 'border-transparent',
+          hoverBorder: 'hover:border-primary/40',
+          activeBorder: 'border-primary/40',
+          activeRing: 'ring-primary/40',
+          activeBg: 'bg-gradient-to-br from-white via-primary/5 to-primary/10',
+          checkBg: 'bg-primary',
+        };
+
+  const activeClasses = isActive
+    ? `${accent.activeBg} ${accent.activeBorder} ring-2 ${accent.activeRing} shadow-lg scale-[1.01]`
+    : `${accent.baseBorder} ${accent.hoverBorder}`;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={isActive}
+      className={`relative text-left p-4 glass-card group hover:shadow-md transition-all border ${activeClasses}`}
+    >
+      {isActive && (
+        <span className={`absolute top-3 right-3 inline-flex h-5 w-5 items-center justify-center rounded-full text-white shadow ${accent.checkBg}`}>
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        </span>
+      )}
+      <div className="flex items-start gap-4">
+        {previewSrc && (
+          <div className="flex-shrink-0 w-45 h-36 rounded-lg border border-gray-200 bg-gradient-to-br from-white via-gray-50 to-slate-100 overflow-hidden flex items-center justify-center">
+            <img
+              src={previewSrc}
+              alt={title}
+              className="w-full h-full object-contain"
+            />
+          </div>
+        )}
+        <div className="flex-1 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <h4 className="font-semibold text-gray-900 text-base">{title}</h4>
+            <div className="flex items-center gap-2">
+              {extraBadges}
+              {badge && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 capitalize">
+                  {badge}
+                </span>
+              )}
+            </div>
+          </div>
+          <p className="text-sm text-gray-600 line-clamp-2">{description}</p>
+          {children}
+        </div>
+      </div>
+    </button>
+  );
+};
+
 const CADGenerator: React.FC = () => {
+  const brakeRotorQuickBadges = (
+    <div className="flex items-center gap-2 text-[10px] text-amber-700">
+      <span className="inline-flex items-center whitespace-nowrap px-1.5 py-0.25 rounded-full border border-gray-300 hover:border-amber-400 bg-gray-50 hover:bg-amber-50">
+        $$$
+      </span>
+      <span className="inline-flex items-center px-1.5 py-0.25 rounded-full border border-gray-300 hover:border-amber-400 bg-gray-50 hover:bg-amber-50 uppercase tracking-wide">
+        Complex
+      </span>
+    </div>
+  );
+
+  const brakeRotorTemplateBadges = (
+    <div className="flex items-center gap-2 text-[11px] text-amber-700">
+      <span className="inline-flex items-center px-1.5 py-0.25 rounded-full border border-gray-300 hover:border-amber-400 bg-gray-50 hover:bg-amber-50">
+        $$$
+      </span>
+      <span className="inline-flex items-center px-1.5 py-0.25 rounded-full border border-gray-300 hover:border-amber-400 bg-gray-50 hover:bg-amber-50 uppercase tracking-wide">
+        Complex
+      </span>
+    </div>
+  );
+
   // Zustand store for CAD preferences
   const { 
     selectedFormat, 
@@ -78,7 +189,10 @@ const CADGenerator: React.FC = () => {
       });
 
       setConversationId(result.id);
-      addDebugStep('finalize', 'Finalize CAD Model', 'completed', 'CAD model ready for display');
+      addDebugStep('api_request', 'Generating Drawing', 'completed', 'Drawing successfully generated');
+      addDebugStep('process_response', 'Retrieving Drawing', 'completed', 'Drawing data retrieved and parsed');
+      addDebugStep('finalize', 'Finalize & Preview', 'completed', 'Model ready for preview');
+      setShouldScrollToResult(true);
       
       addToast({
         type: 'success',
@@ -87,7 +201,9 @@ const CADGenerator: React.FC = () => {
     },
     onError: (error) => {
       console.error('CAD generation error:', error);
-      addDebugStep('finalize', 'Finalize CAD Model', 'failed', undefined, error.message);
+      addDebugStep('api_request', 'Generating Drawing', 'failed', undefined, error.message);
+      addDebugStep('process_response', 'Retrieving Drawing', 'failed', undefined, error.message);
+      addDebugStep('finalize', 'Finalize & Preview', 'failed', undefined, error.message);
       
       const message = `CAD generation failed: ${error.message}`;
       setErrorMessage(message);
@@ -111,20 +227,33 @@ const CADGenerator: React.FC = () => {
   const [conversationId, setConversationId] = useState<string>('');
   const [cadFileForPreview, setCadFileForPreview] = useState<File | null>(null);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [shouldScrollToResult, setShouldScrollToResult] = useState(false);
+  const [prefilledPromptHighlight, setPrefilledPromptHighlight] = useState(false);
+  const promptInputContainerRef = useRef<HTMLDivElement | null>(null);
+  const [stageDelayNotices, setStageDelayNotices] = useState<Record<string, boolean>>({});
+  const delayTimersRef = useRef<Record<string, number>>({});
   const { addToast } = useToast();
 
-  const generationStageTemplate = [
+  const generationStageTemplate = useMemo(
+    () => [
     { id: 'init', label: 'Prepare Prompt', aliases: ['init', 'init_template'] },
-    { id: 'api_request', label: 'Zoo Dev Generation', aliases: ['api_request'] },
-    { id: 'process_response', label: 'Process Response', aliases: ['process_response'] },
+      { id: 'api_request', label: 'Generating Drawing', aliases: ['api_request'] },
+      { id: 'process_response', label: 'Retrieving Drawing', aliases: ['process_response'] },
     { id: 'finalize', label: 'Finalize & Preview', aliases: ['finalize'] },
-  ];
+    ],
+    []
+  );
+
+  const hasStartedGeneration = useMemo(
+    () => debugSteps.length > 0 || isPending,
+    [debugSteps.length, isPending]
+  );
 
   const generationStages = useMemo<StagedProgressItem[]>(() => {
     return generationStageTemplate.map((stage, index) => {
       const debug = debugSteps.find(step => stage.aliases.includes(step.id));
       let status: StageStatus = 'pending';
-      let message: string | undefined;
+      const messageParts: string[] = [];
 
       if (debug) {
         switch (debug.status) {
@@ -138,22 +267,54 @@ const CADGenerator: React.FC = () => {
             status = 'error';
             break;
         }
-        message = debug.error || debug.details;
+
+        if (debug.error) {
+          messageParts.push(debug.error);
+        } else if (debug.details) {
+          messageParts.push(debug.details);
+        }
       } else if (isPending && index === 0) {
         status = 'active';
-        message = 'Initializing generation...';
+        messageParts.push('Initializing generation...');
+      } else if (!hasStartedGeneration) {
+        status = 'pending';
       }
+
+      if (stageDelayNotices[stage.id]) {
+        messageParts.push('It might take longer than expected for complex models.');
+      }
+
+      const combinedMessage = messageParts.join(' ').trim();
 
       return {
         id: stage.id,
         label: stage.label,
         status,
-        message,
+        message: combinedMessage || undefined,
       };
     });
-  }, [debugSteps, isPending]);
+  }, [debugSteps, isPending, stageDelayNotices, hasStartedGeneration]);
 
-  const showStageTracker = isPending || debugSteps.length > 0;
+  const visibleGenerationStages = useMemo(() => {
+    if (generationStages.length === 0) {
+      return [];
+    }
+
+    const activeIndex = generationStages.findIndex((stage) => stage.status === 'active');
+    const furthestIndex = generationStages.reduce((furthest, stage, index) => {
+      if (stage.status !== 'pending') {
+        return Math.max(furthest, index);
+      }
+      return furthest;
+    }, -1);
+
+    const visibleUpTo = Math.max(activeIndex === -1 ? furthestIndex + 1 : activeIndex, furthestIndex);
+    return generationStages.filter((_, index) => index <= visibleUpTo);
+  }, [generationStages]);
+
+  const hideAfterCompletion = !!generatedDrawing && !isPending;
+  const showStageTracker =
+    !hideAfterCompletion && hasStartedGeneration && visibleGenerationStages.length > 0;
 
   // Check for URL parameters on mount
   useEffect(() => {
@@ -161,43 +322,39 @@ const CADGenerator: React.FC = () => {
     const promptParam = params.get('prompt');
     if (promptParam) {
       setTextInput(decodeURIComponent(promptParam));
-      
-      // Auto-scroll to the text input after a short delay to ensure DOM is ready
-      setTimeout(() => {
-        const textInputElement = document.getElementById('textInput');
-        if (textInputElement) {
-          // Scroll to show the prompt at the top with some padding
-          textInputElement.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start' 
-          });
-          
-          // Add extra scroll offset to show the prompt fully (account for header)
-          setTimeout(() => {
-            window.scrollBy({ 
-              top: -100, // Scroll up 100px to add padding above the prompt
-              behavior: 'smooth' 
-            });
-          }, 400);
-          
-          // Focus the input for better UX
-          textInputElement.focus();
-          
-          // Add a subtle highlight animation
-          const container = textInputElement.closest('.bg-white.rounded-2xl');
-          if (container) {
-            container.classList.add('ring-2', 'ring-blue-400', 'ring-opacity-50');
-            setTimeout(() => {
-              container.classList.remove('ring-2', 'ring-blue-400', 'ring-opacity-50');
-            }, 2000);
-          }
-        }
-      }, 300);
-      
-      // Clean up URL to remove the prompt parameter
+      setPrefilledPromptHighlight(true);
       window.history.replaceState({}, '', '/cad-generator');
     }
   }, []);
+
+  useEffect(() => {
+    if (!prefilledPromptHighlight) {
+      return;
+    }
+
+    const scrollTimeout = window.setTimeout(() => {
+      if (promptInputContainerRef.current) {
+        const rect = promptInputContainerRef.current.getBoundingClientRect();
+        const targetTop = Math.max(rect.bottom + window.scrollY - window.innerHeight + 80, 0);
+        window.scrollTo({ top: targetTop, behavior: 'smooth' });
+      }
+    }, 250);
+
+    const focusTimeout = window.setTimeout(() => {
+      const textInputElement = document.getElementById('textInput') as HTMLTextAreaElement | null;
+      if (textInputElement) {
+        textInputElement.focus({ preventScroll: true });
+      }
+    }, 350);
+
+    const highlightTimeout = window.setTimeout(() => setPrefilledPromptHighlight(false), 2200);
+
+    return () => {
+      window.clearTimeout(scrollTimeout);
+      window.clearTimeout(focusTimeout);
+      window.clearTimeout(highlightTimeout);
+    };
+  }, [prefilledPromptHighlight]);
 
   // Debug step management
   const addDebugStep = (id: string, title: string, status: 'pending' | 'in_progress' | 'completed' | 'failed', details?: string, error?: string) => {
@@ -217,7 +374,52 @@ const CADGenerator: React.FC = () => {
 
   const clearDebugSteps = () => {
     setDebugSteps([]);
+    setStageDelayNotices({});
+    Object.values(delayTimersRef.current).forEach((timerId) => window.clearTimeout(timerId));
+    delayTimersRef.current = {};
   };
+
+  useEffect(() => {
+    const targetStage = generationStageTemplate.find((stage) => stage.id === 'api_request');
+    if (!targetStage) {
+      return;
+    }
+
+    const debug = debugSteps.find((step) => targetStage.aliases.includes(step.id));
+    const stageId = targetStage.id;
+    const currentTimer = delayTimersRef.current[stageId];
+
+    if (debug?.status === 'in_progress') {
+      if (!stageDelayNotices[stageId] && currentTimer === undefined) {
+        delayTimersRef.current[stageId] = window.setTimeout(() => {
+          setStageDelayNotices((prev) => ({
+            ...prev,
+            [stageId]: true,
+          }));
+          delete delayTimersRef.current[stageId];
+        }, 60000);
+      }
+    } else {
+      if (currentTimer !== undefined) {
+        window.clearTimeout(currentTimer);
+        delete delayTimersRef.current[stageId];
+      }
+      if (stageDelayNotices[stageId]) {
+        setStageDelayNotices((prev) => {
+          const next = { ...prev };
+          delete next[stageId];
+          return next;
+        });
+      }
+    }
+  }, [debugSteps, stageDelayNotices, generationStageTemplate]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(delayTimersRef.current).forEach((timerId) => window.clearTimeout(timerId));
+      delayTimersRef.current = {};
+    };
+  }, []);
 
   // Helper function to convert base64 to File
   const base64ToFile = (base64Data: string, format: string): File | null => {
@@ -275,6 +477,24 @@ const CADGenerator: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [generatedDrawing]);
+
+  useEffect(() => {
+    if (!shouldScrollToResult || !generatedDrawing) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const drawingElement = document.querySelector('[data-generated-drawing]');
+      if (drawingElement) {
+        drawingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Offset scroll slightly so section title is not hidden under header
+        window.scrollBy({ top: -80, behavior: 'smooth' });
+      }
+      setShouldScrollToResult(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [shouldScrollToResult, generatedDrawing]);
 
   const handleHistorySelect = (historyItem: any) => {
     
@@ -346,6 +566,7 @@ const CADGenerator: React.FC = () => {
     if (!textInput.trim()) return;
     
     // Clear previous drawing to show loading state
+    setShouldScrollToResult(false);
     setGeneratedDrawing(null);
     setCadFileForPreview(null);
     
@@ -356,17 +577,17 @@ const CADGenerator: React.FC = () => {
     // Debug Step 1: Initialize
     addDebugStep('init', 'Initialize Generation', 'in_progress', `Prompt: "${textInput}"`);
     
-    setGenerationProgress('Sending request to Zoo Dev API...');
+    setGenerationProgress('Submitting drawing request...');
     addDebugStep('init', 'Initialize Generation', 'completed');
     
     // Debug Step 2: API Request
-    addDebugStep('api_request', 'Send API Request', 'in_progress', 'Calling Zoo Dev text-to-CAD API');
+    addDebugStep('api_request', 'Generating Drawing', 'in_progress', 'Processing your description into a CAD model');
     
     // Debug Step 3: Process Response
-    addDebugStep('process_response', 'Process API Response', 'in_progress', 'Parsing Zoo Dev API response');
+    addDebugStep('process_response', 'Retrieving Drawing', 'in_progress', 'Retrieving generated model data');
     
     // Debug Step 4: Finalize
-    addDebugStep('finalize', 'Finalize CAD Model', 'in_progress', 'Converting to display format');
+    addDebugStep('finalize', 'Finalize & Preview', 'in_progress', 'Preparing the file for preview');
     
     // Use React Query mutation with Zustand store values
     generateCAD({
@@ -399,10 +620,20 @@ const CADGenerator: React.FC = () => {
     }
   };
 
+  const handleTemplateSelect = (templateId: number) => {
+    setSelectedTemplate(templateId);
+    const template = cadTemplates.find((t) => t.id === templateId);
+    if (template) {
+      const prompt = generatePromptFromTemplate(template);
+      setTextInput(prompt);
+    }
+  };
+
   const handleTemplateGeneration = async () => {
     if (selectedTemplate === null) return;
 
     // Clear previous drawing to show loading state
+    setShouldScrollToResult(false);
     setGeneratedDrawing(null);
     setCadFileForPreview(null);
 
@@ -424,16 +655,16 @@ const CADGenerator: React.FC = () => {
 
     addDebugStep('init_template', 'Initialize Template', 'completed', `Generated prompt: "${prompt}"`);
 
-    setGenerationProgress('Sending request to Zoo Dev API...');
+    setGenerationProgress('Submitting drawing request...');
 
     // Debug Step 2: API Request
-    addDebugStep('api_request', 'Send API Request', 'in_progress', 'Calling Zoo Dev text-to-CAD API with template parameters');
+    addDebugStep('api_request', 'Generating Drawing', 'in_progress', 'Processing template parameters into a CAD model');
 
     // Debug Step 3: Process Response
-    addDebugStep('process_response', 'Process API Response', 'in_progress', 'Parsing Zoo Dev API response');
+    addDebugStep('process_response', 'Retrieving Drawing', 'in_progress', 'Retrieving generated model data');
 
     // Debug Step 4: Finalize
-    addDebugStep('finalize', 'Finalize CAD Model', 'in_progress', 'Converting to display format');
+    addDebugStep('finalize', 'Finalize & Preview', 'in_progress', 'Preparing the file for preview');
 
     // Use React Query mutation with Zustand store values
     generateCAD({
@@ -576,13 +807,6 @@ const CADGenerator: React.FC = () => {
         <CADHistory onSelectHistory={handleHistorySelect} className="rounded-3xl overflow-hidden bg-white/60" />
       </div>
 
-      {showStageTracker && (
-        <StagedProgress
-          title="Generation Pipeline"
-          subtitle="Track each stage of the Zoo Dev workflow."
-          stages={generationStages}
-        />
-      )}
       {/* Tab Navigation */}
       <div className="glass-container"></div>
       <div className="glass-container-with-liquid mb-10 rounded-3xl overflow-hidden">
@@ -638,23 +862,20 @@ const CADGenerator: React.FC = () => {
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-gray-600 ml-12">Try these professional templates:</p>
                   <div className="ml-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {mlPromptTemplates.map((template) => (
-                      <button
-                        key={template.id}
-                        onClick={() => setTextInput(template.prompt)}
-                        className="text-left p-3 glass-card group hover:shadow-md transition-all"
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="font-semibold text-gray-900 text-sm">{template.title}</h4>
-                          {template.category && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 capitalize">
-                              {template.category}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-600 line-clamp-2">{template.description}</p>
-                      </button>
-                    ))}
+                    {mlPromptTemplates.map((template) => {
+                      const isBrakeRotor = template.title === 'Brake Rotor';
+                      return (
+                        <TemplateCardButton
+                          key={template.id}
+                          title={template.title}
+                          description={template.description}
+                          badge={template.category}
+                          onClick={() => setTextInput(template.prompt)}
+                          accentColor={isBrakeRotor ? 'yellow' : 'blue'}
+                          extraBadges={isBrakeRotor ? brakeRotorQuickBadges : undefined}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -729,8 +950,12 @@ const CADGenerator: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </div>
-                    <div className="flex-1 relative">
-                      <div className="glass-card rounded-2xl focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+                    <div className="flex-1 relative" ref={promptInputContainerRef}>
+                      <div
+                        className={`glass-card rounded-2xl focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all ${
+                          prefilledPromptHighlight ? 'ring-2 ring-blue-400 ring-opacity-50 border-blue-200' : ''
+                        }`}
+                      >
                         <textarea
                           id="textInput"
                           value={textInput}
@@ -844,46 +1069,36 @@ const CADGenerator: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-4">
                 Choose a template
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {cadTemplates.map((template) => (
-                  <div
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {cadTemplates.map((template) => {
+                  const paramEntries = Object.entries(template.parameters);
+                  const isBrakeRotorTemplate = template.id === 4;
+                  return (
+                    <TemplateCardButton
                     key={template.id}
-                    onClick={() => setSelectedTemplate(template.id)}
-                    className={`cursor-pointer border-2 rounded-lg p-6 transition-all ${
-                      selectedTemplate === template.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                      title={template.name}
+                      description={template.description}
+                      badge={template.category}
+                      previewSrc={template.preview}
+                      onClick={() => handleTemplateSelect(template.id)}
+                      isActive={selectedTemplate === template.id}
+                      accentColor={isBrakeRotorTemplate ? 'yellow' : 'blue'}
+                      extraBadges={isBrakeRotorTemplate ? brakeRotorTemplateBadges : undefined}
                   >
-                    <div className="flex space-x-4">
-                      <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                        <img 
-                          src={template.preview} 
-                          alt={template.name}
-                          className="w-full h-full object-contain p-2"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-2">{template.name}</h3>
-                        <p className="text-sm text-gray-600 mb-3">{template.description}</p>
-                        
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide">Default Parameters:</h4>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            {Object.entries(template.parameters).slice(0, 4).map(([key, param]) => (
-                              <div key={key} className="text-gray-600">
-                                <span className="font-medium">{param.label}:</span> {param.value}{param.unit}
+                      <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600">
+                        {paramEntries.slice(0, 4).map(([key, param]) => (
+                          <div key={key}>
+                            <span className="font-semibold text-gray-700">{param.label}:</span>{' '}
+                            <span className="text-gray-900">{param.value}{param.unit}</span>
                               </div>
                             ))}
-                          </div>
-                          {Object.keys(template.parameters).length > 4 && (
-                            <p className="text-xs text-gray-500">+{Object.keys(template.parameters).length - 4} more parameters</p>
+                        {paramEntries.length > 4 && (
+                          <div className="col-span-2 text-xs text-gray-500">+{paramEntries.length - 4} more parameters</div>
                           )}
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    </TemplateCardButton>
+                  );
+                })}
               </div>
             </div>
               <div className="flex justify-center">
@@ -899,6 +1114,15 @@ const CADGenerator: React.FC = () => {
           )}
         </div>
       </div>
+
+      {showStageTracker && (
+        <StagedProgress
+          title="Generation Process"
+          subtitle="Track each stage of the drawing workflow."
+          stages={visibleGenerationStages}
+          className="mt-4"
+        />
+      )}
 
       {/* Generated Drawing Display */}
       {generatedDrawing && (
@@ -944,7 +1168,7 @@ const CADGenerator: React.FC = () => {
                 Edit Drawing
               </Button>
               <div className="flex space-x-2">
-                <div className="relative group">
+                <div className="relative group/download">
                   <Button className="flex items-center space-x-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -956,7 +1180,7 @@ const CADGenerator: React.FC = () => {
                   </Button>
                   
                   {/* Dropdown Menu */}
-                  <div className="absolute top-full right-0 mt-2 w-48 opacity-0 invisible pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-hover:visible transition-all duration-200 z-30">
+                  <div className="absolute top-full right-0 mt-2 w-48 opacity-0 invisible pointer-events-none group-hover/download:pointer-events-auto group-hover/download:opacity-100 group-hover/download:visible transition-all duration-200 z-30">
                     <div className="glass-card py-1">
                       <button
                         onClick={() => handleDownload('step')}
@@ -965,40 +1189,10 @@ const CADGenerator: React.FC = () => {
                         Download STEP (.step)
                       </button>
                       <button
-                        onClick={() => handleDownload('stl')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                        disabled
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-400 cursor-not-allowed"
                       >
-                        Download STL (.stl)
-                      </button>
-                      <button
-                        onClick={() => handleDownload('obj')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        Download OBJ (.obj)
-                      </button>
-                      <button
-                        onClick={() => handleDownload('dxf')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        Download DXF (.dxf)
-                      </button>
-                      <button
-                        onClick={() => handleDownload('pdf')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        Download PDF (.pdf)
-                      </button>
-                      <button
-                        onClick={() => handleDownload('gltf')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        Download glTF (.gltf)
-                      </button>
-                      <button
-                        onClick={() => handleDownload('glb')}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        Download GLB (.glb)
+                        Other formats – coming soon
                       </button>
                     </div>
                   </div>

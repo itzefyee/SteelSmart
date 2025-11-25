@@ -211,7 +211,7 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
                                     href={`/cad-generator?prompt=${encodeURIComponent(`Generate a technical drawing for ${product.name}. Material: ${product.material || 'steel'}. ${typeof product.specifications === 'object' && product.specifications !== null && 'dimensions' in product.specifications ? `Dimensions: ${(product.specifications as any).dimensions}` : ''}`)}`}
                                     className="flex-1"
                                 >
-                                    <button className="w-full flex items-center justify-center space-x-2 rounded-xl border-2 border-slate-200 bg-white/90 py-4 px-6 font-semibold text-slate-900 transition-all hover:border-blue-300 hover:bg-blue-50">
+                                    <button className="w-full flex items-center justify-center space-x-2 rounded-xl border-2 border-slate-200 bg-white/90 py-4 px-6 font-semibold text-slate-900 transition-all hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
                                         </svg>

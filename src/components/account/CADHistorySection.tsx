@@ -41,6 +41,13 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
   } = useCADHistory({ userId, pageSize: 10 });
 
   const loadAnalysisHistory = useCallback(async () => {
+    if (!userId) {
+      setAnalysisHistory([]);
+      setAnalysisError('Unable to load AI analyses: missing account context.');
+      setAnalysisLoading(false);
+      return;
+    }
+
     setAnalysisLoading(true);
     setAnalysisError(null);
     try {
@@ -64,6 +71,13 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
   }, [userId]);
 
   const loadRFQHistory = useCallback(async () => {
+    if (!userId) {
+      setRFQHistory([]);
+      setRFQError('Unable to load RFQs: missing account context.');
+      setRFQLoading(false);
+      return;
+    }
+
     setRFQLoading(true);
     setRFQError(null);
     try {

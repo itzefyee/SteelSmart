@@ -24,6 +24,19 @@ export default function AccountStatsSection({ userId, memberSince }: AccountStat
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isActive = true;
+
+    if (!userId) {
+      setStats({
+        totalCADGenerations: 0,
+        totalRFQs: 0,
+        totalAnalyses: 0,
+      });
+      setError('Missing account information. Please refresh or sign in again.');
+      setLoading(false);
+      return;
+    }
+
     const fetchStats = async () => {
       setLoading(true);
       setError(null);
@@ -55,6 +68,7 @@ export default function AccountStatsSection({ userId, memberSince }: AccountStat
 
         if (analysesError) throw analysesError;
 
+        if (!isActive) return;
         setStats({
           totalCADGenerations: cadCount || 0,
           totalRFQs: rfqCount || 0,
@@ -62,13 +76,20 @@ export default function AccountStatsSection({ userId, memberSince }: AccountStat
         });
       } catch (err) {
         console.error('Error fetching stats:', err);
+        if (!isActive) return;
         setError(err instanceof Error ? err.message : 'Failed to fetch statistics');
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     };
 
     fetchStats();
+
+    return () => {
+      isActive = false;
+    };
   }, [userId]);
 
   const formatDate = (dateString: string | null) => {

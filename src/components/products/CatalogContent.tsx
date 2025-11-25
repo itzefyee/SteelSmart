@@ -26,7 +26,15 @@ export default function CatalogContent() {
 
   // Fetch products from Supabase using React Query
   // Set limit to 100 to fetch all products (we have 21 currently)
-  const { data: productsData, isLoading: productsLoading, error: productsError, refetch } = useProducts({ limit: 100 });
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    error: productsError,
+    refetch,
+    isRefetching,
+  } = useProducts({ limit: 100 });
+
+  const [isRefreshAnimating, setIsRefreshAnimating] = useState(false);
 
   // Extract products array from React Query response
   const products: Product[] = productsData?.products || [];
@@ -105,6 +113,16 @@ export default function CatalogContent() {
     });
   };
 
+  const handleManualRefresh = async () => {
+    if (productsLoading || isRefetching) return;
+    setIsRefreshAnimating(true);
+    try {
+      await refetch();
+    } finally {
+      setTimeout(() => setIsRefreshAnimating(false), 500);
+    }
+  };
+
   // Get unique categories and materials for filter options
   const availableCategories = useMemo(() => {
     return categoriesData.map(cat => ({
@@ -148,7 +166,7 @@ export default function CatalogContent() {
             {productsError.message || 'An error occurred while fetching products'}
           </p>
           <button
-            onClick={() => refetch()}
+            onClick={handleManualRefresh}
             className="inline-flex items-center px-4 py-2 border border-white/20 text-sm font-medium rounded-md text-white bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-0"
           >
             Try Again
@@ -157,6 +175,8 @@ export default function CatalogContent() {
       </div>
     );
   }
+
+  const refreshStateActive = isRefetching || isRefreshAnimating;
 
   return (
     <main className="catalog-shell flex-1 min-h-screen">
@@ -230,25 +250,50 @@ export default function CatalogContent() {
 
           {/* Main Content - Separate Glass Container */}
           <div className="lg:w-3/4 w-full">
-            <div className="catalog-glass-container h-full p-8">
-              {/* Sort and Results Count */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <div
+              className={`catalog-glass-container h-full p-8 relative overflow-hidden ${
+                refreshStateActive ? 'ring-1 ring-sky-400/40 shadow-[0_0_45px_rgba(14,165,233,0.15)]' : ''
+              }`}
+            >
+              {refreshStateActive && (
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-sky-500/5 via-transparent to-cyan-400/5 animate-pulse" aria-hidden="true" />
+              )}
+              <div className="relative z-10">
+                {/* Sort and Results Count */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div className="text-sm font-medium text-white">
                   Showing <span className="text-blue-300 font-bold">{filteredAndSortedProducts.length}</span> of {products.length} products
                 </div>
                 
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => refetch()}
-                    disabled={productsLoading}
-                    className="inline-flex items-center px-3 py-2 border border-white/20 text-sm font-medium rounded-md text-white bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Refresh products"
-                  >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Refresh
-                  </button>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 w-full sm:w-auto">
+                  <div className="flex items-center space-x-3">
+                    <div
+                      aria-live="polite"
+                      className={`text-[11px] uppercase tracking-wide text-sky-200 font-semibold transition-all duration-200 ${
+                        refreshStateActive ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
+                      }`}
+                    >
+                      Refreshing catalog…
+                    </div>
+                    <button
+                      onClick={handleManualRefresh}
+                      disabled={productsLoading || isRefetching}
+                      className={`inline-flex items-center px-3 py-2 border border-white/20 text-sm font-medium rounded-md text-white bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all ${
+                        refreshStateActive ? 'bg-white/20 shadow-[0_0_20px_rgba(14,165,233,0.25)]' : 'hover:bg-white/20'
+                      }`}
+                      title="Refresh products"
+                    >
+                      <svg
+                        className={`w-4 h-4 mr-1 transition-transform duration-300 ${refreshStateActive ? 'animate-spin' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      {refreshStateActive ? 'Refreshing' : 'Refresh'}
+                    </button>
+                  </div>
                   
                   <div className="flex items-center space-x-2">
                     <label htmlFor="sort" className="text-sm font-medium text-white">
@@ -269,32 +314,33 @@ export default function CatalogContent() {
                 </div>
               </div>
 
-              {/* Products Grid */}
-              {filteredAndSortedProducts.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredAndSortedProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-xl">
-                  <div className="text-slate-400 mb-4">
-                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.47-.881-6.08-2.33" />
-                    </svg>
+                {/* Products Grid */}
+                {filteredAndSortedProducts.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {filteredAndSortedProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
                   </div>
-                  <h3 className="text-lg font-medium text-white mb-2">No products found</h3>
-                  <p className="text-slate-300 mb-4">
-                    Try adjusting your filters or search terms to find what you&apos;re looking for.
-                  </p>
-                  <button
-                    onClick={handleClearFilters}
-                    className="inline-flex items-center px-4 py-2 border border-white/20 text-sm font-medium rounded-md text-white bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-0"
-                  >
-                    Clear all filters
-                  </button>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-12 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-xl">
+                    <div className="text-slate-400 mb-4">
+                      <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.47-.881-6.08-2.33" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-white mb-2">No products found</h3>
+                    <p className="text-slate-300 mb-4">
+                      Try adjusting your filters or search terms to find what you&apos;re looking for.
+                    </p>
+                    <button
+                      onClick={handleClearFilters}
+                      className="inline-flex items-center px-4 py-2 border border-white/20 text-sm font-medium rounded-md text-white bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-0"
+                    >
+                      Clear all filters
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

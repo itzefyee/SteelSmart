@@ -416,6 +416,7 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
             {history.map((item) => {
               const isItemExpanded = expandedItems.has(item.id);
               const hasModel = item.status === 'completed' && item.model_data;
+              const isLoadingModel = loadingModelIds.has(item.id);
               
               return (
                 <div
@@ -468,45 +469,92 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
                           </div>
                         )}
                       </div>
-                      <div className="flex flex-col items-center gap-1.5">
-                        <button
-                          onClick={() => toggleItemExpansion(item.id)}
-                          className={`p-2 rounded-lg transition-all ${
-                            isItemExpanded 
-                              ? 'bg-blue-100 text-blue-700 shadow-sm' 
-                              : 'bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm'
-                          }`}
-                          title={isItemExpanded ? 'Collapse' : 'Expand'}
-                        >
-                          <svg 
-                            className={`w-4 h-4 transition-transform duration-200 ${isItemExpanded ? 'rotate-180' : ''}`} 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        {hasModel && (
+                      <div className="flex flex-col items-end gap-1.5 min-w-[200px]">
+                        <div className="flex items-center gap-1.5">
+                          {item.status === 'completed' && (
+                            <button
+                              onClick={() => viewDrawing(item)}
+                              disabled={isLoadingModel}
+                              className="px-3 py-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm transition-all disabled:opacity-50 disabled:cursor-wait flex items-center gap-1.5 text-xs font-semibold"
+                              title={isLoadingModel ? 'Loading preview...' : 'View Drawing'}
+                            >
+                              {isLoadingModel ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                  <span>View Drawing</span>
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  <span>View Drawing</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                          {hasModel && (
+                            <>
+                              <button
+                                onClick={() => sendToAnalyzer(item)}
+                                className="px-3 py-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-700 hover:shadow-sm transition-all flex items-center gap-1.5 text-xs font-semibold"
+                                title="Analyze in CAD Analyzer"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                <span>Analyze</span>
+                              </button>
+                              <button
+                                onClick={() => downloadModel(item)}
+                                className="px-3 py-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all flex items-center gap-1.5 text-xs font-semibold"
+                                title="Download"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span>Download</span>
+                              </button>
+                            </>
+                          )}
                           <button
-                            onClick={() => downloadModel(item)}
-                            className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-green-100 hover:text-green-700 hover:shadow-sm transition-all"
-                            title="Download"
+                            onClick={() => deleteHistoryItem(item.id)}
+                            className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all"
+                            title="Delete"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
+                          <button
+                            onClick={() => toggleItemExpansion(item.id)}
+                            className={`p-2 rounded-lg transition-all ${
+                              isItemExpanded 
+                                ? 'bg-blue-100 text-blue-700 shadow-sm' 
+                                : 'bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-700 hover:shadow-sm'
+                            }`}
+                            title={isItemExpanded ? 'Collapse' : 'Expand'}
+                          >
+                            <svg 
+                              className={`w-4 h-4 transition-transform duration-200 ${isItemExpanded ? 'rotate-180' : ''}`} 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                        </div>
+                        {item.status === 'completed' && (
+                          <div className="text-[11px] text-slate-500 text-right w-full">
+                            {hasModel
+                              ? 'Model ready for download'
+                              : item.model_data_url
+                                ? 'Preview loads from cloud storage'
+                                : 'Model file unavailable'}
+                          </div>
                         )}
-                        <button
-                          onClick={() => deleteHistoryItem(item.id)}
-                          className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:bg-red-100 hover:text-red-700 hover:shadow-sm transition-all"
-                          title="Delete"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -549,22 +597,6 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
                       </div>
 
                       {/* Storage Info */}
-                      {item.file_path && (
-                        <div className="pt-2 border-t border-gray-200">
-                          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Storage Path</span>
-                          <p className="text-xs text-gray-500 font-mono mt-1 bg-gray-50 p-2 rounded border border-gray-200 break-all">
-                            {item.file_path}
-                          </p>
-                        </div>
-                      )}
-                      {item.zoo_operation_id && (
-                        <div className="pt-2 border-t border-gray-200">
-                          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Generation ID</span>
-                          <p className="text-xs text-gray-500 font-mono mt-1 bg-gray-50 p-2 rounded border border-gray-200 break-all">
-                            {item.zoo_operation_id}
-                          </p>
-                        </div>
-                      )}
 
                       {/* Error Details */}
                       {item.error && (
@@ -578,103 +610,6 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
                         </div>
                       )}
 
-                      {/* Drawing Actions */}
-                      {item.status === 'completed' && (
-                        <div className="flex items-center space-x-2 pt-2 border-t border-gray-200">
-                          <Button
-                            onClick={() => viewDrawing(item)}
-                            disabled={loadingModelIds.has(item.id)}
-                            className="flex items-center space-x-2"
-                          >
-                            {loadingModelIds.has(item.id) ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                <span>Loading...</span>
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                <span>View Drawing</span>
-                              </>
-                            )}
-                          </Button>
-                          {hasModel && (
-                            <>
-                              <Button
-                                variant="outline"
-                                onClick={() => {
-                                  if (!item.model_data) return;
-                                  
-                                  try {
-                                    // Store file data in sessionStorage for the analyzer
-                                    const fileData = {
-                                      name: `${item.prompt.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '_')}.${item.format}`,
-                                      data: item.model_data.startsWith('data:') ? item.model_data : `data:application/octet-stream;base64,${item.model_data}`,
-                                      type: item.format,
-                                      timestamp: Date.now()
-                                    };
-                                    
-                                    sessionStorage.setItem('cadFileToAnalyze', JSON.stringify(fileData));
-                                    
-                                    // Redirect to analyzer
-                                    window.location.href = '/cad-analyzer?autoAnalyze=true';
-                                  } catch (error) {
-                                    console.error('Error preparing file for analysis:', error);
-                                    alert('Failed to prepare file for analysis. Please try downloading and uploading manually.');
-                                  }
-                                }}
-                                className="flex items-center space-x-2"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                </svg>
-                                <span>Analyze Drawing</span>
-                              </Button>
-                              <Button
-                                variant="outline"
-                                onClick={() => downloadModel(item)}
-                                className="flex items-center space-x-2"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <span>Download</span>
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Model Info */}
-                      {item.status === 'completed' && (
-                        <div className="pt-2 border-t border-gray-200">
-                          {hasModel ? (
-                            <div className="flex items-center space-x-2 text-xs text-gray-500">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              <span>Model data loaded ({Math.round(item.model_data.length / 1024)} KB)</span>
-                            </div>
-                          ) : item.model_data_url ? (
-                            <div className="flex items-center space-x-2 text-xs text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <span>Click "View Drawing" to load model from Supabase Storage</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center space-x-2 text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                              </svg>
-                              <span>Model file not available (may have failed to upload)</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -685,6 +620,41 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
       </div>
     </div>
   );
+};
+
+const sendToAnalyzer = (item: CADHistoryItem) => {
+  if (!item.model_data) return;
+
+  try {
+    const fileData = {
+      name: `${item.prompt.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '_')}.${item.format}`,
+      data: item.model_data.startsWith('data:') ? item.model_data : `data:application/octet-stream;base64,${item.model_data}`,
+      type: item.format,
+      timestamp: Date.now()
+    };
+
+    sessionStorage.setItem('cadFileToAnalyze', JSON.stringify(fileData));
+    window.location.href = '/cad-analyzer?autoAnalyze=true';
+  } catch (error) {
+    console.error('Error preparing file for analysis:', error);
+    alert('Failed to prepare file for analysis. Please try downloading and uploading manually.');
+  }
+};
+
+const sendToRecommender = (item: CADHistoryItem) => {
+  if (!item.model_data) return;
+
+  try {
+    sessionStorage.setItem('cadAnalysisResult', JSON.stringify({
+      prompt: item.prompt,
+      format: item.format,
+      generatedAt: item.generated_at
+    }));
+    window.location.href = '/product-recommender?showResults=true';
+  } catch (error) {
+    console.error('Error preparing data for recommender:', error);
+    alert('Failed to prepare data for recommender. Please try again later.');
+  }
 };
 
 export default CADHistory;

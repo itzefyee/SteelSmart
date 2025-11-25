@@ -20,6 +20,35 @@ export default function AccountPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (!loading) {
+      sessionStorage.removeItem('accountForceReloaded');
+      return;
+    }
+
+    const alreadyForced = sessionStorage.getItem('accountForceReloaded');
+    const timeout = window.setTimeout(() => {
+      if (sessionStorage.getItem('accountForceReloaded') === 'true') {
+        return;
+      }
+      if (loading) {
+        sessionStorage.setItem('accountForceReloaded', 'true');
+        window.location.reload();
+      }
+    }, 2000);
+
+    return () => {
+      window.clearTimeout(timeout);
+      if (!loading && alreadyForced) {
+        sessionStorage.removeItem('accountForceReloaded');
+      }
+    };
+  }, [loading]);
+
+  useEffect(() => {
     const initializeProfile = async () => {
       console.log('[Account Page] Initializing', { authLoading, hasUser: !!user, hasAuthProfile: !!authProfile });
       

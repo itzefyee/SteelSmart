@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use the product matcher for intelligent recommendations
-    const recommendations = productMatcher.getCompatibleProducts(productId);
+    const recommendations = await productMatcher.getCompatibleProducts(productId);
 
     return NextResponse.json<APIResponse<RecommendationScore[]>>({
       success: true,

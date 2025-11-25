@@ -547,7 +547,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     >
       {/* Controls overlay */}
       <div className="absolute top-4 right-4 flex flex-col space-y-2 z-10">
-        <div className="bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
+        <div className="bg-white/95 rounded-lg p-2 shadow-lg">
           <div className="flex flex-col space-y-2">
             <button
               onClick={handleResetView}
@@ -697,9 +697,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
 
       {/* Instructions - Top Center, Collapsible */}
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
-        <div className={`rounded-lg shadow-lg overflow-hidden ${
-          isFullscreen ? 'bg-white/90 backdrop-blur-sm' : 'bg-white/95'
-        }`}>
+        <div className="rounded-lg shadow-lg overflow-hidden bg-white/95">
           <button
             onClick={() => setShowControls(!showControls)}
             className="w-full px-4 py-2 flex items-center justify-center space-x-2 hover:bg-gray-50 transition-colors"
@@ -752,7 +750,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
         <div className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 ${
           isFullscreen ? 'w-11/12 max-w-6xl' : 'w-11/12 max-w-3xl'
         }`}>
-          <div className="bg-white backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
+          <div className="bg-white/95 rounded-lg shadow-lg overflow-hidden">
             <button
               onClick={() => setShowModelInfo(!showModelInfo)}
               className="w-full px-4 py-2 flex items-center justify-center space-x-2 hover:bg-gray-50 transition-colors"
@@ -780,8 +778,8 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
                 opacity: showModelInfo ? 1 : 0 
               }}
             >
-              <div className={`border-t border-gray-200`}>
-                <div className={`${isFullscreen ? 'p-3' : 'p-2'} bg-gray-50/80 rounded`}>
+              <div className="border-t border-gray-200">
+                <div className={`${isFullscreen ? 'p-3' : 'p-2'} bg-gray-50 rounded`}>
                   <div className={`grid gap-0 ${
                   isFullscreen 
                     ? 'grid-cols-3 sm:grid-cols-4 md:grid-cols-6' 
