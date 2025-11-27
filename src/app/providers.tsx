@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import SteelbotAssistant from '@/components/chatbot/SteelbotAssistant';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -31,6 +32,7 @@ export function Providers({ children }: ProvidersProps) {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         {children}
+        <SteelbotAssistant />
         {/* React Query DevTools - only visible in development */}
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
