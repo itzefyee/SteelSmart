@@ -33,7 +33,7 @@ It's like having a CAD expert and compliance engineer available 24/7! ⚡`,
         },
         options: [
             { id: 'how-it-works', label: 'How does it work?', icon: 'Play' },
-            { id: 'try-demo', label: '🎯 Try a Demo', icon: 'Play', action: 'navigate', url: '/demo' },
+            { id: 'try-demo', label: '🎯 Try a Demo', icon: 'Play', action: 'navigate', url: '/cad-generator' },
             { id: 'getting-started', label: '← Back', icon: 'ArrowLeft', isBack: true }
         ]
     },
@@ -53,14 +53,14 @@ _"L-bracket, 6 inches tall, 4 inches wide, 1/4 inch thick, with four 1/2 inch ho
 
 **Step 5:** Proceed to RFQ if you want to procure the part
 
-Want to see it in action?`,
-        media: {
-            type: 'video',
-            url: '/videos/how-it-works.mp4',
-            thumbnail: '/images/chatbot/how-it-works-thumb.png'
-        },
+Want to see it in action? Try it now!`,
+        // media: {
+        //     type: 'video',
+        //     url: '/videos/how-it-works.mp4',
+        //     thumbnail: '/images/chatbot/how-it-works-thumb.png'
+        // },
         options: [
-            { id: 'try-demo', label: '✨ Try It Now', icon: 'Sparkles', action: 'navigate', url: '/generate' },
+            { id: 'try-demo', label: '✨ Try It Now', icon: 'Sparkles', action: 'navigate', url: '/cad-generator' },
             { id: 'example-uses', label: 'Show Examples', icon: 'Eye' },
             { id: 'getting-started', label: '← Back', icon: 'ArrowLeft', isBack: true }
         ]
@@ -108,7 +108,7 @@ Need help choosing a format?`,
 **Tip:** Use DXF if you need quick edits in AutoCAD or are sending flat patterns to a laser/plasma cutter.`,
         options: [
             { id: 'supported-formats', label: '← Back to Formats', icon: 'ArrowLeft', isBack: true },
-            { id: 'try-demo', label: 'Generate DXF Now', icon: 'Sparkles', action: 'navigate', url: '/generate?format=dxf' }
+            { id: 'try-demo', label: 'Generate DXF Now', icon: 'Sparkles', action: 'navigate', url: '/cad-generator' }
         ]
     },
     'format-step': {
@@ -123,7 +123,7 @@ Need help choosing a format?`,
 **Tip:** Choose STEP when collaborating across CAD platforms or when you need to run simulations.`,
         options: [
             { id: 'supported-formats', label: '← Back to Formats', icon: 'ArrowLeft', isBack: true },
-            { id: 'try-demo', label: 'Generate STEP Now', icon: 'Sparkles', action: 'navigate', url: '/generate?format=step' }
+            { id: 'try-demo', label: 'Generate STEP Now', icon: 'Sparkles', action: 'navigate', url: '/cad-generator' }
         ]
     },
     'format-stl': {
@@ -138,7 +138,7 @@ Need help choosing a format?`,
 **Tip:** Pick STL when you want to validate the geometry quickly or send parts to additive manufacturing.`,
         options: [
             { id: 'supported-formats', label: '← Back to Formats', icon: 'ArrowLeft', isBack: true },
-            { id: 'try-demo', label: 'Generate STL Now', icon: 'Sparkles', action: 'navigate', url: '/generate?format=stl' }
+            { id: 'try-demo', label: 'Generate STL Now', icon: 'Sparkles', action: 'navigate', url: '/cad-generator' }
         ]
     },
     'example-uses': {
@@ -150,23 +150,23 @@ Need help choosing a format?`,
                 title: 'I-Beam Template',
                 description: 'Standard structural I-beam with configurable flange and web dimensions.',
                 image: 'https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/steel-beam-001/preview.png',
-                action: { label: 'Try I-Beam Template', url: '/generate?template=i-beam' }
+                action: { label: 'Try I-Beam Template', url: '/cad-generator?tab=template&template=i-beam' }
             },
             {
                 title: 'Drill Guide Template',
                 description: 'Precision surgical drill guide with customizable bit sizes and grip styles.',
                 image: 'https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical_drill_guide/preview.png',
-                action: { label: 'Try Drill Guide Template', url: '/generate?template=drill-guide' }
+                action: { label: 'Try Drill Guide Template', url: '/cad-generator?tab=template&template=drill-guide' }
             },
             {
                 title: 'Brake Rotor Template',
                 description: 'Automotive brake rotor with adjustable bolt pattern and rotor diameters.',
                 image: 'https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake_rotor/preview.png',
-                action: { label: 'Try Brake Rotor Template', url: '/generate?template=brake-rotor' }
+                action: { label: 'Try Brake Rotor Template', url: '/cad-generator?tab=template&template=brake-rotor' }
             }
         ],
         options: [
-            { id: 'try-demo', label: '🎯 Generate My Own', icon: 'Plus', action: 'navigate', url: '/generate' },
+            { id: 'try-demo', label: '🎯 Generate My Own', icon: 'Plus', action: 'navigate', url: '/cad-generator' },
             { id: 'getting-started', label: '← Back', icon: 'ArrowLeft', isBack: true }
         ]
     }

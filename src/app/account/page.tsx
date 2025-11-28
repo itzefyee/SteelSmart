@@ -171,7 +171,7 @@ export default function AccountPage() {
       <Header />
       <main className="flex-1 home-wavy-bg relative overflow-hidden">
         <WireframeIconLayer />
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
           <div className="mb-10">
             <PageHero
               align="left"

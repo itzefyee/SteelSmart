@@ -40,10 +40,16 @@ const ThemeMenuButton: React.FC<{
         type="button"
         aria-label="Change chat background"
         onClick={() => setOpen((prev) => !prev)}
-        className="w-10 h-10 rounded-full border border-white/40 shadow-md shadow-black/10 flex items-center justify-center"
+        className={`w-10 h-10 rounded-full shadow-md shadow-black/10 flex items-center justify-center ${
+          activeThemeId === 'account' ? 'border border-black/30 bg-transparent' : 'border border-white/40'
+        }`}
         style={{ background: activeTheme.preview }}
       >
-        <Palette className="w-4 h-4 text-white drop-shadow" />
+        <Palette
+          className={`w-4 h-4 drop-shadow ${
+            activeThemeId === 'home-hero' ? 'text-white' : 'text-gray-900'
+          }`}
+        />
       </button>
       <AnimatePresence>
         {open && (
@@ -52,9 +58,9 @@ const ThemeMenuButton: React.FC<{
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 6 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-14 right-0 z-[70] bg-white/95 backdrop-blur-lg border border-slate-200 rounded-2xl shadow-2xl p-2 flex flex-col gap-1"
+            className="absolute top-14 right-0 z-[70] border border-black/20 rounded-2xl shadow-2xl p-2 flex flex-col gap-1 bg-white"
           >
-            {CHAT_THEMES.map((theme) => {
+            {CHAT_THEMES.map((theme, index) => {
               const isActive = theme.id === activeThemeId;
               return (
                 <button
@@ -65,8 +71,10 @@ const ThemeMenuButton: React.FC<{
                     onSelect(theme.id);
                     setOpen(false);
                   }}
-                  className="relative w-8 h-8 rounded-full border border-white/70 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  style={{ background: theme.preview }}
+                  className={`relative w-8 h-8 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                    index === 2 || index === 0 ? 'border border-black/30 bg-transparent' : 'border border-white/70'
+                  }`}
+                    style={{ background: index === 2 ? 'transparent' : theme.preview }}
                 >
                   {isActive && (
                     <span className="absolute inset-0 rounded-full border border-primary shadow-[0_0_0_2px_rgba(37,99,235,0.25)]" />
@@ -98,7 +106,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: 40, scale: 0.94 }}
           transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-          className="fixed inset-y-4 right-0 sm:right-6 z-[60] w-full sm:w-[400px] px-3 sm:px-0"
+          className="fixed inset-y-6 right-0 sm:right-6 z-[60] w-full sm:w-[400px] px-3 sm:px-0"
         >
           <div className="relative glass-card-with-liquid overflow-hidden rounded-[32px] shadow-2xl border border-white/40 backdrop-blur-[18px] h-full">
             <div className="absolute inset-0">
@@ -107,11 +115,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
 
             <div className="relative z-10 flex flex-col h-full">
-              <div className="px-4 pb-4 pt-4 flex-1 flex flex-col min-h-0">
-                <div
-                  className="glass-card bg-white/90 shadow-xl border border-white/70 rounded-2xl p-4 flex-1 flex flex-col overflow-hidden"
-                  style={{ height: '100%' }}
-                >
+              <div className="px-5 pb-5 pt-14 flex-1 flex flex-col min-h-0">
+                <div className="glass-card bg-white/90 shadow-xl border border-white/70 rounded-2xl p-4 flex-1 flex flex-col overflow-hidden hover:translate-y-0 hover:scale-100 hover:shadow-xl">
                   <div className="flex-1 min-h-0 flex flex-col">{children}</div>
                 </div>
               </div>

@@ -58,7 +58,7 @@ export const CHAT_THEMES: ChatThemeDefinition[] = [
     label: 'CAD Generator',
     description: 'Dark blueprint canvas with motion grid',
     preview:
-      'linear-gradient(135deg, rgba(7,14,34,1) 0%, rgba(11,22,52,1) 50%, rgba(23,37,84,1) 100%)',
+      'linear-gradient(135deg, rgba(255,255,255,0.65), rgba(255,255,255,0.25))',
     accent: {
       primary: '#e2e8f0',
       secondary: '#38bdf8',
@@ -70,5 +70,6 @@ export const CHAT_THEMES: ChatThemeDefinition[] = [
     },
   },
 ];
+
 
 

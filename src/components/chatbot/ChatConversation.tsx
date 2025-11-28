@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Bot, ExternalLink, Loader2, Reply, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
@@ -18,7 +19,7 @@ const OPTION_BORDER = 'rgba(59, 130, 246, 0.25)';
 const OPTION_TEXT = '#1e40af';
 
 export type ConversationEntry =
-  | { id: string; role: 'bot'; nodeId: string }
+  | { id: string; role: 'bot'; nodeId: string; metaMessage?: string }
   | { id: string; role: 'user'; text: string };
 
 interface ChatConversationProps {
@@ -53,7 +54,19 @@ const ChatConversation: React.FC<ChatConversationProps> = ({ history, onHistoryC
   const visualEntries = [
     greetingEntry,
     ...history.map((entry) =>
-      entry.role === 'bot' ? { ...entry, node: getConversationNode(entry.nodeId) } : entry
+      entry.role === 'bot'
+        ? {
+            ...entry,
+            node: entry.metaMessage
+              ? ({
+                  id: entry.nodeId,
+                  type: 'message',
+                  message: entry.metaMessage,
+                  options: [],
+                } as ChatbotNode)
+              : getConversationNode(entry.nodeId),
+          }
+        : entry
     ),
   ];
 
@@ -125,11 +138,23 @@ const ChatConversation: React.FC<ChatConversationProps> = ({ history, onHistoryC
 
     if (option.action === 'navigate') {
       router.push(option.url);
+      appendEntry({
+        id: `bot-nav-${Date.now()}`,
+        role: 'bot',
+        nodeId: `navigation-${option.id}`,
+        metaMessage: `Opening ${option.label}...`,
+      });
       return true;
     }
 
     if (option.action === 'link') {
       window.open(option.url, '_blank', 'noopener');
+      appendEntry({
+        id: `bot-link-${Date.now()}`,
+        role: 'bot',
+        nodeId: `navigation-${option.id}`,
+        metaMessage: `Opening ${option.label} in a new tab...`,
+      });
       return true;
     }
 
@@ -139,7 +164,7 @@ const ChatConversation: React.FC<ChatConversationProps> = ({ history, onHistoryC
   const handleOptionClick = (option: ChatbotOption) => {
     if (isThinking) return;
 
-    appendEntry({ id: `user-${Date.now()}`, role: 'user', text: option.label });
+    appendEntry({ id: `user-${Date.now()}-${option.id}`, role: 'user', text: option.label });
 
     if (handleExternalAction(option)) {
       return;
@@ -148,7 +173,7 @@ const ChatConversation: React.FC<ChatConversationProps> = ({ history, onHistoryC
     const nextNode = getConversationNode(resolveNextNodeId(option));
     setIsThinking(true);
     setTimeout(() => {
-      appendEntry({ id: `bot-${nextNode.id}-${Date.now()}`, role: 'bot', nodeId: nextNode.id });
+      appendEntry({ id: `bot-${nextNode.id}-${Date.now()}-${option.id}`, role: 'bot', nodeId: nextNode.id });
       setIsThinking(false);
     }, 350);
   };
@@ -187,7 +212,7 @@ const ChatConversation: React.FC<ChatConversationProps> = ({ history, onHistoryC
           className="text-sm text-slate-600"
           dangerouslySetInnerHTML={{ __html: markdownToHtml(node.message) }}
         />
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="flex gap-3 overflow-x-auto">
           {node.items.map((item) => (
             <div key={item.title} className="min-w-[200px] glass-card border border-slate-100 p-3">
               <img src={item.image} alt={item.title} className="rounded-xl mb-2 h-28 w-full object-cover" />
@@ -298,12 +323,14 @@ const ChatConversation: React.FC<ChatConversationProps> = ({ history, onHistoryC
           {visualEntries.map((entry) =>
             entry.role === 'bot' ? (
               <div key={entry.id} className="flex items-start gap-3">
-                <div
+                <motion.div
                   className="w-9 h-9 rounded-full flex items-center justify-center text-white border border-white/30 shadow"
                   style={{ background: BOT_AVATAR_BG }}
+                  animate={{ y: [0, 6, 0] }}
+                  transition={{ repeat: Infinity, duration: 3, repeatType: 'reverse', ease: 'easeInOut' as const }}
                 >
                   <Bot className="w-4 h-4" />
-                </div>
+                </motion.div>
                 <div className="flex-1 rounded-2xl px-4 py-3 border border-slate-200 bg-white/90 text-sm text-slate-700 shadow-sm">
                   <p dangerouslySetInnerHTML={{ __html: markdownToHtml(entry.node.message) }} />
                   {renderMedia(entry.node)}

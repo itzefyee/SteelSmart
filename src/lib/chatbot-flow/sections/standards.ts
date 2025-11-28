@@ -131,7 +131,7 @@ Rule of thumb: when in doubt or working below 32°F, preheat to at least 150°F 
 SteelSmart tags every part with the recommended ASTM spec based on geometry and use case so procurement teams know exactly what to source.`,
         options: [
             { id: 'standards-info', label: 'Back to Standards Menu', icon: 'ArrowLeft', isBack: true },
-            { id: 'contact-human', label: 'Need a custom spec?', icon: 'MessageSquare' }
+            { id: 'contact-human', label: 'Need a custom spec?', icon: 'MessageSquare', isBack: true }
         ]
     },
     'compliance-reports': {

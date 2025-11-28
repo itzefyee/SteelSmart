@@ -42,7 +42,7 @@ export const generationSection: ChatbotSection = {
 
 Ready to try?`,
         options: [
-            { id: 'try-demo', label: '✨ Generate Now', icon: 'Sparkles', action: 'navigate', url: '/generate' },
+            { id: 'try-demo', label: '✨ Generate Now', icon: 'Sparkles', action: 'navigate', url: '/cad-generator' },
             { id: 'using-templates', label: 'Or use a template instead', icon: 'Layout' },
             { id: 'how-to-generate', label: '← Back', icon: 'ArrowLeft', isBack: true }
         ]
@@ -72,8 +72,8 @@ Automotive brake rotor with adjustable bolt pattern, rotor type, and materials.
 
 Templates come pre-validated for compliance! ✓`,
         options: [
-            { id: 'browse-templates', label: '📋 Browse All Templates', icon: 'Grid', action: 'navigate', url: '/templates' },
-            { id: 'try-demo', label: '▶ Start with Template', icon: 'Play', action: 'navigate', url: '/generate?tab=templates' },
+            { id: 'browse-templates', label: '📋 Browse All Templates', icon: 'Grid', action: 'navigate', url: '/cad-generator?tab=template' },
+            { id: 'try-demo', label: '▶ Start with Template', icon: 'Play', action: 'navigate', url: '/cad-generator?tab=template' },
             { id: 'how-to-generate', label: '← Back', icon: 'ArrowLeft', isBack: true }
         ]
     },

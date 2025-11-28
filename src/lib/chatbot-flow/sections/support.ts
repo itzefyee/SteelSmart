@@ -62,11 +62,16 @@ We've received your message and will respond within 24 hours (usually much faste
 In the meantime, you can:`,
             options: [
                 { id: 'troubleshooting', label: '🔍 Browse FAQs', icon: 'Book' },
-                { id: 'try-demo', label: '▶ Continue Using SteelSmart', icon: 'Play', action: 'navigate', url: '/generate' },
+                { id: 'try-demo', label: '▶ Continue Using SteelSmart', icon: 'Play', action: 'navigate', url: '/cad-generator' },
                 { id: 'greeting', label: '← Back to Menu', icon: 'Home' }
             ]
-        }
+        },
+
+        options: [
+            { id: 'greeting', label: '← Back to Menu', icon: 'ArrowLeft', isBack: true }
+        ]
     }
 };
+
 
 

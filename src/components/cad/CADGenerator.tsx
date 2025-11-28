@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { cadTemplates, mlPromptTemplates } from '@/data/sample-data';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -134,7 +135,15 @@ const TemplateCardButton: React.FC<TemplateCardButtonProps> = ({
   );
 };
 
+const slugifyTemplateName = (name: string) =>
+  name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-');
+
 const CADGenerator: React.FC = () => {
+  const searchParams = useSearchParams();
   const brakeRotorQuickBadges = (
     <div className="flex items-center gap-2 text-[10px] text-amber-700">
       <span className="inline-flex items-center whitespace-nowrap px-1.5 py-0.25 rounded-full border border-gray-300 hover:border-amber-400 bg-gray-50 hover:bg-amber-50">
@@ -217,6 +226,27 @@ const CADGenerator: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'text' | 'template'>('text');
   const [textInput, setTextInput] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
+  useEffect(() => {
+    const templateSlug = searchParams.get('template');
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'template') {
+      setActiveTab('template');
+    }
+    if (templateSlug) {
+      const templateMatch = cadTemplates.find(
+        (template) => slugifyTemplateName(template.name) === templateSlug
+      );
+      if (templateMatch) {
+        setSelectedTemplate(templateMatch.id);
+        setActiveTab('template');
+        requestAnimationFrame(() => {
+          document
+            .getElementById(`template-card-${templateSlug}`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      }
+    }
+  }, [searchParams]);
   const [generatedDrawing, setGeneratedDrawing] = useState<GeneratedDrawing | null>(null);
   const [generationProgress, setGenerationProgress] = useState<string>('');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -842,7 +872,7 @@ const CADGenerator: React.FC = () => {
               <div className="space-y-6">
                 {/* AI Assistant Introduction */}
                 <div className="flex items-start space-x-4">
-                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0 text-white">
                     <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                     </svg>
@@ -850,11 +880,10 @@ const CADGenerator: React.FC = () => {
                   <div className="flex-1">
                     <div className="rounded-2xl rounded-tl-md p-4 bg-white border border-gray-200 shadow-sm">
                       <p className="text-gray-800 leading-relaxed">
-                        Hi! I'm your AI CAD assistant. I can help you generate technical drawings from natural language descriptions. 
-                        Just describe what you need, and I'll create precise CAD drawings with proper dimensions and specifications.
+                        Hi! I'm SteelBot, your CAD assistant. Describe what you need, and I'll create precise drawings with proper dimensions and specs.
                       </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2 ml-4">SteelSmart AI</p>
+                    <p className="text-xs text-gray-500 mt-2 ml-4">SteelBot</p>
                   </div>
                 </div>
 
@@ -1004,7 +1033,7 @@ const CADGenerator: React.FC = () => {
                 {/* Loading State */}
                 {isPending && (
                   <div className="flex items-start space-x-4">
-                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center flex-shrink-0 shadow">
                       <div className="w-3 h-3 animate-spin rounded-full border border-white border-t-transparent"></div>
                     </div>
                     <div className="flex-1">
@@ -1027,7 +1056,7 @@ const CADGenerator: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-2 ml-4">SteelSmart AI • Powered by Zoo Dev</p>
+                      <p className="text-xs text-gray-500 mt-2 ml-4">SteelBot • Powered by Zoo Dev</p>
                     </div>
                   </div>
                 )}
@@ -1035,7 +1064,7 @@ const CADGenerator: React.FC = () => {
                 {/* Error Message */}
                 {errorMessage && (
                   <div className="flex items-start space-x-4">
-                    <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 text-white shadow">
                       <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
@@ -1045,7 +1074,7 @@ const CADGenerator: React.FC = () => {
                         <p className="text-red-800 text-sm">{errorMessage}</p>
                         <p className="text-red-600 text-xs mt-2">Don't worry - we've loaded a sample drawing for you to explore the interface.</p>
                       </div>
-                      <p className="text-xs text-gray-500 mt-2 ml-4">SteelSmart AI</p>
+                      <p className="text-xs text-gray-500 mt-2 ml-4">SteelBot</p>
                     </div>
                   </div>
                 )}
@@ -1073,30 +1102,37 @@ const CADGenerator: React.FC = () => {
                 {cadTemplates.map((template) => {
                   const paramEntries = Object.entries(template.parameters);
                   const isBrakeRotorTemplate = template.id === 4;
+                  const slug = slugifyTemplateName(template.name);
                   return (
-                    <TemplateCardButton
-                    key={template.id}
-                      title={template.name}
-                      description={template.description}
-                      badge={template.category}
-                      previewSrc={template.preview}
-                      onClick={() => handleTemplateSelect(template.id)}
-                      isActive={selectedTemplate === template.id}
-                      accentColor={isBrakeRotorTemplate ? 'yellow' : 'blue'}
-                      extraBadges={isBrakeRotorTemplate ? brakeRotorTemplateBadges : undefined}
-                  >
-                      <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600">
-                        {paramEntries.slice(0, 4).map(([key, param]) => (
-                          <div key={key}>
-                            <span className="font-semibold text-gray-700">{param.label}:</span>{' '}
-                            <span className="text-gray-900">{param.value}{param.unit}</span>
-                              </div>
-                            ))}
-                        {paramEntries.length > 4 && (
-                          <div className="col-span-2 text-xs text-gray-500">+{paramEntries.length - 4} more parameters</div>
+                    <div key={template.id} id={`template-card-${slug}`}>
+                      <TemplateCardButton
+                        title={template.name}
+                        description={template.description}
+                        badge={template.category}
+                        previewSrc={template.preview}
+                        onClick={() => handleTemplateSelect(template.id)}
+                        isActive={selectedTemplate === template.id}
+                        accentColor={isBrakeRotorTemplate ? 'yellow' : 'blue'}
+                        extraBadges={isBrakeRotorTemplate ? brakeRotorTemplateBadges : undefined}
+                      >
+                        <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600">
+                          {paramEntries.slice(0, 4).map(([key, param]) => (
+                            <div key={key}>
+                              <span className="font-semibold text-gray-700">{param.label}:</span>{' '}
+                              <span className="text-gray-900">
+                                {param.value}
+                                {param.unit}
+                              </span>
+                            </div>
+                          ))}
+                          {paramEntries.length > 4 && (
+                            <div className="col-span-2 text-xs text-gray-500">
+                              +{paramEntries.length - 4} more parameters
+                            </div>
                           )}
                         </div>
-                    </TemplateCardButton>
+                      </TemplateCardButton>
+                    </div>
                   );
                 })}
               </div>

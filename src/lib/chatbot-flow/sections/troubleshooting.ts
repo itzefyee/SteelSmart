@@ -43,8 +43,8 @@ Check our status page for any outages
 Still stuck? I can connect you to support.`,
         options: [
             { id: 'using-templates', label: '💡 Try Using Template', icon: 'Layout' },
-            { id: 'check-status', label: '🔍 Check Service Status', icon: 'Activity', action: 'link', url: 'https://status.steelsmart.com' },
-            { id: 'contact-human', label: '👤 Contact Support', icon: 'MessageCircle' },
+            { id: 'check-status', label: '🔍 Check Service Status', icon: 'Activity', action: 'navigate', url: '/' },
+            { id: 'contact-human', label: '👤 Contact Support', icon: 'MessageCircle', isBack: true },
             { id: 'troubleshooting', label: '← Back', icon: 'ArrowLeft', isBack: true }
         ]
     },
@@ -125,7 +125,7 @@ Send us the file and software version you're using.`,
         options: [
             { id: 'supported-formats', label: '📋 See All Compatible Software', icon: 'List' },
             { id: 'redownload-file', label: '⬇️ How to Re-download', icon: 'Download' },
-            { id: 'contact-human', label: '👤 Get Technical Support', icon: 'Headphones' },
+            { id: 'contact-human', label: '👤 Get Technical Support', icon: 'Headphones', isBack: true },
             { id: 'troubleshooting', label: '← Back', icon: 'ArrowLeft', isBack: true }
         ]
     },
@@ -161,7 +161,7 @@ Need more context? Each warning references the specific clause (AISC, AWS, ASTM)
         options: [
             { id: 'compliance-reports', label: 'Learn how reports work', icon: 'FileText' },
             { id: 'fix-violations', label: 'Show me how to fix issues', icon: 'Tool' },
-            { id: 'contact-human', label: 'Ask an engineer', icon: 'Headphones' },
+            { id: 'contact-human', label: 'Ask an engineer', icon: 'Headphones', isBack: true },
             { id: 'troubleshooting', label: '← Back', icon: 'ArrowLeft', isBack: true }
         ]
     },
@@ -177,11 +177,12 @@ Need more context? Each warning references the specific clause (AISC, AWS, ASTM)
 
 Service status looks good but you're still slow? Send us your browser version, OS, and a HAR file so we can investigate.`,
         options: [
-            { id: 'check-status', label: 'Check live status', icon: 'Activity', action: 'link', url: 'https://status.steelsmart.com' },
-            { id: 'contact-human', label: 'Report performance issue', icon: 'MessageCircle' },
+            { id: 'check-status', label: 'Check live status', icon: 'Activity', action: 'navigate', url: '/' },
+            { id: 'contact-human', label: 'Report performance issue', icon: 'MessageCircle', isBack: true },
             { id: 'troubleshooting', label: '← Back', icon: 'ArrowLeft', isBack: true }
         ]
     }
 };
+
 
 
