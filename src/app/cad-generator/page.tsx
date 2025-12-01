@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -138,7 +138,9 @@ export default function CADGeneratorPage() {
             />
           </div>
           
-          <CADGenerator />
+          <Suspense fallback={<div className="text-sm text-muted-foreground">Loading CAD generator...</div>}>
+            <CADGenerator />
+          </Suspense>
         </div>
       </main>
       <Footer />
