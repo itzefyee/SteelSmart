@@ -409,7 +409,7 @@ export async function POST(request: NextRequest) {
 ### After (Recommended Pattern)
 
 ```typescript
-// src/app/api/v1/cad/generate/route.ts
+// src/app/api/generate-cad/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { CADGenerationService } from '@/services/cad/CADGenerationService';
 import { CADHistoryRepository } from '@/repositories/cad-history.repository';

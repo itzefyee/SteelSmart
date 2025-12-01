@@ -265,21 +265,12 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 
 ## API Architecture
 
-### 1. API Versioning
-
-```
-/api/v1/cad/generate
-/api/v1/cad/analyze
-/api/v1/products
-/api/v1/recommendations
-```
-
-### 2. API Route Structure
+### 1. API Route Structure
 
 **Recommended Pattern**:
 
 ```typescript
-// src/app/api/v1/cad/generate/route.ts
+// src/app/api/generate-cad/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { CADGenerationService } from '@/services/cad/CADGenerationService';
 import { validateRequest } from '@/lib/validation';

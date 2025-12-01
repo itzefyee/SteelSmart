@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { APIResponse } from '@/types';
 import { getSupabaseServer } from '@/lib/supabase-server';
-import { parseDeadlineToDate } from '@/lib/deadline-utils';
+import { RFQRepository } from '@/repositories/rfq.repository';
+import { RFQService } from '@/services/rfq.service';
+import { handleApiError } from '@/lib/api/error-handler';
+import {
+  validateRFQContact,
+  validateRFQRequirements,
+} from '@/lib/validation/rfq.schemas';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,8 +22,8 @@ export async function POST(request: NextRequest) {
     };
 
     const quantityStr = formData.get('quantity') as string;
-    const quantity = parseInt(quantityStr) || 1; // Default to 1 if parsing fails
-    
+    const quantity = parseInt(quantityStr) || 1;
+
     const requirements = {
       projectDescription: formData.get('projectDescription') as string,
       quantity: quantity,
@@ -26,25 +32,10 @@ export async function POST(request: NextRequest) {
       deadline: formData.get('deadline') as string,
       budget: formData.get('budget') as string,
     };
-    
 
-
-    // Basic validation
-    if (!contactInfo.name || !contactInfo.email || !requirements.projectDescription) {
-      return NextResponse.json<APIResponse<null>>({
-        success: false,
-        error: 'Required fields are missing'
-      }, { status: 400 });
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(contactInfo.email)) {
-      return NextResponse.json<APIResponse<null>>({
-        success: false,
-        error: 'Invalid email address'
-      }, { status: 400 });
-    }
+    // Validation
+    validateRFQContact(contactInfo);
+    validateRFQRequirements(requirements);
 
     // Get authenticated user (required for RFQ submission)
     const supabase = await getSupabaseServer();
@@ -85,36 +76,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Save RFQ to database
-    const { data: rfqData, error: insertError } = await supabase
-      .from('rfq_submissions')
-      .insert({
-        user_id: user.id,
-        contact_name: contactInfo.name,
-        contact_email: contactInfo.email,
-        contact_company: contactInfo.company || null,
-        contact_phone: contactInfo.phone || null,
-        project_description: requirements.projectDescription,
-        quantity: requirements.quantity,
-        material: requirements.material || null,
-        specifications: requirements.specifications,
-        deadline: parseDeadlineToDate(requirements.deadline),
-        budget: requirements.budget || null,
-        attached_files: attachedFiles,
-        status: 'pending'
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('Error saving RFQ to database:', insertError);
-      return NextResponse.json<APIResponse<null>>({
-        success: false,
-        error: 'Failed to save RFQ. Please try again.'
-      }, { status: 500 });
-    }
-
-    const rfqId = rfqData.id;
+    // Save RFQ using service layer
+    const repository = new RFQRepository(supabase);
+    const service = new RFQService(repository);
+    const { rfqId } = await service.submitRFQ(user.id, contactInfo, requirements, attachedFiles);
 
 
 
@@ -128,10 +93,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error submitting RFQ:', error);
-    return NextResponse.json<APIResponse<null>>({
-      success: false,
-      error: 'Internal server error during RFQ submission'
-    }, { status: 500 });
+    return handleApiError(error);
   }
 }

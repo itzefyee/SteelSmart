@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase-server';
+import { UserRepository } from '@/repositories/user.repository';
+import { UserService } from '@/services/user.service';
+import { handleApiError } from '@/lib/api/error-handler';
 
 // GET /api/auth/profile - Get user profile
 export async function GET(req: NextRequest) {
   try {
     const supabase = await getSupabaseServer();
+    const repository = new UserRepository(supabase);
+    const service = new UserService(repository);
 
     // Get authenticated user
     const {
@@ -19,28 +24,19 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch user profile
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    // Fetch user profile via service
+    const profile = await service.getProfile(user.id);
 
-    if (profileError) {
-      console.error('Error fetching profile:', profileError);
+    if (!profile) {
       return NextResponse.json(
-        { error: 'Failed to fetch profile' },
-        { status: 500 }
+        { error: 'Profile not found' },
+        { status: 404 }
       );
     }
 
     return NextResponse.json({ data: profile }, { status: 200 });
   } catch (error) {
-    console.error('Error in GET /api/auth/profile:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
 
@@ -48,6 +44,8 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const supabase = await getSupabaseServer();
+    const repository = new UserRepository(supabase);
+    const service = new UserService(repository);
 
     // Get authenticated user
     const {
@@ -94,31 +92,17 @@ export async function PUT(req: NextRequest) {
       updateData.phone = phone;
     }
 
-    // Update profile
-    const { data: profile, error: updateError } = await supabase
-      .from('profiles')
-      .update(updateData)
-      .eq('id', user.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error('Error updating profile:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to update profile' },
-        { status: 500 }
-      );
-    }
+    // Update profile through service
+    const profile = await service.updateProfile(user.id, {
+      company,
+      phone,
+    });
 
     return NextResponse.json(
       { data: profile, message: 'Profile updated successfully' },
       { status: 200 }
     );
   } catch (error) {
-    console.error('Error in PUT /api/auth/profile:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CADService, CADGenerationRequest, CADGenerationResult, CADHistoryResponse } from '@/services/cad.service';
+import { CADAPI, CADGenerationRequest, CADGenerationResult, CADHistoryResponse } from '@/lib/api/cad-api';
 import { useCADStore } from '@/stores/cad.store';
 import { logQueryPerformance } from '@/lib/performance/query-performance';
 
@@ -81,7 +81,7 @@ export interface UseCADGenerationOptions {
  * 
  * Workflow:
  * 1. User submits CAD generation request
- * 2. Mutation calls CADService.generateCAD
+ * 2. Mutation calls CADAPI.generateCAD
  * 3. On success:
  *    a. Add prompt to Zustand store for recent prompts feature
  *    b. Invalidate ['cad-history'] cache to trigger refetch
@@ -96,7 +96,7 @@ export const useCADGeneration = (options: UseCADGenerationOptions = {}) => {
   const addRecentPrompt = useCADStore((state) => state.addRecentPrompt);
 
   const mutation = useMutation<CADGenerationResult, Error, CADGenerationRequest>({
-    mutationFn: (request: CADGenerationRequest) => CADService.generateCAD(request),
+    mutationFn: (request: CADGenerationRequest) => CADAPI.generateCAD(request),
     
     onSuccess: (data, variables) => {
       // Add the prompt to recent prompts in Zustand store
@@ -167,7 +167,7 @@ export const useCADHistory = (limit: number = 10, offset: number = 0) => {
     queryFn: async () => {
       const startTime = performance.now();
       try {
-        const result = await CADService.getHistory(limit, offset);
+        const result = await CADAPI.getHistory(limit, offset);
         const duration = performance.now() - startTime;
         logQueryPerformance(queryKey, duration, 'success', 'miss');
         return result;

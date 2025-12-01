@@ -10,6 +10,7 @@ describe('ProductCard Component', () => {
     price: 150,
     category: 'structural',
     material: 'Steel A36',
+    material_family: null,
     specifications: {
       dimensions: '6m x 200mm x 100mm',
       weight: '45kg',
@@ -17,10 +18,14 @@ describe('ProductCard Component', () => {
     },
     images: ['/images/beam.jpg'],
     description: 'High-quality structural steel beam',
-    technicalDetails: 'Load capacity: 1000kg, Length: 6m',
-    compatibleWith: [],
-    inStock: true,
-    leadTime: '5-7 days',
+    technical_details: 'Load capacity: 1000kg, Length: 6m',
+    compatible_with: [],
+    in_stock: true,
+    lead_time: '5-7 days',
+    component_type_id: null,
+    search_vector: null,
+    created_at: null,
+    updated_at: null,
   };
 
   it('should render product name', () => {
@@ -44,7 +49,7 @@ describe('ProductCard Component', () => {
   });
 
   it('should render out of stock status when unavailable', () => {
-    const outOfStockProduct = { ...mockProduct, inStock: false };
+    const outOfStockProduct = { ...mockProduct, in_stock: false };
     render(<ProductCard product={outOfStockProduct} />);
     expect(screen.getByText('Out of Stock')).toBeInTheDocument();
   });

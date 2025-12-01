@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { APIResponse } from '@/types';
 import { getSupabaseServer } from '@/lib/supabase-server';
+import { RFQRepository } from '@/repositories/rfq.repository';
+import { RFQService } from '@/services/rfq.service';
+import { handleApiError } from '@/lib/api/error-handler';
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await getSupabaseServer();
-    
+    const repository = new RFQRepository(supabase);
+    const service = new RFQService(repository);
+
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
@@ -17,19 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch user's RFQ submissions
-    const { data: rfqData, error: fetchError } = await supabase
-      .from('rfq_submissions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (fetchError) {
-      console.error('Error fetching RFQ submissions:', fetchError);
-      return NextResponse.json<APIResponse<null>>({
-        success: false,
-        error: 'Failed to fetch RFQ submissions'
-      }, { status: 500 });
-    }
+    const rfqData = await service.listForUser(user.id);
 
     // Transform data to match frontend expectations
     const transformedData = rfqData.map(rfq => ({
@@ -65,11 +58,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error in RFQ list API:', error);
-    return NextResponse.json<APIResponse<null>>({
-      success: false,
-      error: 'Internal server error'
-    }, { status: 500 });
+    return handleApiError(error);
   }
 }
 

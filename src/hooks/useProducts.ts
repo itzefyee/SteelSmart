@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { ProductService, type ProductFilters, type ProductResponse } from '@/services/product.service';
+import { ProductAPI, type ProductFilters, type ProductResponse } from '@/lib/api/product-api';
 import { logQueryPerformance } from '@/lib/performance/query-performance';
 
-export type { ProductFilters } from '@/services/product.service';
+export type { ProductFilters } from '@/lib/api/product-api';
 
 export interface UseProductsOptions {
   filters?: ProductFilters;
@@ -89,11 +89,11 @@ export function useProducts(options: UseProductsOptions = {}) {
   return useQuery<ProductResponse, Error>({
     // Generate unique cache key including all parameters
     queryKey,
-    // Use ProductService to fetch data with performance monitoring
+    // Use ProductAPI to fetch data with performance monitoring
     queryFn: async () => {
       const startTime = performance.now();
       try {
-        const result = await ProductService.getProducts(filters, page, limit);
+        const result = await ProductAPI.getProducts(filters, page, limit);
         const duration = performance.now() - startTime;
         logQueryPerformance(queryKey, duration, 'success', 'miss');
         return result;
@@ -139,11 +139,11 @@ export function useProduct(id: string) {
   return useQuery({
     // Generate unique cache key for single product
     queryKey,
-    // Use ProductService to fetch single product with performance monitoring
+    // Use ProductAPI to fetch single product with performance monitoring
     queryFn: async () => {
       const startTime = performance.now();
       try {
-        const result = await ProductService.getProduct(id);
+        const result = await ProductAPI.getProduct(id);
         const duration = performance.now() - startTime;
         logQueryPerformance(queryKey, duration, 'success', 'miss');
         return result;

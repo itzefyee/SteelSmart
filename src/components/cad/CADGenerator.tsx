@@ -12,7 +12,7 @@ import CADPreview3D from '@/components/cad/CADPreview3D';
 import { useToast } from '@/components/ui/ToastProvider';
 import { StagedProgress, StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
 import { useCADGeneration } from '@/hooks/useCADGeneration';
-import { CADGenerationRequest } from '@/services/cad.service';
+import { CADGenerationRequest } from '@/lib/api/cad-api';
 import { useCADStore } from '@/stores/cad.store';
 
 interface GeneratedDrawing {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabase-server';
 import { deleteCached, invalidateCachePattern } from '@/lib/cache/redis-cache';
 import { generateCADHistoryCacheKey } from '@/lib/cache/cache-keys';
+import { CADHistoryRepository } from '@/repositories/cad-history.repository';
 
 // Types for the history API
 interface CADHistoryItem {
@@ -46,6 +47,7 @@ interface AddHistoryRequest {
 export async function GET(request: NextRequest): Promise<NextResponse<HistoryResponse>> {
   try {
     const supabase = await getSupabaseServer();
+    const repository = new CADHistoryRepository(supabase);
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -61,34 +63,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<HistoryRes
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Get total count
-    const { count, error: countError } = await supabase
-      .from('cad_history')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
-
-    if (countError) {
-      console.error('Error counting CAD history:', countError);
-    }
-
-    // Get paginated history
-    const { data, error } = await supabase
-      .from('cad_history')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('generated_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) {
-      console.error('Error retrieving CAD history:', error);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to retrieve history: ${error.message}`
-      }, { status: 500 });
-    }
+    const { items, total } = await repository.findByUserId(user.id, limit, offset);
 
     // Transform data to include model_data_url and maintain backward compatibility
-    const transformedData: CADHistoryItem[] = data.map(item => ({
+    const transformedData: CADHistoryItem[] = items.map(item => ({
       id: item.id,
       prompt: item.prompt,
       category: item.category || '',
@@ -106,10 +84,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<HistoryRes
       success: true,
       data: transformedData,
       pagination: {
-        total: count || 0,
+        total,
         limit,
         offset,
-        hasMore: (offset + limit) < (count || 0)
+        hasMore: (offset + limit) < total
       }
     });
 
@@ -126,6 +104,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<HistoryRes
 export async function POST(request: NextRequest): Promise<NextResponse<{ success: boolean; id?: string; error?: string }>> {
   try {
     const supabase = await getSupabaseServer();
+    const repository = new CADHistoryRepository(supabase);
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -183,32 +162,19 @@ export async function POST(request: NextRequest): Promise<NextResponse<{ success
       }
     }
 
-    // Insert database record
-    const { data: insertData, error: insertError } = await supabase
-      .from('cad_history')
-      .insert({
-        user_id: user.id,
-        prompt,
-        category,
-        format,
-        units,
-        model_data_url: modelDataUrl,
-        file_path: filePath,
-        file_size: fileSize,
-        status,
-        error,
-        zoo_operation_id
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('Error adding to CAD history:', insertError);
-      return NextResponse.json({
-        success: false,
-        error: `Failed to add to history: ${insertError.message}`
-      }, { status: 500 });
-    }
+    const insertData = await repository.create({
+      user_id: user.id,
+      prompt,
+      category,
+      format,
+      units,
+      model_data_url: modelDataUrl,
+      file_path: filePath,
+      file_size: fileSize,
+      status,
+      error,
+      zoo_operation_id,
+    });
 
 
     // ===== CACHE INVALIDATION =====
@@ -253,6 +219,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<{ success
 export async function DELETE(request: NextRequest): Promise<NextResponse<{ success: boolean; error?: string }>> {
   try {
     const supabase = await getSupabaseServer();
+    const repository = new CADHistoryRepository(supabase);
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -269,14 +236,9 @@ export async function DELETE(request: NextRequest): Promise<NextResponse<{ succe
 
     if (id) {
       // Get the item first to delete associated file
-      const { data: item, error: fetchError } = await supabase
-        .from('cad_history')
-        .select('file_path')
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .single();
+      const toDelete = await repository.findById(id);
 
-      if (fetchError) {
+      if (!toDelete || toDelete.user_id !== user.id) {
         return NextResponse.json({
           success: false,
           error: 'Item not found'
@@ -284,25 +246,13 @@ export async function DELETE(request: NextRequest): Promise<NextResponse<{ succe
       }
 
       // Delete file from storage if exists
-      if (item.file_path) {
+      if (toDelete.file_path) {
         await supabase.storage
           .from('cad-models')
-          .remove([item.file_path]);
+          .remove([toDelete.file_path]);
       }
 
-      // Delete database record
-      const { error: deleteError } = await supabase
-        .from('cad_history')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (deleteError) {
-        return NextResponse.json({
-          success: false,
-          error: `Failed to delete: ${deleteError.message}`
-        }, { status: 500 });
-      }
+      await repository.deleteById(id, user.id);
 
       // ===== CACHE INVALIDATION =====
       // When a CAD history item is deleted, invalidate user-specific history caches
@@ -345,18 +295,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse<{ succe
         }
       }
 
-      // Delete all database records
-      const { error: deleteError } = await supabase
-        .from('cad_history')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (deleteError) {
-        return NextResponse.json({
-          success: false,
-          error: `Failed to clear history: ${deleteError.message}`
-        }, { status: 500 });
-      }
+      await repository.deleteAllForUser(user.id);
 
       // ===== CACHE INVALIDATION =====
       // When all CAD history is cleared, invalidate all user-specific history caches

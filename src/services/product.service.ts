@@ -1,159 +1,181 @@
-import { Tables } from '@/lib/database.types';
+import { ProductRepository, type ProductFilters } from '@/repositories/product.repository';
+import { getSupabaseServerClient } from '@/lib/supabase';
+import { getCached } from '@/lib/cache/redis-cache';
 
 /**
- * Product type from database
+ * Pagination options for product queries
  */
-export type Product = Tables<'products'>;
-
-/**
- * Filters for product queries
- */
-export interface ProductFilters {
-  category?: string;
-  material?: string;
-  inStock?: boolean;
-  minPrice?: number;
-  maxPrice?: number;
-  search?: string;
-}
-
-/**
- * Pagination metadata
- */
-export interface PaginationMetadata {
+export interface ProductPaginationOptions {
   page: number;
   limit: number;
-  total: number;
-  totalPages: number;
-  hasMore: boolean;
+  ids?: string[];
 }
 
 /**
- * Response structure for product list queries
- */
-export interface ProductResponse {
-  products: Product[];
-  pagination: PaginationMetadata;
-}
-
-/**
- * ProductService handles all product-related API calls
- * This service layer separates business logic from React components
- * and provides a clean interface for React Query hooks
+ * ProductService handles business logic for product operations
+ * This is the server-side service layer that orchestrates:
+ * - Validation
+ * - Caching
+ * - Business rules
+ * - Data access via repositories
  */
 export class ProductService {
-  private static readonly BASE_URL = '/api/products';
-
   /**
-   * Fetches a list of products with optional filters and pagination
+   * Get products with filters, pagination, and caching
    * 
-   * @param filters - Optional filters to apply to the product query
-   * @param page - Page number (default: 1)
-   * @param limit - Number of items per page (default: 20)
-   * @returns Promise resolving to ProductResponse with products and pagination
-   * @throws Error if the API request fails
+   * @param filters - Product filters (category, material, price, etc.)
+   * @param options - Pagination options (page, limit, ids)
+   * @returns Promise resolving to products and pagination metadata
    */
   static async getProducts(
-    filters: ProductFilters = {},
-    page: number = 1,
-    limit: number = 20
-  ): Promise<ProductResponse> {
-    try {
-      // Build URL search parameters from filters
-      const params = new URLSearchParams();
-      
-      // Add pagination parameters
-      params.append('page', page.toString());
-      params.append('limit', limit.toString());
-      
-      // Add filter parameters if provided
-      if (filters.category) {
-        params.append('category', filters.category);
-      }
-      
-      if (filters.material) {
-        params.append('material', filters.material);
-      }
-      
-      if (filters.inStock !== undefined) {
-        params.append('inStock', filters.inStock.toString());
-      }
-      
-      if (filters.minPrice !== undefined) {
-        params.append('minPrice', filters.minPrice.toString());
-      }
-      
-      if (filters.maxPrice !== undefined) {
-        params.append('maxPrice', filters.maxPrice.toString());
-      }
-      
-      if (filters.search) {
-        params.append('search', filters.search);
-      }
-      
-      // Make API request
-      const url = `${this.BASE_URL}?${params.toString()}`;
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          `Failed to fetch products: ${response.statusText}${
-            errorData.details ? ` - ${errorData.details}` : ''
-          }`
-        );
-      }
-      
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      // Re-throw with descriptive error message
-      if (error instanceof Error) {
-        throw new Error(`ProductService.getProducts failed: ${error.message}`);
-      }
-      throw new Error('ProductService.getProducts failed: Unknown error');
+    filters: ProductFilters,
+    options: ProductPaginationOptions
+  ) {
+    // Business logic: Validate filters
+    this.validateFilters(filters);
+    
+    // Business logic: Validate pagination
+    this.validatePagination(options);
+    
+    // Business logic: Generate cache key
+    const cacheKey = this.generateCacheKey(filters, options);
+    
+    // Business logic: Fetch with caching
+    return getCached(
+      cacheKey,
+      async () => {
+        const supabase = getSupabaseServerClient();
+        const repository = new ProductRepository(supabase);
+        
+        return repository.findWithFilters(filters, options);
+      },
+      300 // TTL: 5 minutes
+    );
+  }
+  
+  /**
+   * Get a single product by ID
+   * 
+   * @param id - Product ID
+   * @returns Promise resolving to a single product
+   * @throws Error if product not found
+   */
+  static async getProductById(id: string) {
+    // Business logic: Validate ID
+    if (!id || typeof id !== 'string') {
+      throw new Error('Invalid product ID');
+    }
+    
+    const cacheKey = `product:${id}`;
+    
+    return getCached(
+      cacheKey,
+      async () => {
+        const supabase = getSupabaseServerClient();
+        const repository = new ProductRepository(supabase);
+        
+        const product = await repository.findById(id);
+        
+        if (!product) {
+          throw new Error(`Product with ID ${id} not found`);
+        }
+        
+        return product;
+      },
+      600 // TTL: 10 minutes (single products cached longer)
+    );
+  }
+  
+  /**
+   * Business logic: Validate filters
+   * Ensures filters meet business rules
+   */
+  private static validateFilters(filters: ProductFilters): void {
+    // Business rule: Price range validation
+    if (filters.minPrice !== undefined && filters.minPrice < 0) {
+      throw new Error('minPrice cannot be negative');
+    }
+    
+    if (filters.maxPrice !== undefined && filters.maxPrice < 0) {
+      throw new Error('maxPrice cannot be negative');
+    }
+    
+    if (
+      filters.minPrice !== undefined &&
+      filters.maxPrice !== undefined &&
+      filters.minPrice > filters.maxPrice
+    ) {
+      throw new Error('minPrice cannot be greater than maxPrice');
+    }
+    
+    // Business rule: Search query length
+    if (filters.search && filters.search.length > 100) {
+      throw new Error('Search query too long (max 100 characters)');
+    }
+    
+    // Business rule: Sanitize search input
+    if (filters.search) {
+      filters.search = filters.search.trim();
     }
   }
-
+  
   /**
-   * Fetches a single product by ID
-   * 
-   * @param id - The product ID to fetch
-   * @returns Promise resolving to a single Product
-   * @throws Error if the API request fails or product is not found
+   * Business logic: Validate pagination options
    */
-  static async getProduct(id: string): Promise<Product> {
-    try {
-      // Use the same endpoint with id filter
-      const params = new URLSearchParams();
-      params.append('id', id);
-      
-      const url = `${this.BASE_URL}?${params.toString()}`;
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          `Failed to fetch product: ${response.statusText}${
-            errorData.details ? ` - ${errorData.details}` : ''
-          }`
-        );
-      }
-      
-      const data: ProductResponse = await response.json();
-      
-      // Extract the single product from the response
-      if (!data.products || data.products.length === 0) {
-        throw new Error(`Product with ID ${id} not found`);
-      }
-      
-      return data.products[0];
-    } catch (error) {
-      // Re-throw with descriptive error message
-      if (error instanceof Error) {
-        throw new Error(`ProductService.getProduct failed: ${error.message}`);
-      }
-      throw new Error('ProductService.getProduct failed: Unknown error');
+  private static validatePagination(options: ProductPaginationOptions): void {
+    if (options.page < 1) {
+      throw new Error('Page number must be at least 1');
     }
+    
+    if (options.limit < 1 || options.limit > 100) {
+      throw new Error('Limit must be between 1 and 100');
+    }
+  }
+  
+  /**
+   * Business logic: Generate cache key from filters and options
+   * Creates a unique, deterministic cache key for the query
+   */
+  private static generateCacheKey(
+    filters: ProductFilters,
+    options: ProductPaginationOptions
+  ): string {
+    const parts: string[] = [];
+    
+    // Include IDs if present
+    if (options.ids && options.ids.length > 0) {
+      parts.push(`ids=${options.ids.sort().join(',')}`);
+    }
+    
+    // Include filters
+    if (filters.category) {
+      parts.push(`category=${filters.category}`);
+    }
+    
+    if (filters.material) {
+      parts.push(`material=${filters.material}`);
+    }
+    
+    if (typeof filters.inStock === 'boolean') {
+      parts.push(`inStock=${filters.inStock}`);
+    }
+    
+    if (typeof filters.minPrice === 'number') {
+      parts.push(`minPrice=${filters.minPrice}`);
+    }
+    
+    if (typeof filters.maxPrice === 'number') {
+      parts.push(`maxPrice=${filters.maxPrice}`);
+    }
+    
+    if (filters.search) {
+      parts.push(`search=${filters.search}`);
+    }
+    
+    // Include pagination
+    parts.push(`page=${options.page}`);
+    parts.push(`limit=${options.limit}`);
+    
+    return `products:${parts.join('&')}`;
   }
 }

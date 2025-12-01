@@ -93,20 +93,15 @@ catch (error) {
 ## ✅ Validation
 
 ```typescript
-// Zod schemas
-const schema = z.object({
-  description: z.string().min(10).max(1000),
-  format: z.enum(['step', 'stl', 'obj']),
-});
-
-// Validate in API routes
-const validated = await validateRequest(body, schema);
+// Custom validators
+validateRFQContact(contactInfo);        // throws ValidationError on failure
+validateRFQRequirements(requirements);  // throws ValidationError on failure
 ```
 
 ## 🔒 Security
 
 - ✅ Row Level Security (RLS) on all tables
-- ✅ Input validation with Zod
+- ✅ Input validation with centralized validators
 - ✅ Rate limiting on API routes
 - ✅ Authentication checks in middleware
 - ✅ File upload validation

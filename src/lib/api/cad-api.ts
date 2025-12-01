@@ -51,11 +51,11 @@ export interface CADHistoryResponse {
 }
 
 /**
- * CADService handles all CAD generation and history-related API calls
- * This service layer separates business logic from React components
- * and provides a clean interface for React Query hooks
+ * CADAPI handles client-side API calls for CAD generation and history
+ * This is a thin wrapper around fetch for React components
+ * Note: This is NOT the business logic layer - see src/services/cad-generation.service.ts
  */
-export class CADService {
+export class CADAPI {
   private static readonly GENERATE_URL = '/api/generate-cad';
   private static readonly HISTORY_URL = '/api/cad-history';
 

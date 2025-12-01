@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseServerClient } from '@/lib/supabase';
 import { getSupabaseServer } from '@/lib/supabase-server';
 import { deleteCached, invalidateCachePattern } from '@/lib/cache/redis-cache';
 import { generateProductDetailCacheKey, generateProductCacheKey } from '@/lib/cache/cache-keys';
+import { ProductRepository } from '@/repositories/product.repository';
+import { ProductService } from '@/services/product.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,37 +19,18 @@ export async function GET(
   try {
     const { id } = await params;
     
+    // Controller responsibility: Validate request parameters
     if (!id) {
       return NextResponse.json(
         { error: 'Product ID is required' },
         { status: 400 }
       );
     }
-    
-    const supabase = getSupabaseServerClient();
-    
-    const { data: product, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', id)
-      .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Product not found' },
-          { status: 404 }
-        );
-      }
-      
-      console.error('Error fetching product:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch product', details: error.message },
-        { status: 500 }
-      );
-    }
+    // Service layer handles business logic, caching, and data access
+    const product = await ProductService.getProductById(id);
 
-    // Add caching headers (cache for 1 hour)
+    // Controller responsibility: Return response with appropriate headers
     return NextResponse.json(
       { product },
       {
@@ -59,9 +41,18 @@ export async function GET(
       }
     );
   } catch (error) {
-    console.error('Unexpected error in product API:', error);
+    console.error('Product API error:', error);
+    
+    // Handle not found errors
+    if (error instanceof Error && error.message.includes('not found')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 404 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to fetch product', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -126,26 +117,13 @@ export async function PUT(
     if (image_url !== undefined) updateData.image_url = image_url;
     if (specifications !== undefined) updateData.specifications = specifications;
 
-    // Update the product
-    const { data: product, error } = await supabase
-      .from('products')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    const repository = new ProductRepository(supabase);
+    const product = await repository.updateProduct(id, updateData);
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Product not found' },
-          { status: 404 }
-        );
-      }
-      
-      console.error('Error updating product:', error);
+    if (!product) {
       return NextResponse.json(
-        { error: 'Failed to update product', details: error.message },
-        { status: 500 }
+        { error: 'Product not found' },
+        { status: 404 }
       );
     }
 
@@ -191,7 +169,7 @@ export async function PUT(
     return NextResponse.json(
       { 
         success: true,
-        product 
+        product,
       },
       { status: 200 }
     );
@@ -247,33 +225,22 @@ export async function DELETE(
       .single();
 
     if (fetchError) {
-      if (fetchError.code === 'PGRST116') {
+      if ((fetchError as any).code === 'PGRST116') {
         return NextResponse.json(
           { error: 'Product not found' },
           { status: 404 }
         );
       }
-      
-      console.error('Error fetching product for deletion:', fetchError);
+
+      console.error('Error fetching product:', fetchError);
       return NextResponse.json(
         { error: 'Failed to fetch product', details: fetchError.message },
         { status: 500 }
       );
     }
 
-    // Delete the product
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting product:', error);
-      return NextResponse.json(
-        { error: 'Failed to delete product', details: error.message },
-        { status: 500 }
-      );
-    }
+    const repository = new ProductRepository(supabase);
+    await repository.deleteProduct(id);
 
     // ===== CACHE INVALIDATION =====
     // When a product is deleted, we need to invalidate:
@@ -314,7 +281,7 @@ export async function DELETE(
     return NextResponse.json(
       { 
         success: true,
-        message: 'Product deleted successfully'
+        message: 'Product deleted successfully',
       },
       { status: 200 }
     );
