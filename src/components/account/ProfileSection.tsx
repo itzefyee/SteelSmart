@@ -10,12 +10,13 @@ interface ProfileSectionProps {
 }
 
 export default function ProfileSection({ profile, onUpdate }: ProfileSectionProps) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [company, setCompany] = useState(profile.company || '');
   const [phone, setPhone] = useState(profile.phone || '');
   const [errors, setErrors] = useState<{ company?: string; phone?: string }>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const validateForm = (): boolean => {
     const newErrors: { company?: string; phone?: string } = {};
@@ -53,6 +54,20 @@ export default function ProfileSection({ profile, onUpdate }: ProfileSectionProp
     setPhone(profile.phone || '');
     setErrors({});
     setIsEditing(false);
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      sessionStorage.setItem('isLoggingOut', 'true');
+      await signOut();
+      sessionStorage.removeItem('isLoggingOut');
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+      sessionStorage.removeItem('isLoggingOut');
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -148,6 +163,32 @@ export default function ProfileSection({ profile, onUpdate }: ProfileSectionProp
             </button>
           </div>
         )}
+
+        {/* Logout button (always shown) */}
+        <div className="pt-6 border-t border-gray-200">
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+          >
+            {isLoggingOut ? (
+              <>
+                <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Logging out...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
