@@ -110,6 +110,7 @@ export interface UserProfile {
   email: string | null;
   company: string | null;
   phone: string | null;
+  Role: 'Customer' | 'Admin';
   created_at: string | null;
   updated_at: string | null;
 }
@@ -182,4 +183,40 @@ export interface ModalProps {
   title?: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+}
+
+// Admin Report Types
+export interface Report {
+  id: string;
+  title: string;
+  report_type: 'MONTHLY_MOST_QUOTED' | 'PRODUCT_ANALYTICS' | 'USER_ACTIVITY' | 'CUSTOM';
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  parameters?: Record<string, any>;
+  file_url?: string;
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+export interface ReportStatistics {
+  total: number;
+  pending: number;
+  processing: number;
+  completed: number;
+  failed: number;
+}
+
+// Product Input Types
+export interface CreateProductInput {
+  name: string;
+  category: string;
+  material: string;
+  price: number;
+  description?: string;
+  specifications?: Record<string, any>;
+  in_stock?: boolean;
+  lead_time?: string;
+  images?: string[];
+  compatible_with?: string[];
 }

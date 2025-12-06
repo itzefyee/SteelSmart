@@ -10,6 +10,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   session: Session | null;
   loading: boolean;
+  isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, metadata?: UserMetadata) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   session: null,
   loading: true,
+  isAdmin: false,
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signOut: async () => {},
@@ -56,36 +58,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // Get initial user - more secure than getSession()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      setUser(user);
       
       // Fetch profile if user is authenticated
-      if (session?.user) {
-        const userProfile = await fetchProfile(session.user.id);
+      if (user) {
+        const userProfile = await fetchProfile(user.id);
         setProfile(userProfile);
       }
       
       setLoading(false);
     }).catch((error) => {
-      console.error('Error getting session:', error);
+      console.error('Error getting user:', error);
       setLoading(false);
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
-      setUser(session?.user ?? null);
       
-      // Fetch profile when user signs in
-      if (session?.user) {
-        const userProfile = await fetchProfile(session.user.id);
-        setProfile(userProfile);
-      } else {
+      // For SIGNED_IN event, verify user with getUser()
+      if (event === 'SIGNED_IN' && session) {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+        
+        if (user) {
+          const userProfile = await fetchProfile(user.id);
+          setProfile(userProfile);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
         setProfile(null);
+      } else {
+        // For other events, use session user but be aware it's from storage
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          const userProfile = await fetchProfile(session.user.id);
+          setProfile(userProfile);
+        } else {
+          setProfile(null);
+        }
       }
       
       setLoading(false);
@@ -172,6 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     session,
     loading,
+    isAdmin: profile?.Role?.toLowerCase() === 'admin',
     signIn,
     signUp,
     signOut,

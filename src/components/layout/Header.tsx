@@ -2,31 +2,11 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/AuthProvider';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { user, profile, loading, signOut } = useAuth();
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      // Set flag to prevent account page redirect loop
-      sessionStorage.setItem('isLoggingOut', 'true');
-      await signOut();
-      sessionStorage.removeItem('isLoggingOut');
-      router.push('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      sessionStorage.removeItem('isLoggingOut');
-    } finally {
-      setIsLoggingOut(false);
-      setIsMenuOpen(false);
-    }
-  };
+  const { user, loading } = useAuth();
 
   return (
     <header className="bg-white shadow-sm border-b">
@@ -78,59 +58,21 @@ const Header: React.FC = () => {
               Request Quote
             </Link>
             
-            {/* Authentication Navigation */}
-            {loading && !user ? (
+            {/* Account Button - Shows username if logged in, "Account" if not */}
+            {loading ? (
               <div className="flex items-center">
                 <div className="h-4 w-20 bg-gray-200 animate-pulse rounded"></div>
               </div>
-            ) : user ? (
-              <>
-                {/* Authenticated User Items */}
-                <Link 
-                  href="/account" 
-                  className="text-gray-700 hover:text-primary transition-colors flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Account
-                </Link>
-                <span className="text-sm text-gray-600">
-                  {user?.email || profile?.email || 'User'}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="text-gray-700 hover:text-primary transition-colors flex items-center disabled:opacity-50"
-                >
-                  {isLoggingOut ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Logging out...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
-                      Logout
-                    </>
-                  )}
-                </button>
-              </>
             ) : (
-              <>
-                {/* Unauthenticated User Items */}
-                <Link 
-                  href="/login" 
-                  className="text-gray-700 hover:text-primary transition-colors"
-                >
-                  Login
-                </Link>
-              </>
+              <Link 
+                href={user ? "/account" : "/login"}
+                className="text-gray-700 hover:text-primary transition-colors flex items-center"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                {user ? (user.email?.split('@')[0] || 'Account') : 'Account'}
+              </Link>
             )}
             
             {/* TARUMT Logo */}
@@ -194,62 +136,23 @@ const Header: React.FC = () => {
                 Request Quote
               </Link>
               
-              {/* Mobile Authentication Navigation */}
+              {/* Mobile Account Button */}
               <div className="border-t border-gray-100 mt-2 pt-2">
                 {loading ? (
                   <div className="px-4 py-2">
                     <div className="h-4 w-24 bg-gray-200 animate-pulse rounded"></div>
                   </div>
-                ) : user ? (
-                  <>
-                    {/* Authenticated User Items - Mobile */}
-                    <div className="px-4 py-2 text-sm text-gray-600 border-b border-gray-100">
-                      {user?.email || 'User'}
-                    </div>
-                    <Link 
-                      href="/account" 
-                      className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg flex items-center"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      Account
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      disabled={isLoggingOut}
-                      className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg flex items-center disabled:opacity-50"
-                    >
-                      {isLoggingOut ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Logging out...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                          </svg>
-                          Logout
-                        </>
-                      )}
-                    </button>
-                  </>
                 ) : (
-                  <>
-                    {/* Unauthenticated User Items - Mobile */}
-                    <Link 
-                      href="/login" 
-                      className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Login
-                    </Link>
-                  </>
+                  <Link 
+                    href={user ? "/account" : "/login"}
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg flex items-center"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    {user ? (user.email?.split('@')[0] || 'Account') : 'Account'}
+                  </Link>
                 )}
               </div>
               

@@ -56,10 +56,55 @@ export async function proxy(req: NextRequest) {
     }
   );
 
-  // Refresh session if expired - required for Server Components
+  // Get authenticated user - more secure than getSession()
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Check if accessing admin routes
+  const isAdminRoute = req.nextUrl.pathname.startsWith('/admin');
+  const isAdminApiRoute = req.nextUrl.pathname.startsWith('/api/admin');
+
+  // Get user role if user exists
+  let userRole: string | null = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('Role')
+      .eq('id', user.id)
+      .single();
+    
+    userRole = profile?.Role || null;
+  }
+
+  // Protect admin routes - require authentication AND admin role
+  if (isAdminRoute || isAdminApiRoute) {
+    if (!user) {
+      if (isAdminApiRoute) {
+        return NextResponse.json(
+          { error: 'Unauthorized - Please sign in' },
+          { status: 401 }
+        );
+      }
+      const redirectUrl = new URL('/login', req.url);
+      redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    // Check if user has admin role (case-insensitive)
+    if (userRole?.toLowerCase() !== 'admin') {
+      if (isAdminApiRoute) {
+        return NextResponse.json(
+          { error: 'Forbidden - Admin access required' },
+          { status: 403 }
+        );
+      }
+      // Redirect non-admin users to homepage with error message
+      const redirectUrl = new URL('/', req.url);
+      redirectUrl.searchParams.set('error', 'admin_access_required');
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
 
   // Public API routes (no auth required)
   const publicApiRoutes = [
@@ -73,9 +118,9 @@ export async function proxy(req: NextRequest) {
     req.nextUrl.pathname.startsWith(route)
   );
 
-  // Protect API routes (except public ones)
-  if (req.nextUrl.pathname.startsWith('/api') && !isPublicApiRoute) {
-    if (!session) {
+  // Protect API routes (except public ones and admin routes already handled)
+  if (req.nextUrl.pathname.startsWith('/api') && !isPublicApiRoute && !isAdminApiRoute) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized - Please sign in' },
         { status: 401 }
@@ -83,7 +128,7 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // Protected page routes that require authentication
+  // Protected page routes that require authentication (customer routes)
   const protectedPaths = [
     '/account',
     '/cad-generator',
@@ -96,15 +141,15 @@ export async function proxy(req: NextRequest) {
     req.nextUrl.pathname.startsWith(path)
   );
 
-  // Redirect to login if accessing protected route without session
-  if (isProtectedPath && !session) {
+  // Redirect to login if accessing protected route without user
+  if (isProtectedPath && !user) {
     const redirectUrl = new URL('/login', req.url);
     redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
   // Redirect authenticated users away from login/signup pages
-  if (session && (req.nextUrl.pathname === '/login' || req.nextUrl.pathname === '/signup')) {
+  if (user && (req.nextUrl.pathname === '/login' || req.nextUrl.pathname === '/signup')) {
     return NextResponse.redirect(new URL('/', req.url));
   }
 

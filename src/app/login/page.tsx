@@ -26,8 +26,29 @@ export default function LoginPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push('/');
-      router.refresh();
+      // Wait a moment for profile to load, then check role and redirect
+      setTimeout(async () => {
+        // Get the user's profile to check role
+        const { getSupabaseClient } = await import('@/lib/supabase');
+        const supabase = getSupabaseClient();
+        
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('Role')
+            .eq('id', user.id)
+            .single();
+          
+          // Redirect based on role
+          if (profile?.Role?.toLowerCase() === 'admin') {
+            router.push('/admin');
+          } else {
+            router.push('/');
+          }
+          router.refresh();
+        }
+      }, 500);
     }
   };
 
