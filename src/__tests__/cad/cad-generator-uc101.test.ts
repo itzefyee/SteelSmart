@@ -216,7 +216,7 @@ describe('UC101: Generate drawing from text input', () => {
         description: 'Create a freeform curved steel plate with variable thickness',
       };
 
-      await expect(CADAPI.generateCAD(request)).rejects.toThrow('CAD generation failed');
+      await expect(CADAPI.generateCAD(request)).rejects.toThrow('Unsupported geometry type');
     });
 
     it('should handle network errors gracefully', async () => {

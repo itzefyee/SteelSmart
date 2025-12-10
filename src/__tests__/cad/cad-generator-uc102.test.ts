@@ -144,7 +144,7 @@ describe('UC102: Generate drawing from template', () => {
         category: 'beam',
       };
 
-      await expect(CADAPI.generateCAD(request)).rejects.toThrow('CAD generation failed');
+      await expect(CADAPI.generateCAD(request)).rejects.toThrow('Invalid dimension');
     });
 
     it('should reject excessively large dimension values', async () => {
@@ -183,7 +183,7 @@ describe('UC102: Generate drawing from template', () => {
         expect.fail('Should have thrown an error');
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toContain('CAD generation failed');
+        expect((error as Error).message).toContain('Validation error');
       }
     });
 
@@ -362,5 +362,14 @@ describe('UC102: Generate drawing from template', () => {
     });
   });
 });
+
+
+
+
+
+
+
+
+
 
 

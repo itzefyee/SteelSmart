@@ -194,7 +194,7 @@ describe('UC103: Edit generated CAD drawing', () => {
         category: 'beam',
       };
 
-      await expect(CADAPI.generateCAD(request)).rejects.toThrow('CAD generation failed');
+      await expect(CADAPI.generateCAD(request)).rejects.toThrow('Hole too close to edge');
     });
 
     it('should block save when constraint violation is detected', async () => {
@@ -215,7 +215,7 @@ describe('UC103: Edit generated CAD drawing', () => {
         expect.fail('Should have thrown an error');
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
-        expect((error as Error).message).toContain('CAD generation failed');
+        expect((error as Error).message).toContain('Constraint violation');
       }
     });
 
@@ -238,7 +238,7 @@ describe('UC103: Edit generated CAD drawing', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
         const errorMessage = (error as Error).message;
-        expect(errorMessage).toContain('CAD generation failed');
+        expect(errorMessage).toContain('Hole position invalid');
       }
     });
 
@@ -357,5 +357,14 @@ describe('UC103: Edit generated CAD drawing', () => {
     });
   });
 });
+
+
+
+
+
+
+
+
+
 
 
