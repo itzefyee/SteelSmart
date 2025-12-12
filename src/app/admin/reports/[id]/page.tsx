@@ -19,13 +19,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Download, Trash2, FileText, Calendar, FileType } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/ToastProvider';
 import type { Report } from '@/types';
 
 export default function ReportDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,10 +52,10 @@ export default function ReportDetailPage() {
         setReport(data.data);
       }
     } catch (error) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Failed to load report',
-        variant: 'destructive',
+        type: 'error',
       });
     } finally {
       setLoading(false);
@@ -69,19 +69,20 @@ export default function ReportDetailPage() {
       });
 
       if (response.ok) {
-        toast({
+        addToast({
           title: 'Report Deleted',
           description: 'Report has been successfully deleted',
+          type: 'success',
         });
         router.push('/admin/reports');
       } else {
         throw new Error('Failed to delete');
       }
     } catch (error) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Failed to delete report',
-        variant: 'destructive',
+        type: 'error',
       });
     }
   };
@@ -90,9 +91,10 @@ export default function ReportDetailPage() {
     if (!report?.file_url) return;
 
     window.open(report.file_url, '_blank');
-    toast({
+    addToast({
       title: 'Download Started',
       description: `Downloading ${report.title}...`,
+      type: 'info',
     });
   };
 
@@ -103,19 +105,20 @@ export default function ReportDetailPage() {
       });
 
       if (response.ok) {
-        toast({
+        addToast({
           title: 'Report Retry Initiated',
           description: 'The report generation has been restarted',
+          type: 'success',
         });
         loadReport();
       } else {
         throw new Error('Failed to retry');
       }
     } catch (error) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Failed to retry report generation',
-        variant: 'destructive',
+        type: 'error',
       });
     }
   };
@@ -260,7 +263,7 @@ export default function ReportDetailPage() {
                 <Badge variant="outline">PDF</Badge>
               </div>
               <p className="text-muted-foreground leading-relaxed">
-                {report.description || `${report.report_type.replace(/_/g, ' ')} report generated automatically`}
+                {`${report.report_type.replace(/_/g, ' ')} report generated automatically`}
               </p>
 
               {(report.status === 'PROCESSING' || report.status === 'PENDING') && (

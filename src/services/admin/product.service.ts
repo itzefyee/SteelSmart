@@ -24,7 +24,7 @@ export class ProductService {
   }
 
   async create(input: CreateProductInput): Promise<Product> {
-    // Validate
+    // Service Layer: Business Rule Validation
     if (!input.name || input.name.trim().length === 0) {
       throw new ValidationError('Name is required', { name: 'Name is required' });
     }
@@ -40,6 +40,7 @@ export class ProductService {
     // Generate a unique ID for the product
     const productId = crypto.randomUUID();
     
+    // Handover to Repository Layer
     return this.repository.create({
       ...input,
       id: productId,

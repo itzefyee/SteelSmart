@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ProductService } from '@/services/product.service';
+import { ProductService } from '@/services/admin/product.service';
 import { handleApiError } from '@/lib/api/error-handler';
 
 export async function GET(request: NextRequest) {

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Download, Trash2, Search, FileText, Calendar } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/ToastProvider';
 import Link from 'next/link';
 import type { Report } from '@/types';
 
@@ -23,7 +23,7 @@ export default function ReportsPage() {
     completed: 0,
     failed: 0,
   });
-  const { toast } = useToast();
+  const { addToast } = useToast();
 
   useEffect(() => {
     loadReports();
@@ -41,10 +41,10 @@ export default function ReportsPage() {
         setTotalPages(data.pagination?.totalPages || 1);
       }
     } catch (error) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Failed to load reports',
-        variant: 'destructive',
+        type: 'error',
       });
     } finally {
       setLoading(false);
@@ -80,37 +80,39 @@ export default function ReportsPage() {
 
       if (response.ok) {
         setReports(reports.filter((r) => r.id !== reportId));
-        toast({
+        addToast({
           title: 'Report Deleted',
           description: 'Report has been successfully deleted',
+          type: 'success',
         });
         loadStatistics();
       } else {
         throw new Error('Failed to delete');
       }
     } catch (error) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Failed to delete report',
-        variant: 'destructive',
+        type: 'error',
       });
     }
   };
 
   const handleDownload = (report: Report) => {
     if (report.status !== 'COMPLETED' || !report.file_url) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Report is not ready for download',
-        variant: 'destructive',
+        type: 'error',
       });
       return;
     }
 
     window.open(report.file_url, '_blank');
-    toast({
+    addToast({
       title: 'Download Started',
       description: `Downloading ${report.title}...`,
+      type: 'info',
     });
   };
 
@@ -221,10 +223,9 @@ export default function ReportsPage() {
                   </div>
                 </div>
                 <CardDescription className="line-clamp-2">
-                  {report.description ||
-                    `${report.report_type.replace(/_/g, ' ')} report generated on ${new Date(
-                      report.created_at || ''
-                    ).toLocaleDateString()}`}
+                  {`${report.report_type.replace(/_/g, ' ')} report generated on ${new Date(
+                    report.created_at || ''
+                  ).toLocaleDateString()}`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">

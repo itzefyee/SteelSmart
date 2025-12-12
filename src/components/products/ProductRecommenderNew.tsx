@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import Button from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import type { Product } from '@/lib/supabase';
 import Link from 'next/link';

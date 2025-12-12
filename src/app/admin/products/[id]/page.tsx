@@ -20,13 +20,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Edit, Trash2, Package, Tag, Warehouse } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/ToastProvider';
 import type { Product } from '@/types';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -44,17 +44,17 @@ export default function ProductDetailPage() {
       if (data.data) {
         setProduct(data.data);
       } else {
-        toast({
+        addToast({
           title: 'Error',
           description: 'Failed to load product',
-          variant: 'destructive',
+          type: 'error',
         });
       }
     } catch (error) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Failed to load product',
-        variant: 'destructive',
+        type: 'error',
       });
     } finally {
       setLoading(false);
@@ -101,19 +101,20 @@ export default function ProductDetailPage() {
       });
 
       if (response.ok) {
-        toast({
+        addToast({
           title: 'Product Deleted',
           description: 'Product has been deleted successfully',
+          type: 'success',
         });
         router.push('/admin/products');
       } else {
         throw new Error('Failed to delete');
       }
     } catch (error) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Failed to delete product',
-        variant: 'destructive',
+        type: 'error',
       });
     }
   };

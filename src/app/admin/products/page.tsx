@@ -17,7 +17,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Edit, Trash2, Eye, Search, Plus } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/ToastProvider';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Product } from '@/types';
@@ -26,7 +26,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const { addToast } = useToast();
 
   useEffect(() => {
     loadProducts();
@@ -41,10 +41,10 @@ export default function ProductsPage() {
         setProducts(data.data);
       }
     } catch (error) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Failed to load products',
-        variant: 'destructive',
+        type: 'error',
       });
     } finally {
       setLoading(false);
@@ -65,18 +65,19 @@ export default function ProductsPage() {
       
       if (response.ok) {
         setProducts(products.filter((p) => p.id !== productId));
-        toast({
+        addToast({
           title: 'Product Deleted',
           description: 'Product has been deleted successfully',
+          type: 'success',
         });
       } else {
         throw new Error('Failed to delete');
       }
     } catch (error) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Failed to delete product',
-        variant: 'destructive',
+        type: 'error',
       });
     }
   };

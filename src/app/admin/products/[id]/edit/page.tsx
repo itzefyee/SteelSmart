@@ -10,13 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Save, X, Upload } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/ToastProvider';
 import type { Product } from '@/types';
 
 export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
@@ -80,10 +80,10 @@ export default function EditProductPage() {
         });
       }
     } catch (error) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Failed to load product',
-        variant: 'destructive',
+        type: 'error',
       });
     } finally {
       setLoading(false);
@@ -117,10 +117,10 @@ export default function EditProductPage() {
     e.preventDefault();
 
     if (!formData.name || !formData.category || !formData.price) {
-      toast({
+      addToast({
         title: 'Validation Error',
         description: 'Please fill in all required fields.',
-        variant: 'destructive',
+        type: 'error',
       });
       return;
     }
@@ -146,9 +146,10 @@ export default function EditProductPage() {
       });
 
       if (response.ok) {
-        toast({
+        addToast({
           title: 'Product Updated',
           description: 'The product has been successfully updated.',
+          type: 'success',
         });
         router.push(`/admin/products/${id}`);
       } else {
@@ -156,10 +157,10 @@ export default function EditProductPage() {
         throw new Error(error.error || 'Failed to update product');
       }
     } catch (error: any) {
-      toast({
+      addToast({
         title: 'Error',
         description: error.message,
-        variant: 'destructive',
+        type: 'error',
       });
     }
   };
@@ -390,9 +391,10 @@ export default function EditProductPage() {
                           onClick={() => {
                             const newImages = formData.images.filter((_, i) => i !== index);
                             setFormData((prev) => ({ ...prev, images: newImages }));
-                            toast({
+                            addToast({
                               title: 'Image Removed',
                               description: 'Image removed from preview',
+                              type: 'info',
                             });
                           }}
                           className="absolute top-2 right-2 bg-destructive text-destructive-foreground p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
@@ -425,10 +427,10 @@ export default function EditProductPage() {
                     }
 
                     if (totalSize > MAX_TOTAL_SIZE) {
-                      toast({
+                      addToast({
                         title: 'File Size Exceeded',
                         description: `Total file size exceeds the 10MB limit`,
-                        variant: 'destructive',
+                        type: 'error',
                       });
                       e.target.value = '';
                       return;
@@ -450,9 +452,10 @@ export default function EditProductPage() {
                             images: [...prev.images, ...imageUrls],
                           }));
 
-                          toast({
+                          addToast({
                             title: 'Images Added',
                             description: `${imageUrls.length} image(s) added`,
+                            type: 'success',
                           });
 
                           setUploading(false);

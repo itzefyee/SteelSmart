@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { FileText, Calendar, TrendingUp, Users } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/ToastProvider';
 
 export default function ReportGenerationPage() {
   const [reportType, setReportType] = useState<string>('');
@@ -19,7 +19,7 @@ export default function ReportGenerationPage() {
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [loading, setLoading] = useState(false);
 
-  const { toast } = useToast();
+  const { addToast } = useToast();
   const router = useRouter();
 
   const reportTypes = [
@@ -65,10 +65,10 @@ export default function ReportGenerationPage() {
     e.preventDefault();
 
     if (!reportType || !title) {
-      toast({
+      addToast({
         title: 'Error',
         description: 'Please fill in all required fields',
-        variant: 'destructive',
+        type: 'error',
       });
       return;
     }
@@ -96,9 +96,10 @@ export default function ReportGenerationPage() {
 
       if (response.ok) {
         const data = await response.json();
-        toast({
+        addToast({
           title: 'Report Generation Started',
           description: 'Your report is being generated. You can monitor its progress in the reports list.',
+          type: 'success',
         });
         router.push(`/admin/reports/${data.data.reportId}`);
       } else {
@@ -106,10 +107,10 @@ export default function ReportGenerationPage() {
         throw new Error(error.error || 'Failed to generate report');
       }
     } catch (error: any) {
-      toast({
+      addToast({
         title: 'Error',
         description: error.message,
-        variant: 'destructive',
+        type: 'error',
       });
     } finally {
       setLoading(false);

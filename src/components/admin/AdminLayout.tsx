@@ -11,7 +11,7 @@ import {
   Home,
   Plus
 } from "lucide-react";
-import Button from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
