@@ -151,8 +151,11 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
       powerPreference: 'high-performance' // Request high-performance GPU
     });
     renderer.setSize(width, height);
-    // Limit pixel ratio to 2 for performance on high-DPI displays
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Dynamic pixel ratio based on device performance
+    // Lower pixel ratio on mobile devices for better performance
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const maxPixelRatio = isMobile ? 1.5 : 2;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -248,24 +251,77 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     mesh.add(wireframe);
     wireframeRef.current = wireframe;
 
-    // Optimized animation loop - only render when controls change
+    // Optimized animation loop - only render when needed
     let needsRender = true;
+    let isAnimating = false;
+    let frameId: number | null = null;
+    
     const animate = () => {
-      animationFrameRef.current = requestAnimationFrame(animate);
+      frameId = requestAnimationFrame(animate);
       
-      // Only render if controls have changed (damping is enabled)
+      // Only render if controls have changed (damping is enabled) or if render is needed
       if (controls.update() || needsRender) {
         renderer.render(scene, camera);
         needsRender = false;
       }
+      
+      // Stop animation if controls are not being used and no render is needed
+      if (!needsRender && !controls.enableDamping) {
+        stopAnimation();
+      }
     };
-    animate();
     
-    // Force render on control changes
+    const startAnimation = () => {
+      if (!isAnimating) {
+        isAnimating = true;
+        frameId = requestAnimationFrame(animate);
+      }
+    };
+    
+    const stopAnimation = () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+        frameId = null;
+      }
+      isAnimating = false;
+    };
+    
+    // Start animation initially
+    startAnimation();
+    
+    // Force render on control changes and start animation
+    const handleControlStart = () => {
+      needsRender = true;
+      startAnimation();
+    };
+    
     const handleControlChange = () => {
       needsRender = true;
     };
+    
+    const handleControlEnd = () => {
+      // Keep animation running briefly for damping, then stop if idle
+      setTimeout(() => {
+        if (!needsRender) {
+          stopAnimation();
+        }
+      }, 100);
+    };
+    
+    controls.addEventListener('start', handleControlStart);
     controls.addEventListener('change', handleControlChange);
+    controls.addEventListener('end', handleControlEnd);
+    
+    // Pause rendering when tab is hidden (Page Visibility API)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAnimation();
+      } else {
+        needsRender = true;
+        startAnimation();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Handle resize
     const handleResize = () => {
@@ -281,9 +337,15 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     // Cleanup - Proper resource disposal
     return () => {
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      controls.removeEventListener('start', handleControlStart);
       controls.removeEventListener('change', handleControlChange);
+      controls.removeEventListener('end', handleControlEnd);
       
-      // Cancel animation frame
+      // Stop animation
+      stopAnimation();
+      
+      // Cancel animation frame (backup)
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }

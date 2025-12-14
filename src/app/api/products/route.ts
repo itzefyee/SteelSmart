@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ProductService } from '@/services/product.service';
+import { ProductRepository } from '@/repositories/product.repository';
 import type { ProductFilters } from '@/repositories/product.repository';
+import { getSupabaseServerClient } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,8 +43,13 @@ export async function GET(request: NextRequest) {
       ids: searchParams.getAll('id'),
     };
     
+    // Controller responsibility: Initialize dependencies
+    const supabase = getSupabaseServerClient();
+    const repository = new ProductRepository(supabase);
+    const service = new ProductService(repository);
+    
     // Service layer handles business logic, validation, caching, and data access
-    const result = await ProductService.getProducts(filters, options);
+    const result = await service.getProducts(filters, options);
     
     // Controller responsibility: Return response with appropriate headers
     return NextResponse.json(result, {

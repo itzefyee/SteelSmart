@@ -3,7 +3,7 @@ export { useFileUpload } from './useFileUpload';
 export { useCADGeneration } from './useCADGeneration';
 export { useCADAnalysis } from './useCADAnalysis';
 export { useCategories } from './useCategories';
-export { useProducts } from './useProducts';
+export { useProducts, useProduct } from './useProducts';
 
 export type { FileUploadOptions, FileUploadState } from './useFileUpload';
 export type { UseCADGenerationOptions } from './useCADGeneration';

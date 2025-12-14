@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useDropzone, FileRejection } from 'react-dropzone';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import ProductCard from '@/components/products/ProductCard';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';

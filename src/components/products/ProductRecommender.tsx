@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { sampleRecommendations, sampleDrawings } from '@/data/sample-data';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface RecommendedProduct {

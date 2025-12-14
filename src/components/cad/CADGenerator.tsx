@@ -1,19 +1,22 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense, startTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { cadTemplates, mlPromptTemplates } from '@/data/sample-data';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import CADHistory from '@/components/cad/CADHistory';
-import CADPreview3D from '@/components/cad/CADPreview3D';
 import { useToast } from '@/components/ui/ToastProvider';
 import { StagedProgress, StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
 import { useCADGeneration } from '@/hooks/useCADGeneration';
 import { CADGenerationRequest } from '@/lib/api/cad-api';
 import { useCADStore } from '@/stores/cad.store';
+import { convertBase64ToFile, convertBase64ToFileSync } from '@/lib/utils/base64-worker';
+
+// Lazy load heavy components for code splitting
+const CADHistory = lazy(() => import('@/components/cad/CADHistory'));
+const CADPreview3D = lazy(() => import('@/components/cad/CADPreview3D'));
 
 interface GeneratedDrawing {
   id: number;
@@ -57,7 +60,7 @@ interface TemplateCardButtonProps {
   extraBadges?: React.ReactNode;
 }
 
-const TemplateCardButton: React.FC<TemplateCardButtonProps> = ({
+const TemplateCardButton: React.FC<TemplateCardButtonProps> = React.memo(({
   title,
   description,
   badge,
@@ -133,7 +136,20 @@ const TemplateCardButton: React.FC<TemplateCardButtonProps> = ({
       </div>
     </button>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function for better performance
+  return (
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.title === nextProps.title &&
+    prevProps.description === nextProps.description &&
+    prevProps.badge === nextProps.badge &&
+    prevProps.accentColor === nextProps.accentColor &&
+    prevProps.previewSrc === nextProps.previewSrc &&
+    prevProps.onClick === nextProps.onClick &&
+    prevProps.extraBadges === nextProps.extraBadges &&
+    prevProps.children === nextProps.children
+  );
+});
 
 const slugifyTemplateName = (name: string) =>
   name
@@ -144,7 +160,9 @@ const slugifyTemplateName = (name: string) =>
 
 const CADGenerator: React.FC = () => {
   const searchParams = useSearchParams();
-  const brakeRotorQuickBadges = (
+  
+  // Memoize inline JSX elements to prevent recreation on every render
+  const brakeRotorQuickBadges = useMemo(() => (
     <div className="flex items-center gap-2 text-[10px] text-amber-700">
       <span className="inline-flex items-center whitespace-nowrap px-1.5 py-0.25 rounded-full border border-gray-300 hover:border-amber-400 bg-gray-50 hover:bg-amber-50">
         $$$
@@ -153,9 +171,9 @@ const CADGenerator: React.FC = () => {
         Complex
       </span>
     </div>
-  );
+  ), []);
 
-  const brakeRotorTemplateBadges = (
+  const brakeRotorTemplateBadges = useMemo(() => (
     <div className="flex items-center gap-2 text-[11px] text-amber-700">
       <span className="inline-flex items-center px-1.5 py-0.25 rounded-full border border-gray-300 hover:border-amber-400 bg-gray-50 hover:bg-amber-50">
         $$$
@@ -164,7 +182,7 @@ const CADGenerator: React.FC = () => {
         Complex
       </span>
     </div>
-  );
+  ), []);
 
   // Zustand store for CAD preferences
   const { 
@@ -274,6 +292,15 @@ const CADGenerator: React.FC = () => {
     []
   );
 
+  // Create stable reference for debug steps data to avoid unnecessary recalculations
+  const debugStepsMap = useMemo(() => {
+    const map = new Map<string, typeof debugSteps[0]>();
+    debugSteps.forEach(step => {
+      map.set(step.id, step);
+    });
+    return map;
+  }, [debugSteps]);
+
   const hasStartedGeneration = useMemo(
     () => debugSteps.length > 0 || isPending,
     [debugSteps.length, isPending]
@@ -281,7 +308,11 @@ const CADGenerator: React.FC = () => {
 
   const generationStages = useMemo<StagedProgressItem[]>(() => {
     return generationStageTemplate.map((stage, index) => {
-      const debug = debugSteps.find(step => stage.aliases.includes(step.id));
+      // Use map lookup instead of find for better performance
+      const debug = stage.aliases
+        .map(alias => debugStepsMap.get(alias))
+        .find(step => step !== undefined);
+      
       let status: StageStatus = 'pending';
       const messageParts: string[] = [];
 
@@ -323,7 +354,7 @@ const CADGenerator: React.FC = () => {
         message: combinedMessage || undefined,
       };
     });
-  }, [debugSteps, isPending, stageDelayNotices, hasStartedGeneration]);
+  }, [generationStageTemplate, debugStepsMap, isPending, stageDelayNotices, hasStartedGeneration]);
 
   const visibleGenerationStages = useMemo(() => {
     if (generationStages.length === 0) {
@@ -386,8 +417,8 @@ const CADGenerator: React.FC = () => {
     };
   }, [prefilledPromptHighlight]);
 
-  // Debug step management
-  const addDebugStep = (id: string, title: string, status: 'pending' | 'in_progress' | 'completed' | 'failed', details?: string, error?: string) => {
+  // Debug step management - memoized to prevent recreation
+  const addDebugStep = useCallback((id: string, title: string, status: 'pending' | 'in_progress' | 'completed' | 'failed', details?: string, error?: string) => {
     const timestamp = new Date().toISOString();
     setDebugSteps(prev => {
       const existing = prev.find(step => step.id === id);
@@ -400,14 +431,14 @@ const CADGenerator: React.FC = () => {
       }
       return [...prev, { id, title, status, timestamp, details, error }];
     });
-  };
+  }, []);
 
-  const clearDebugSteps = () => {
+  const clearDebugSteps = useCallback(() => {
     setDebugSteps([]);
     setStageDelayNotices({});
     Object.values(delayTimersRef.current).forEach((timerId) => window.clearTimeout(timerId));
     delayTimersRef.current = {};
-  };
+  }, []);
 
   useEffect(() => {
     const targetStage = generationStageTemplate.find((stage) => stage.id === 'api_request');
@@ -451,45 +482,30 @@ const CADGenerator: React.FC = () => {
     };
   }, []);
 
-  // Helper function to convert base64 to File
-  const base64ToFile = (base64Data: string, format: string): File | null => {
+  // Helper function to convert base64 to File using Web Worker (non-blocking)
+  const base64ToFile = useCallback(async (base64Data: string, format: string): Promise<File | null> => {
     try {
-      // Extract base64 data
-      let base64 = base64Data;
-      if (base64Data.startsWith('data:')) {
-        const parts = base64Data.split(',');
-        base64 = parts.length > 1 ? parts[1] : base64Data.replace(/^data:.*;base64,/, '');
+      // Use Web Worker for large files, fallback to sync for small files
+      const fileSize = base64Data.length;
+      const useWorker = fileSize > 100000; // Use worker for files > 100KB
+      
+      if (useWorker && typeof Worker !== 'undefined') {
+        const result = await convertBase64ToFile({
+          base64Data,
+          format,
+          filename: `model.${format.toLowerCase()}`
+        });
+        return result.file;
+      } else {
+        // Fallback to synchronous conversion for small files or when workers aren't supported
+        return convertBase64ToFileSync(base64Data, format);
       }
-
-      // Decode base64 to binary
-      const binaryString = atob(base64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      // Determine MIME type
-      const mimeTypes: Record<string, string> = {
-        'step': 'application/step',
-        'stp': 'application/step',
-        'stl': 'model/stl',
-        'obj': 'model/obj',
-        'dxf': 'application/dxf',
-        'gltf': 'model/gltf+json',
-        'glb': 'model/gltf-binary',
-      };
-
-      const mimeType = mimeTypes[format.toLowerCase()] || 'application/octet-stream';
-      const filename = `model.${format.toLowerCase()}`;
-
-      // Create File object
-      const file = new File([bytes], filename, { type: mimeType });
-      return file;
     } catch (error) {
       console.error('Error converting base64 to file:', error);
-      return null;
+      // Fallback to sync conversion on error
+      return convertBase64ToFileSync(base64Data, format);
     }
-  };
+  }, []);
 
   // Convert generated drawing to File for preview whenever it changes
   useEffect(() => {
@@ -498,15 +514,17 @@ const CADGenerator: React.FC = () => {
     
     if (generatedDrawing?.dxf) {
       // Use a small delay to ensure state is cleared before setting new file
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         const format = (generatedDrawing.parameters?.format || 'step') as string;
-        const file = base64ToFile(generatedDrawing.dxf, format);
-        setCadFileForPreview(file);
+        const file = await base64ToFile(generatedDrawing.dxf, format);
+        if (file) {
+          setCadFileForPreview(file);
+        }
       }, 50);
       
       return () => clearTimeout(timer);
     }
-  }, [generatedDrawing]);
+  }, [generatedDrawing, base64ToFile]);
 
   useEffect(() => {
     if (!shouldScrollToResult || !generatedDrawing) {
@@ -526,7 +544,7 @@ const CADGenerator: React.FC = () => {
     return () => clearTimeout(timer);
   }, [shouldScrollToResult, generatedDrawing]);
 
-  const handleHistorySelect = (historyItem: any) => {
+  const handleHistorySelect = useCallback((historyItem: any) => {
     
     // Ensure model_data is a valid base64 string
     let modelData = historyItem.model_data;
@@ -590,17 +608,21 @@ const CADGenerator: React.FC = () => {
         drawingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, 100);
-  };
+  }, []);
 
-  const handleTextGeneration = async () => {
+  const handleTextGeneration = useCallback(async () => {
     if (!textInput.trim()) return;
     
-    // Clear previous drawing to show loading state
-    setShouldScrollToResult(false);
-    setGeneratedDrawing(null);
-    setCadFileForPreview(null);
+    // Batch non-urgent state updates using startTransition
+    startTransition(() => {
+      // Clear previous drawing to show loading state
+      setShouldScrollToResult(false);
+      setGeneratedDrawing(null);
+      setCadFileForPreview(null);
+      setErrorMessage('');
+    });
     
-    setErrorMessage('');
+    // Urgent updates (user feedback)
     setGenerationProgress('Initializing CAD generation...');
     clearDebugSteps();
     
@@ -626,7 +648,7 @@ const CADGenerator: React.FC = () => {
       format: selectedFormat,
       units: selectedUnits
     });
-  };
+  }, [textInput, selectedFormat, selectedUnits, generateCAD, addDebugStep, clearDebugSteps]);
 
   // Helper function to generate prompt from template
   const generatePromptFromTemplate = (template: typeof cadTemplates[0]): string => {
@@ -650,24 +672,28 @@ const CADGenerator: React.FC = () => {
     }
   };
 
-  const handleTemplateSelect = (templateId: number) => {
+  const handleTemplateSelect = useCallback((templateId: number) => {
     setSelectedTemplate(templateId);
     const template = cadTemplates.find((t) => t.id === templateId);
     if (template) {
       const prompt = generatePromptFromTemplate(template);
       setTextInput(prompt);
     }
-  };
+  }, []);
 
-  const handleTemplateGeneration = async () => {
+  const handleTemplateGeneration = useCallback(async () => {
     if (selectedTemplate === null) return;
 
-    // Clear previous drawing to show loading state
-    setShouldScrollToResult(false);
-    setGeneratedDrawing(null);
-    setCadFileForPreview(null);
+    // Batch non-urgent state updates using startTransition
+    startTransition(() => {
+      // Clear previous drawing to show loading state
+      setShouldScrollToResult(false);
+      setGeneratedDrawing(null);
+      setCadFileForPreview(null);
+      setErrorMessage('');
+    });
 
-    setErrorMessage('');
+    // Urgent updates (user feedback)
     setGenerationProgress('Preparing template for generation...');
     clearDebugSteps();
 
@@ -703,9 +729,9 @@ const CADGenerator: React.FC = () => {
       format: selectedFormat,
       units: selectedUnits
     });
-  };
+  }, [selectedTemplate, selectedFormat, selectedUnits, generateCAD, addDebugStep, clearDebugSteps]);
 
-  const handleEditDrawing = () => {
+  const handleEditDrawing = useCallback(() => {
     if (!generatedDrawing) return;
     
     // Initialize edit parameters with current values
@@ -724,9 +750,9 @@ const CADGenerator: React.FC = () => {
     
     setEditParameters(params);
     setIsEditorOpen(true);
-  };
+  }, [generatedDrawing]);
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = useCallback(() => {
     if (generatedDrawing) {
       setGeneratedDrawing({
         ...generatedDrawing,
@@ -737,14 +763,12 @@ const CADGenerator: React.FC = () => {
     setIsEditorOpen(false);
     setShowSuccessMessage(true);
     setTimeout(() => setShowSuccessMessage(false), 3000);
-  };
+  }, [generatedDrawing, editParameters]);
 
-  const handleDownload = async (format: 'step' | 'stl' | 'obj' | 'dxf' | 'pdf' | 'gltf' | 'glb') => {
+  const handleDownload = useCallback(async (format: 'step' | 'stl' | 'obj' | 'dxf' | 'pdf' | 'gltf' | 'glb') => {
     if (!generatedDrawing) return;
     
     try {
-      // Get the actual format from parameters or default to step
-      const actualFormat = generatedDrawing.parameters?.format || 'step';
       const filename = `${generatedDrawing.name.replace(/\s+/g, '_')}.${format}`;
       
       // Extract base64 data from the dxf field (which contains the model data)
@@ -769,40 +793,16 @@ const CADGenerator: React.FC = () => {
         return;
       }
       
-      // Decode base64 to binary
-      let binaryString: string;
-      try {
-        binaryString = atob(base64Data);
-      } catch (e) {
-        console.error('Base64 decode error:', e);
-        alert('Failed to decode model data. The file may be corrupted.');
+      // Use Web Worker for conversion (non-blocking)
+      const file = await base64ToFile(base64Data, format);
+      
+      if (!file) {
+        alert('Failed to prepare file for download.');
         return;
       }
       
-      // Convert to Uint8Array
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      
-      // Determine MIME type based on format
-      const mimeTypes: Record<string, string> = {
-        'step': 'application/octet-stream',
-        'stl': 'application/octet-stream',
-        'obj': 'text/plain',
-        'dxf': 'application/dxf',
-        'pdf': 'application/pdf',
-        'gltf': 'model/gltf+json',
-        'glb': 'model/gltf-binary'
-      };
-      
-      const mimeType = mimeTypes[format] || 'application/octet-stream';
-      
-      // Create blob with correct MIME type
-      const blob = new Blob([bytes], { type: mimeType });
-      const downloadUrl = URL.createObjectURL(blob);
-      
       // Create download link
+      const downloadUrl = URL.createObjectURL(file);
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.download = filename;
@@ -828,13 +828,15 @@ const CADGenerator: React.FC = () => {
         title: 'Download failed'
       });
     }
-  };
+  }, [generatedDrawing, addToast, base64ToFile]);
 
   return (
     <div className="space-y-8">
       {/* CAD History */}
       <div className="glass-container-with-liquid rounded-3xl border border-white/40">
-        <CADHistory onSelectHistory={handleHistorySelect} className="rounded-3xl overflow-hidden bg-white/60" />
+        <Suspense fallback={<div className="p-8 text-center"><LoadingSpinner /></div>}>
+          <CADHistory onSelectHistory={handleHistorySelect} className="rounded-3xl overflow-hidden bg-white/60" />
+        </Suspense>
       </div>
 
       {/* Tab Navigation */}
@@ -1243,11 +1245,13 @@ const CADGenerator: React.FC = () => {
               <h3 className="text-lg font-medium text-gray-900 mb-4">3D Model Preview</h3>
               <div className="glass-card p-4">
                 {cadFileForPreview ? (
-                  <CADPreview3D
-                    key={`cad-preview-${generatedDrawing?.id}-${Date.now()}`}
-                    file={cadFileForPreview}
-                    showStats={true}
-                  />
+                  <Suspense fallback={<div className="w-full h-96 flex items-center justify-center"><LoadingSpinner /></div>}>
+                    <CADPreview3D
+                      key={`cad-preview-${generatedDrawing?.id}-${Date.now()}`}
+                      file={cadFileForPreview}
+                      showStats={true}
+                    />
+                  </Suspense>
                 ) : (
                   <div className="w-full h-96 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
                     <div className="text-center p-4">

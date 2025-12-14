@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { useDropzone, FileRejection } from 'react-dropzone';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { FileUploadState, APIResponse, DrawingAnalysis } from '@/types';
 import { formatFileSize } from '@/lib/utils';
 

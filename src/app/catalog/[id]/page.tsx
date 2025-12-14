@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ProductDetailClient from '@/components/products/ProductDetailClient';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { useProduct, useProducts } from '@/hooks';
 import type { Product } from '@/lib/supabase';
 
 export default function ProductDetailPage() {
@@ -13,75 +14,26 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const id = params?.id as string;
   
-  const [product, setProduct] = useState<Product | null>(null);
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Use React Query hooks for automatic caching and background updates
+  const { data: product, isLoading: productLoading, error: productError } = useProduct(id);
+  
+  // Fetch related products using React Query (only when product is loaded)
+  const { data: relatedProductsData } = useProducts({
+    filters: product?.category ? { category: product.category } : {},
+    limit: 8,
+    enabled: !!product?.category
+  });
 
-  useEffect(() => {
-    const loadProduct = async () => {
-      console.log('[Product Details] Loading product, id:', id);
-      
-      if (!id) {
-        console.log('[Product Details] No ID provided');
-        setLoading(false);
-        return;
-      }
+  // Filter and limit related products
+  const relatedProducts = useMemo(() => {
+    if (!relatedProductsData?.products || !product) return [];
+    return relatedProductsData.products
+      .filter((p) => p.id !== product.id)
+      .slice(0, 4);
+  }, [relatedProductsData, product]);
 
-      try {
-        // Reset state
-        setProduct(null);
-        setRelatedProducts([]);
-        setLoading(true);
-        setError(null);
-        
-        console.log('[Product Details] Fetching product from API...');
-
-        // Fetch main product via API route (server-side Supabase, cached)
-        const productRes = await fetch(`/api/products/${encodeURIComponent(id)}`);
-
-        if (!productRes.ok) {
-          const body = await productRes.json().catch(() => ({}));
-          throw new Error(body.error || `Failed to load product (${productRes.status})`);
-        }
-
-        const productJson = await productRes.json();
-        const productData = productJson.product as Product | undefined;
-
-        if (!productData) {
-          throw new Error('Product not found');
-        }
-
-        setProduct(productData);
-
-        // Fetch related products (same category) via list API, then filter out current product
-        console.log('[Product Details] Fetching related products via API...');
-        const params = new URLSearchParams({
-          category: productData.category ?? '',
-          limit: '8',
-        });
-        const relatedRes = await fetch(`/api/products?${params.toString()}`);
-
-        if (relatedRes.ok) {
-          const relatedJson = await relatedRes.json();
-          const allRelated = (relatedJson.products || []) as Product[];
-          const filtered = allRelated.filter((p) => p.id !== productData.id).slice(0, 4);
-          console.log('[Product Details] Related products count:', filtered.length);
-          setRelatedProducts(filtered);
-        } else {
-          console.warn('[Product Details] Related products API returned non-OK status:', relatedRes.status);
-        }
-      } catch (err) {
-        console.error('[Product Details] Error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load product');
-      } finally {
-        console.log('[Product Details] Loading complete');
-        setLoading(false);
-      }
-    };
-
-    loadProduct();
-  }, [id]);
+  const loading = productLoading;
+  const error = productError ? productError.message : null;
 
   if (loading) {
     return (

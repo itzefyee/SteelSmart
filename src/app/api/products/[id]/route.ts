@@ -4,6 +4,7 @@ import { deleteCached, invalidateCachePattern } from '@/lib/cache/redis-cache';
 import { generateProductDetailCacheKey, generateProductCacheKey } from '@/lib/cache/cache-keys';
 import { ProductRepository } from '@/repositories/product.repository';
 import { ProductService } from '@/services/product.service';
+import { getSupabaseServerClient } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,8 +28,13 @@ export async function GET(
       );
     }
 
+    // Controller responsibility: Initialize dependencies
+    const supabase = getSupabaseServerClient();
+    const repository = new ProductRepository(supabase);
+    const service = new ProductService(repository);
+
     // Service layer handles business logic, caching, and data access
-    const product = await ProductService.getProductById(id);
+    const product = await service.getProductById(id);
 
     // Controller responsibility: Return response with appropriate headers
     return NextResponse.json(

@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { VariableSizeList } from 'react-window';
+import { Button } from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { useCADHistory } from '@/hooks/useCADGeneration';
 
 interface CADHistoryItem {
   id: string;
@@ -14,7 +16,7 @@ interface CADHistoryItem {
   model_data_url?: string; // Public URL to Supabase Storage
   file_path?: string; // Storage bucket path
   generated_at: string;
-  status: 'completed' | 'failed';
+  status: 'completed' | 'failed' | 'processing';
   error?: string;
   zoo_operation_id?: string; // For reference only
 }
@@ -25,67 +27,68 @@ interface CADHistoryProps {
 }
 
 const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = '' }) => {
-  const [history, setHistory] = useState<CADHistoryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  // Use React Query hook for automatic caching and background updates
+  const { data: historyResponse, isLoading, error: queryError, refetch, isRefetching } = useCADHistory(20, 0);
+  
+  // Map React Query data to component format
+  const history: CADHistoryItem[] = React.useMemo(() => {
+    if (!historyResponse?.data) return [];
+    return historyResponse.data.map((item) => ({
+      id: item.id,
+      prompt: item.prompt || 'No prompt available',
+      category: item.category || 'custom',
+      format: item.format || 'step',
+      units: item.units || 'mm',
+      model_data: '', // Will be loaded on demand from model_data_url
+      model_data_url: item.model_data_url, // Public URL to download from Supabase Storage
+      file_path: item.file_path, // Storage path
+      generated_at: item.generated_at,
+      status: (item.status === 'processing' ? 'processing' : item.status === 'failed' ? 'failed' : 'completed') as 'completed' | 'failed' | 'processing',
+      error: item.error,
+      zoo_operation_id: item.zoo_operation_id
+    }));
+  }, [historyResponse]);
+
+  const error = queryError ? queryError.message : '';
+  
   const [isExpanded, setIsExpanded] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [loadingModelIds, setLoadingModelIds] = useState<Set<string>>(new Set());
-
-  /**
-   * Manual Cache Invalidation Support
-   * 
-   * TODO: When migrating to React Query, replace this manual fetch with useCADHistory hook:
-   * 
-   * const { data, isLoading, error, refetch } = useCADHistory(20, 0);
-   * 
-   * Then use the refetch function for the Refresh button:
-   * <Button onClick={() => refetch()}>Refresh</Button>
-   * 
-   * This will leverage React Query's cache invalidation and provide:
-   * - Automatic background refetching when data becomes stale
-   * - Optimistic updates when new CAD models are generated
-   * - Manual refetch support via the refetch function
-   * - Better loading states and error handling
-   * 
-   * Requirements: 10.4 (Manual cache invalidation via refetch function)
-   */
-  const fetchHistory = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Fetch from Supabase cad_history table
-      const response = await fetch('/api/cad-history?limit=20');
-      const result = await response.json();
-      
-      if (result.success) {
-        // Map the data to include model_data_url from Supabase Storage
-        const historyItems = (result.data || []).map((item: any) => ({
-          id: item.id,
-          prompt: item.prompt || 'No prompt available',
-          category: item.category || 'custom',
-          format: item.format || 'step',
-          units: item.units || 'mm',
-          model_data: '', // Will be loaded on demand from model_data_url
-          model_data_url: item.model_data_url, // Public URL to download from Supabase Storage
-          file_path: item.file_path, // Storage path
-          generated_at: item.generated_at,
-          status: item.status || 'completed',
-          error: item.error,
-          zoo_operation_id: item.zoo_operation_id
-        }));
-        
-        setHistory(historyItems);
-        setError('');
-      } else {
-        setError(result.error || 'Failed to load history');
-      }
-    } catch (err: any) {
-      setError(`Failed to fetch history: ${err.message}`);
-    } finally {
-      setIsLoading(false);
+  const [localHistory, setLocalHistory] = useState<CADHistoryItem[]>([]);
+  const listRef = useRef<VariableSizeList>(null);
+  
+  // Estimate item heights for virtualization
+  const COLLAPSED_ITEM_HEIGHT = 140; // Approximate height of collapsed item
+  const EXPANDED_ITEM_HEIGHT = 400; // Approximate height of expanded item
+  
+  // Get item height based on expansion state
+  const getItemSize = useCallback((index: number) => {
+    const item = localHistory[index];
+    if (!item) return COLLAPSED_ITEM_HEIGHT;
+    return expandedItems.has(item.id) ? EXPANDED_ITEM_HEIGHT : COLLAPSED_ITEM_HEIGHT;
+  }, [localHistory, expandedItems]);
+  
+  // Update list when items expand/collapse
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.resetAfterIndex(0);
     }
-  };
+  }, [expandedItems]);
+
+  // Sync React Query data with local state (for updates like model_data loading)
+  useEffect(() => {
+    setLocalHistory(history);
+  }, [history]);
+
+  // Update local history when items are modified (e.g., model_data loaded)
+  const updateHistoryItem = useCallback((itemId: string, updates: Partial<CADHistoryItem>) => {
+    setLocalHistory(prev => prev.map(item => item.id === itemId ? { ...item, ...updates } : item));
+  }, []);
+
+  // Use refetch for manual refresh
+  const fetchHistory = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   const clearHistory = async () => {
     if (!confirm('Are you sure you want to clear all generation history?')) {
@@ -97,7 +100,9 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
       const result = await response.json();
       
       if (result.success) {
-        setHistory([]);
+        setLocalHistory([]);
+        // Invalidate React Query cache and refetch
+        await refetch();
       } else {
         alert('Failed to clear history');
       }
@@ -112,7 +117,7 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
       const result = await response.json();
       
       if (result.success) {
-        setHistory(prev => prev.filter(item => item.id !== id));
+        setLocalHistory(prev => prev.filter(item => item.id !== id));
       } else {
         alert('Failed to delete item');
       }
@@ -163,7 +168,7 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
     return new Date(dateString).toLocaleString();
   };
 
-  const toggleItemExpansion = (itemId: string) => {
+  const toggleItemExpansion = useCallback((itemId: string) => {
     setExpandedItems(prev => {
       const newSet = new Set(prev);
       if (newSet.has(itemId)) {
@@ -171,9 +176,15 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
       } else {
         newSet.add(itemId);
       }
+      // Trigger list recalculation after expansion state changes
+      setTimeout(() => {
+        if (listRef.current) {
+          listRef.current.resetAfterIndex(0);
+        }
+      }, 0);
       return newSet;
     });
-  };
+  }, []);
 
   const viewDrawing = async (item: CADHistoryItem) => {
     
@@ -225,8 +236,8 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
           model_data: modelData
         };
         
-        // Update in history state
-        setHistory(prev => prev.map(h => h.id === item.id ? updatedItem : h));
+        // Update in local history state
+        updateHistoryItem(item.id, updatedItem);
         
         // Clear loading state
         setLoadingModelIds(prev => {
@@ -306,9 +317,7 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
     alert(errorDetails);
   };
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
+  // React Query handles initial fetch automatically, no useEffect needed
 
   if (!isExpanded) {
     return (
@@ -326,9 +335,9 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
             </div>
           </div>
           <div className="flex items-center gap-2 pr-1">
-            {history.length > 0 && (
+            {localHistory.length > 0 && (
               <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
-                {history.length} saved
+                {localHistory.length} saved
               </span>
             )}
             <Button
@@ -364,12 +373,12 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
             variant="outline"
             size="sm"
             onClick={fetchHistory}
-            disabled={isLoading}
+            disabled={isLoading || isRefetching}
             className="border-slate-300 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-400"
           >
-            {isLoading ? <LoadingSpinner size="sm" /> : 'Refresh'}
+            {(isLoading || isRefetching) ? <LoadingSpinner size="sm" /> : 'Refresh'}
           </Button>
-          {history.length > 0 && (
+          {localHistory.length > 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -403,7 +412,7 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
               Try Again
             </Button>
           </div>
-        ) : history.length === 0 ? (
+        ) : localHistory.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -411,17 +420,28 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
             <p>No CAD generations yet</p>
             <p className="text-sm">Your generation history will appear here</p>
           </div>
-        ) : (
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {history.map((item) => {
-              const isItemExpanded = expandedItems.has(item.id);
-              const hasModel = item.status === 'completed' && item.model_data;
-              const isLoadingModel = loadingModelIds.has(item.id);
-              
-              return (
-                <div
-                  key={item.id}
-                  className={`group border rounded-xl transition-all duration-200 ${
+        ) : localHistory.length > 0 ? (
+          <div style={{ height: '384px' }}>
+            <VariableSizeList
+              ref={listRef}
+              height={384} // max-h-96 = 384px
+              itemCount={localHistory.length}
+              itemSize={getItemSize}
+              width="100%"
+              style={{ padding: '0.75rem 0' }}
+            >
+              {({ index, style }) => {
+                const item = localHistory[index];
+                if (!item) return null;
+                
+                const isItemExpanded = expandedItems.has(item.id);
+                const hasModel = item.status === 'completed' && item.model_data;
+                const isLoadingModel = loadingModelIds.has(item.id);
+                
+                return (
+                  <div
+                    style={{ ...style, paddingBottom: '0.75rem' }}
+                    className={`group border rounded-xl transition-all duration-200 ${
                     item.status === 'failed' 
                       ? 'border-red-200 bg-gradient-to-br from-red-50 to-red-100/50 hover:shadow-lg hover:shadow-red-200/50' 
                       : 'border-slate-200 bg-gradient-to-br from-white to-slate-50/50 hover:shadow-lg hover:shadow-blue-200/40 hover:border-blue-300'
@@ -614,9 +634,10 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
                   )}
                 </div>
               );
-            })}
+              }}
+            </VariableSizeList>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

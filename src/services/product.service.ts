@@ -20,6 +20,8 @@ export interface ProductPaginationOptions {
  * - Data access via repositories
  */
 export class ProductService {
+  constructor(private readonly repository: ProductRepository) {}
+
   /**
    * Get products with filters, pagination, and caching
    * 
@@ -27,7 +29,7 @@ export class ProductService {
    * @param options - Pagination options (page, limit, ids)
    * @returns Promise resolving to products and pagination metadata
    */
-  static async getProducts(
+  async getProducts(
     filters: ProductFilters,
     options: ProductPaginationOptions
   ) {
@@ -44,10 +46,7 @@ export class ProductService {
     return getCached(
       cacheKey,
       async () => {
-        const supabase = getSupabaseServerClient();
-        const repository = new ProductRepository(supabase);
-        
-        return repository.findWithFilters(filters, options);
+        return this.repository.findWithFilters(filters, options);
       },
       300 // TTL: 5 minutes
     );
@@ -60,7 +59,7 @@ export class ProductService {
    * @returns Promise resolving to a single product
    * @throws Error if product not found
    */
-  static async getProductById(id: string) {
+  async getProductById(id: string) {
     // Business logic: Validate ID
     if (!id || typeof id !== 'string') {
       throw new Error('Invalid product ID');
@@ -71,10 +70,7 @@ export class ProductService {
     return getCached(
       cacheKey,
       async () => {
-        const supabase = getSupabaseServerClient();
-        const repository = new ProductRepository(supabase);
-        
-        const product = await repository.findById(id);
+        const product = await this.repository.findById(id);
         
         if (!product) {
           throw new Error(`Product with ID ${id} not found`);
@@ -90,7 +86,7 @@ export class ProductService {
    * Business logic: Validate filters
    * Ensures filters meet business rules
    */
-  private static validateFilters(filters: ProductFilters): void {
+  private validateFilters(filters: ProductFilters): void {
     // Business rule: Price range validation
     if (filters.minPrice !== undefined && filters.minPrice < 0) {
       throw new Error('minPrice cannot be negative');
@@ -122,7 +118,7 @@ export class ProductService {
   /**
    * Business logic: Validate pagination options
    */
-  private static validatePagination(options: ProductPaginationOptions): void {
+  private validatePagination(options: ProductPaginationOptions): void {
     if (options.page < 1) {
       throw new Error('Page number must be at least 1');
     }
@@ -136,7 +132,7 @@ export class ProductService {
    * Business logic: Generate cache key from filters and options
    * Creates a unique, deterministic cache key for the query
    */
-  private static generateCacheKey(
+  private generateCacheKey(
     filters: ProductFilters,
     options: ProductPaginationOptions
   ): string {

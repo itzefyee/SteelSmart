@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/Input';
 
 interface Report {
   id: number;
