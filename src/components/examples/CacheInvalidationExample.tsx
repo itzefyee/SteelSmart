@@ -54,9 +54,9 @@ export function CADHistoryRefreshExample() {
 
       {isLoading && <LoadingSpinner />}
       {error && <div className="text-red-600">Error: {error.message}</div>}
-      {data && (
+      {data?.data && (
         <div className="space-y-2">
-          {data.data.map((item) => (
+          {data.data.map((item: any) => (
             <div key={item.id} className="p-4 border rounded">
               {item.prompt}
             </div>
@@ -195,7 +195,7 @@ export function AutoRefreshExample() {
 
       {/* Content */}
       <div className="space-y-2">
-        {data?.data.map((item) => (
+        {data?.data?.map((item: any) => (
           <div key={item.id} className="p-4 border rounded">
             {item.prompt}
           </div>
@@ -243,7 +243,7 @@ export function RefetchAfterActionExample() {
       <h2 className="text-xl font-bold">CAD History (with Delete)</h2>
       
       <div className="space-y-2">
-        {data?.data.map((item) => (
+        {data?.data?.map((item: any) => (
           <div key={item.id} className="flex items-center justify-between p-4 border rounded">
             <span>{item.prompt}</span>
             <Button
@@ -306,7 +306,7 @@ export function ConditionalRefetchExample() {
 
       {/* Content */}
       <div className="space-y-2">
-        {data?.data.map((item) => (
+        {data?.data?.map((item: any) => (
           <div key={item.id} className="p-4 border rounded">
             {item.prompt}
           </div>

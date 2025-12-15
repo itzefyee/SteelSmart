@@ -76,10 +76,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Save RFQ using service layer
+    // Save RFQ using repository
     const repository = new RFQRepository(supabase);
-    const service = new RFQService(repository);
-    const { rfqId } = await service.submitRFQ(user.id, contactInfo, requirements, attachedFiles);
+    const rfqInput = {
+      user_id: user.id,
+      contact_name: contactInfo.name,
+      contact_email: contactInfo.email,
+      contact_company: contactInfo.company || null,
+      contact_phone: contactInfo.phone || null,
+      project_description: requirements.projectDescription,
+      quantity: requirements.quantity,
+      material: requirements.material || null,
+      specifications: requirements.specifications,
+      deadline: requirements.deadline || null,
+      budget: requirements.budget || null,
+      attached_files: attachedFiles.length > 0 ? attachedFiles : null,
+      status: 'pending'
+    };
+    
+    const rfq = await repository.create(rfqInput);
+    const rfqId = rfq.id;
 
 
 

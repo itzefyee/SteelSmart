@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CADAPI, CADGenerationRequest, CADGenerationResult, CADHistoryResponse } from '@/lib/api/cad-api';
+import { CADAPI, CADHistoryResponse } from '@/lib/api/cad-api';
+import { CADGenerationRequest, CADGenerationResult } from '@/services/cad-generation.service';
 import { useCADStore } from '@/stores/cad.store';
 import { logQueryPerformance } from '@/lib/performance/query-performance';
 

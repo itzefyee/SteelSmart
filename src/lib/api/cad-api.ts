@@ -1,28 +1,58 @@
 /**
- * CAD Generation Request parameters
+ * CAD Analysis API Client
+ * 
+ * Client-side API wrapper for CAD drawing analysis operations.
+ * Used by React Query hooks to fetch analysis results and history.
+ * 
+ * Architecture:
+ * Component → useCADAnalysis hook → CADAPI → HTTP → Controller → Service → Repository
+ * 
+ * Cache Strategy:
+ * - Analysis results: 24 hours (React Query) + 24 hours (Redis)
+ * - Analysis history: 5 minutes (React Query)
+ * - Analysis by ID: 10 minutes (React Query)
  */
-export interface CADGenerationRequest {
-  description: string;
-  category?: 'bracket' | 'plate' | 'beam' | 'fastener' | 'custom';
-  format?: 'step' | 'stl' | 'obj' | 'gltf' | 'glb';
-  units?: 'mm' | 'cm' | 'm' | 'in' | 'ft';
+
+import type { DrawingAnalysis } from '@/types';
+
+export interface AnalyzeDrawingOptions {
+  file: File;
+  cadModelData?: any;
 }
 
-/**
- * CAD Generation Result from API
- */
-export interface CADGenerationResult {
+export interface AnalysisHistoryItem {
   id: string;
-  status: 'completed' | 'failed' | 'processing';
-  model_data?: string; // base64 encoded model file
-  preview_image?: string;
-  parameters?: Record<string, any>;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  file_size: number;
+  extracted_specs: any;
+  recommended_products: any[];
+  confidence: number;
+  reasoning: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AnalyzeDrawingResponse {
+  success: boolean;
+  data?: DrawingAnalysis;
+  error?: string;
+  message?: string;
+}
+
+export interface AnalysisHistoryResponse {
+  success: boolean;
+  data?: AnalysisHistoryItem[];
   error?: string;
 }
 
-/**
- * CAD History Item
- */
+export interface AnalysisByIdResponse {
+  success: boolean;
+  data?: AnalysisHistoryItem;
+  error?: string;
+}
+
 export interface CADHistoryItem {
   id: string;
   prompt: string;
@@ -31,211 +61,226 @@ export interface CADHistoryItem {
   units: string;
   model_data_url?: string;
   file_path?: string;
+  model_data?: string;
   generated_at: string;
   status: 'completed' | 'failed' | 'processing';
   error?: string;
   zoo_operation_id?: string;
 }
 
-/**
- * CAD History Response with pagination
- */
 export interface CADHistoryResponse {
-  data: CADHistoryItem[];
-  pagination: {
+  success: boolean;
+  data?: CADHistoryItem[];
+  pagination?: {
     total: number;
     limit: number;
     offset: number;
     hasMore: boolean;
   };
+  error?: string;
 }
 
 /**
- * CADAPI handles client-side API calls for CAD generation and history
- * This is a thin wrapper around fetch for React components
- * Note: This is NOT the business logic layer - see src/services/cad-generation.service.ts
+ * CAD Analysis API Client
+ * 
+ * Provides methods for analyzing CAD drawings, fetching analysis history,
+ * and retrieving specific analysis results.
  */
 export class CADAPI {
-  private static readonly GENERATE_URL = '/api/generate-cad';
-  private static readonly HISTORY_URL = '/api/cad-history';
-
   /**
-   * Generates a CAD model from a text description
+   * Analyze a CAD drawing file
    * 
-   * @param request - CAD generation parameters including description, format, units, and category
-   * @returns Promise resolving to CADGenerationResult with model data
-   * @throws Error if the API request fails or generation fails
+   * Uploads a file and performs AI-powered analysis to extract specifications
+   * and generate product recommendations. Results are cached for 24 hours
+   * based on file content hash.
+   * 
+   * @param options - Analysis options with file and optional CAD model data
+   * @returns Drawing analysis with extracted specs and recommendations
+   * @throws Error if analysis fails
+   * 
+   * @example
+   * ```typescript
+   * const analysis = await CADAPI.analyzeDrawing({
+   *   file: uploadedFile,
+   *   cadModelData: parsedCADData
+   * });
+   * ```
    */
-  static async generateCAD(
-    request: CADGenerationRequest
-  ): Promise<CADGenerationResult> {
-    try {
-      // Validate required fields
-      if (!request.description || request.description.trim().length === 0) {
-        throw new Error('Description is required for CAD generation');
-      }
-
-      // Make API request
-      const response = await fetch(this.GENERATE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          `Failed to generate CAD: ${response.statusText}${
-            errorData.error ? ` - ${errorData.error}` : ''
-          }`
-        );
-      }
-
-      const data = await response.json();
-
-      // Check if the response indicates success
-      if (!data.success) {
-        throw new Error(data.error || 'CAD generation failed');
-      }
-
-      // Return the generation result
-      return data.data;
-    } catch (error) {
-      // Re-throw with descriptive error message
-      if (error instanceof Error) {
-        throw new Error(`CADService.generateCAD failed: ${error.message}`);
-      }
-      throw new Error('CADService.generateCAD failed: Unknown error');
+  static async analyzeDrawing(options: AnalyzeDrawingOptions): Promise<DrawingAnalysis> {
+    const formData = new FormData();
+    formData.append('file', options.file);
+    
+    if (options.cadModelData) {
+      formData.append('cadModelData', JSON.stringify(options.cadModelData));
+    }
+    
+    const response = await fetch('/api/analyze-drawing', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to analyze drawing: ${response.statusText}`);
+    }
+    
+    const result: AnalyzeDrawingResponse = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to analyze drawing');
+    }
+    
+    if (!result.data) {
+      throw new Error('No analysis data returned');
+    }
+    
+    return result.data;
+  }
+  
+  /**
+   * Get analysis history for the current user
+   * 
+   * Fetches all previous CAD analyses performed by the authenticated user.
+   * Results are cached for 5 minutes.
+   * 
+   * @returns Array of analysis history items
+   * @throws Error if request fails
+   * 
+   * @example
+   * ```typescript
+   * const history = await CADAPI.getAnalysisHistory();
+   * console.log(`Found ${history.length} previous analyses`);
+   * ```
+   */
+  static async getAnalysisHistory(): Promise<AnalysisHistoryItem[]> {
+    const response = await fetch('/api/cad-analysis/history');
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch analysis history: ${response.statusText}`);
+    }
+    
+    const result: AnalysisHistoryResponse = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch analysis history');
+    }
+    
+    return result.data || [];
+  }
+  
+  /**
+   * Get a specific analysis by ID
+   * 
+   * Fetches detailed information about a previous analysis.
+   * Results are cached for 10 minutes.
+   * 
+   * @param id - Analysis ID
+   * @returns Analysis history item with full details
+   * @throws Error if request fails or analysis not found
+   * 
+   * @example
+   * ```typescript
+   * const analysis = await CADAPI.getAnalysisById('analysis_123');
+   * console.log(`Analysis confidence: ${analysis.confidence}`);
+   * ```
+   */
+  static async getAnalysisById(id: string): Promise<AnalysisHistoryItem> {
+    const response = await fetch(`/api/cad-analysis/${id}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch analysis: ${response.statusText}`);
+    }
+    
+    const result: AnalysisByIdResponse = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch analysis');
+    }
+    
+    if (!result.data) {
+      throw new Error('Analysis not found');
+    }
+    
+    return result.data;
+  }
+  
+  /**
+   * Delete an analysis from history
+   * 
+   * Removes an analysis and its associated file from storage.
+   * 
+   * @param id - Analysis ID to delete
+   * @throws Error if deletion fails
+   * 
+   * @example
+   * ```typescript
+   * await CADAPI.deleteAnalysis('analysis_123');
+   * ```
+   */
+  static async deleteAnalysis(id: string): Promise<void> {
+    const response = await fetch(`/api/cad-analysis/${id}`, {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to delete analysis: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to delete analysis');
     }
   }
-
+  
   /**
-   * Fetches CAD generation history for the authenticated user
+   * Generate a CAD model from text description
    * 
-   * @param limit - Number of items to fetch (default: 10)
-   * @param offset - Offset for pagination (default: 0)
-   * @returns Promise resolving to CADHistoryResponse with history items and pagination
-   * @throws Error if the API request fails
+   * @param request - CAD generation request with description and parameters
+   * @returns CAD generation result with model data
+   * @throws Error if generation fails
    */
-  static async getHistory(
-    limit: number = 10,
-    offset: number = 0
-  ): Promise<CADHistoryResponse> {
-    try {
-      // Build URL with query parameters
-      const params = new URLSearchParams();
-      params.append('limit', limit.toString());
-      params.append('offset', offset.toString());
-
-      const url = `${this.HISTORY_URL}?${params.toString()}`;
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          `Failed to fetch CAD history: ${response.statusText}${
-            errorData.error ? ` - ${errorData.error}` : ''
-          }`
-        );
-      }
-
-      const data = await response.json();
-
-      // Check if the response indicates success
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch CAD history');
-      }
-
-      // Return the history data with pagination
-      return {
-        data: data.data || [],
-        pagination: data.pagination || {
-          total: 0,
-          limit,
-          offset,
-          hasMore: false,
-        },
-      };
-    } catch (error) {
-      // Re-throw with descriptive error message
-      if (error instanceof Error) {
-        throw new Error(`CADService.getHistory failed: ${error.message}`);
-      }
-      throw new Error('CADService.getHistory failed: Unknown error');
+  static async generateCAD(request: any): Promise<any> {
+    const response = await fetch('/api/generate-cad', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to generate CAD: ${response.statusText}`);
     }
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to generate CAD');
+    }
+    
+    return result.data;
   }
-
+  
   /**
-   * Deletes a specific CAD history item
+   * Get CAD generation history
    * 
-   * @param id - The ID of the history item to delete
-   * @returns Promise resolving when deletion is complete
-   * @throws Error if the API request fails
+   * @param limit - Number of items to return
+   * @param offset - Offset for pagination
+   * @returns CAD history response with items and pagination
    */
-  static async deleteHistoryItem(id: string): Promise<void> {
-    try {
-      const url = `${this.HISTORY_URL}?id=${encodeURIComponent(id)}`;
-      const response = await fetch(url, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          `Failed to delete CAD history item: ${response.statusText}${
-            errorData.error ? ` - ${errorData.error}` : ''
-          }`
-        );
-      }
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to delete CAD history item');
-      }
-    } catch (error) {
-      // Re-throw with descriptive error message
-      if (error instanceof Error) {
-        throw new Error(`CADService.deleteHistoryItem failed: ${error.message}`);
-      }
-      throw new Error('CADService.deleteHistoryItem failed: Unknown error');
+  static async getHistory(limit: number = 20, offset: number = 0): Promise<any> {
+    const response = await fetch(`/api/cad-history?limit=${limit}&offset=${offset}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch CAD history: ${response.statusText}`);
     }
-  }
-
-  /**
-   * Clears all CAD history for the authenticated user
-   * 
-   * @returns Promise resolving when all history is cleared
-   * @throws Error if the API request fails
-   */
-  static async clearHistory(): Promise<void> {
-    try {
-      const response = await fetch(this.HISTORY_URL, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          `Failed to clear CAD history: ${response.statusText}${
-            errorData.error ? ` - ${errorData.error}` : ''
-          }`
-        );
-      }
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to clear CAD history');
-      }
-    } catch (error) {
-      // Re-throw with descriptive error message
-      if (error instanceof Error) {
-        throw new Error(`CADService.clearHistory failed: ${error.message}`);
-      }
-      throw new Error('CADService.clearHistory failed: Unknown error');
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch CAD history');
     }
+    
+    return result;
   }
 }

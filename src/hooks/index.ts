@@ -1,10 +1,21 @@
 // Re-export all hooks for easier importing
-export { useDebounce } from './useDebounce';
-export { useProducts, useProduct } from './useProducts';
-export { useCategories } from './useCategories';
 export { useFileUpload } from './useFileUpload';
-export { useCADAnalysis } from './useCADAnalysis';
 export { useCADGeneration } from './useCADGeneration';
+export { 
+  useAnalyzeDrawing, 
+  useAnalysisHistory, 
+  useAnalysisById, 
+  useDeleteAnalysis,
+  prefetchAnalysisHistory 
+} from './useCADAnalysis';
+export { useCategories } from './useCategories';
+export { useProducts, useProduct } from './useProducts';
+
+export type { FileUploadOptions, FileUploadState } from './useFileUpload';
+export type { UseCADGenerationOptions } from './useCADGeneration';
+export type { UseCategoriesState } from './useCategories';
+export type { UseProductsOptions, ProductFilters } from './useProducts';
+
 
 // Admin hooks
 export { useAdminProducts, useAdminProduct, useCreateAdminProduct, useUpdateAdminProduct, useDeleteAdminProduct } from './admin/useAdminProducts';
