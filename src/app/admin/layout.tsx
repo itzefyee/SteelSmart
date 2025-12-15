@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { AdminPrefetch } from '@/components/admin/AdminPrefetch';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -34,6 +35,7 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-background">
+      <AdminPrefetch />
       {/* Sidebar */}
       <aside
         className={cn(

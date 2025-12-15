@@ -1,12 +1,11 @@
-// Custom hooks for SteelSmart application
-export { useFileUpload } from './useFileUpload';
-export { useCADGeneration } from './useCADGeneration';
-export { useCADAnalysis } from './useCADAnalysis';
-export { useCategories } from './useCategories';
+// Re-export all hooks for easier importing
+export { useDebounce } from './useDebounce';
 export { useProducts, useProduct } from './useProducts';
+export { useCategories } from './useCategories';
+export { useFileUpload } from './useFileUpload';
+export { useCADAnalysis } from './useCADAnalysis';
+export { useCADGeneration } from './useCADGeneration';
 
-export type { FileUploadOptions, FileUploadState } from './useFileUpload';
-export type { UseCADGenerationOptions } from './useCADGeneration';
-export type { CADAnalysisOptions, CADAnalysisResult, CADAnalysisState } from './useCADAnalysis';
-export type { UseCategoriesState } from './useCategories';
-export type { UseProductsOptions, ProductFilters } from './useProducts';
+// Admin hooks
+export { useAdminProducts, useAdminProduct, useCreateAdminProduct, useUpdateAdminProduct, useDeleteAdminProduct } from './admin/useAdminProducts';
+export { useAdminDashboard } from './admin/useAdminDashboard';
