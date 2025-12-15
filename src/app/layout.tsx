@@ -13,13 +13,13 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL('http://localhost:3000'),
-  title: 'SteelSmart - AI-Powered Metal & Steel Parts Marketplace',
+  title: 'Metalyze - AI-Powered Metal & Steel Parts Marketplace',
   description: 'Discover and source robotic components, structural steel, and custom fabricated parts with AI-powered CAD drawing analysis.',
   keywords: 'steel parts, robotic components, structural steel, CAD analysis, manufacturing, engineering',
-  authors: [{ name: 'SteelSmart Team' }],
-  creator: 'SteelSmart',
-  publisher: 'SteelSmart',
-  applicationName: 'SteelSmart Marketplace',
+  authors: [{ name: 'Metalyze Team' }],
+  creator: 'Metalyze',
+  publisher: 'Metalyze',
+  applicationName: 'Metalyze Marketplace',
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },
@@ -30,16 +30,16 @@ export const metadata: Metadata = {
   },
   manifest: '/site.webmanifest',
   openGraph: {
-    title: 'SteelSmart - AI-Powered Metal & Steel Parts Marketplace',
+    title: 'Metalyze - AI-Powered Metal & Steel Parts Marketplace',
     description: 'Discover and source robotic components, structural steel, and custom fabricated parts with AI-powered CAD drawing analysis.',
-    url: 'https://SteelSmart.com',
-    siteName: 'SteelSmart',
+    url: 'https://metalyze.com',
+    siteName: 'Metalyze',
     images: [
       {
         url: '/images/logo.svg',
         width: 120,
         height: 40,
-        alt: 'SteelSmart Logo'
+        alt: 'Metalyze Logo'
       }
     ],
     locale: 'en_US',
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SteelSmart - AI-Powered Metal & Steel Parts Marketplace',
+    title: 'Metalyze - AI-Powered Metal & Steel Parts Marketplace',
     description: 'Discover and source robotic components, structural steel, and custom fabricated parts with AI-powered CAD drawing analysis.',
     images: ['/images/logo.svg']
   },

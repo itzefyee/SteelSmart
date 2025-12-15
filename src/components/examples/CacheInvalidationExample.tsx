@@ -12,7 +12,7 @@
 import React from 'react';
 import { useCADHistory } from '@/hooks/useCADGeneration';
 import { useProducts } from '@/hooks/useProducts';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 /**

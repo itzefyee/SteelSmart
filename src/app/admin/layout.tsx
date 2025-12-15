@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Package, 
@@ -11,8 +11,9 @@ import {
   X,
   LogOut
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -26,7 +27,10 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { signOut } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,7 +42,7 @@ export default function AdminLayout({
         )}
       >
         <div className="flex h-16 items-center justify-between px-6 border-b">
-          <h1 className="text-xl font-bold">SteelSmart Admin</h1>
+          <h1 className="text-xl font-bold">Metalyze Admin</h1>
           <Button
             variant="ghost"
             size="icon"
@@ -76,9 +80,33 @@ export default function AdminLayout({
         </nav>
 
         <div className="border-t p-4">
-          <Button variant="ghost" className="w-full justify-start" size="sm">
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start" 
+            size="sm"
+            onClick={async () => {
+              setIsLoggingOut(true);
+              try {
+                await signOut();
+                router.push('/');
+              } catch (error) {
+                console.error('Logout error:', error);
+                setIsLoggingOut(false);
+              }
+            }}
+            disabled={isLoggingOut}
+          >
+            {isLoggingOut ? (
+              <>
+                <div className="animate-spin h-4 w-4 mr-2 border-2 border-current border-t-transparent rounded-full" />
+                Signing Out...
+              </>
+            ) : (
+              <>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </>
+            )}
           </Button>
         </div>
       </aside>

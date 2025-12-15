@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
           {/* Company Info */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <img src="/images/logo-white.svg" alt="SteelSmart" className="h-11 w-auto" />
+              <img src="/images/logo-white.svg" alt="Metalyze" className="h-11 w-auto" />
             </div>
             <p className="text-gray-400 text-sm">
               AI-powered marketplace for metal and steel parts, serving engineers and manufacturers worldwide.
@@ -114,7 +114,7 @@ const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <div className="text-gray-400 text-sm space-y-1">
-            <p>© 2025 SteelSmart. All rights reserved.</p>
+            <p>© 2025 Metalyze. All rights reserved.</p>
             <p>
               Designed by Efye Ching & Tan Ja Man, licensed under{' '}
               <a 

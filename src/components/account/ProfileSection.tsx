@@ -59,13 +59,11 @@ export default function ProfileSection({ profile, onUpdate }: ProfileSectionProp
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      sessionStorage.setItem('isLoggingOut', 'true');
       await signOut();
-      sessionStorage.removeItem('isLoggingOut');
-      window.location.href = '/';
+      // Let the AuthProvider handle the redirect via onAuthStateChange
+      // No need for manual redirect as middleware will handle it
     } catch (error) {
       console.error('Logout error:', error);
-      sessionStorage.removeItem('isLoggingOut');
       setIsLoggingOut(false);
     }
   };

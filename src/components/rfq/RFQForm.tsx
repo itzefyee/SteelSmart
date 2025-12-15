@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
 import { RFQFormData, ValidationErrors, APIResponse } from '@/types';
 import { validateEmail, formatFileSize, isValidFileType, isValidFileSize } from '@/lib/utils';

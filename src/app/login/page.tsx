@@ -20,35 +20,75 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const { error } = await signIn(email, password);
+    try {
+      const { error } = await signIn(email, password);
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else {
-      // Wait a moment for profile to load, then check role and redirect
-      setTimeout(async () => {
-        // Get the user's profile to check role
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      // Let AuthProvider handle the auth state change
+      // The onAuthStateChange listener will update user and profile
+      // We'll redirect after the auth state is properly set
+      
+      // Check for redirect parameter first
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectTo = urlParams.get('redirectTo');
+      
+      if (redirectTo) {
+        router.push(redirectTo);
+        return;
+      }
+
+      // Wait for auth state to update, then redirect based on role
+      // Use a more reliable approach with polling
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      const checkAuthAndRedirect = async () => {
+        attempts++;
+        
         const { getSupabaseClient } = await import('@/lib/supabase');
         const supabase = getSupabaseClient();
         
         const { data: { user } } = await supabase.auth.getUser();
+        
         if (user) {
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('Role')
             .eq('id', user.id)
             .single();
           
-          // Redirect based on role
-          if (profile?.Role?.toLowerCase() === 'admin') {
-            router.push('/admin');
-          } else {
-            router.push('/');
+          if (!profileError && profile) {
+            // Successfully got profile, redirect based on role
+            if (profile.Role?.toLowerCase() === 'admin') {
+              router.push('/admin');
+            } else {
+              router.push('/');
+            }
+            return;
           }
-          router.refresh();
         }
-      }, 500);
+        
+        // If we haven't succeeded and haven't hit max attempts, try again
+        if (attempts < maxAttempts) {
+          setTimeout(checkAuthAndRedirect, 200);
+        } else {
+          // Fallback: redirect to home after max attempts
+          console.warn('Could not determine user role, redirecting to home');
+          router.push('/');
+        }
+      };
+      
+      // Start checking after a brief delay to let auth state settle
+      setTimeout(checkAuthAndRedirect, 100);
+      
+    } catch (err) {
+      setError('An unexpected error occurred');
+      setLoading(false);
     }
   };
 
@@ -61,7 +101,7 @@ export default function LoginPage() {
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-            <p className="text-gray-600">Sign in to your StealSmart account</p>
+            <p className="text-gray-600">Sign in to your Metalyze account</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
