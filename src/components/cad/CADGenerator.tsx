@@ -59,13 +59,15 @@ const CADGenerator: React.FC = () => {
 
   // Zustand store for CAD preferences
   const { 
-    selectedFormat, 
-    selectedUnits, 
-    recentPrompts,
-    setFormat,
-    setUnits,
-    clearRecentPrompts
+    selectedFormat,
+    setSelectedFormat,
+    exportSettings,
+    updateExportSettings,
+    recentGenerations,
+    clearRecentGenerations
   } = useCADStore();
+  
+  const selectedUnits = exportSettings.unit;
 
   // State
   const [activeTab, setActiveTab] = useState<'text' | 'template'>('text');
@@ -362,7 +364,7 @@ const CADGenerator: React.FC = () => {
     generateCAD({
       description: textInput,
       category: 'custom',
-      format: selectedFormat,
+      format: selectedFormat === 'dxf' ? 'step' : selectedFormat,
       units: selectedUnits
     });
   }, [textInput, selectedFormat, selectedUnits, generateCAD, addDebugStep, clearDebugSteps]);
@@ -406,7 +408,7 @@ const CADGenerator: React.FC = () => {
     generateCAD({
       description: prompt,
       category: normalizeCategory(template.category),
-      format: selectedFormat,
+      format: selectedFormat === 'dxf' ? 'step' : selectedFormat,
       units: selectedUnits
     });
   }, [selectedTemplate, selectedFormat, selectedUnits, generateCAD, addDebugStep, clearDebugSteps]);
@@ -554,10 +556,15 @@ const CADGenerator: React.FC = () => {
               isPending={isPending}
               selectedFormat={selectedFormat}
               selectedUnits={selectedUnits}
-              onFormatChange={setFormat}
-              onUnitsChange={setUnits}
-              recentPrompts={recentPrompts}
-              onClearRecentPrompts={clearRecentPrompts}
+              onFormatChange={setSelectedFormat}
+              onUnitsChange={(unit) => {
+                // Only update if it's a supported unit for CAD generation
+                if (unit === 'mm' || unit === 'cm' || unit === 'in') {
+                  updateExportSettings({ unit });
+                }
+              }}
+              recentPrompts={recentGenerations.map(g => g.prompt)}
+              onClearRecentPrompts={clearRecentGenerations}
               prefilledPromptHighlight={prefilledPromptHighlight}
             />
           )}

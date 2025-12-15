@@ -9,7 +9,7 @@ export interface CADGenerationRequest {
   description: string;
   category?: 'bracket' | 'plate' | 'beam' | 'fastener' | 'custom';
   format?: 'step' | 'stl' | 'obj' | 'gltf' | 'glb';
-  units?: 'mm' | 'cm' | 'm' | 'in' | 'ft';
+  units?: 'mm' | 'cm' | 'in';
 }
 
 /**

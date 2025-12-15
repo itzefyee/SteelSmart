@@ -1,88 +1,272 @@
+/**
+ * CAD State Store (Zustand)
+ * 
+ * Manages CAD-specific UI state with localStorage persistence.
+ * This store handles CAD format preferences, recent analyses,
+ * and generation history that should persist across sessions.
+ * 
+ * State Categories:
+ * - Format selection (STEP, STL, OBJ, etc.)
+ * - Recent analyses (quick access)
+ * - Generation history (quick access)
+ * - CAD viewer preferences
+ * - Export settings
+ * 
+ * Persistence:
+ * - Automatically syncs to localStorage
+ * - Survives page refreshes
+ * - Per-user preferences
+ */
+
 import { create } from 'zustand';
-import { persist, devtools } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 /**
- * CAD Store Interface
- * Manages client-side state for CAD generator preferences and history
+ * Supported CAD export formats
  */
-interface CADStore {
-  // State
-  selectedFormat: 'step' | 'stl' | 'obj' | 'gltf';
-  selectedUnits: 'mm' | 'cm' | 'm' | 'in' | 'ft';
-  selectedCategory: string;
-  recentPrompts: string[];
+export type CADFormat = 'step' | 'stl' | 'obj' | 'dxf' | 'gltf' | 'glb';
 
-  // Actions
-  setFormat: (format: CADStore['selectedFormat']) => void;
-  setUnits: (units: CADStore['selectedUnits']) => void;
-  setCategory: (category: string) => void;
-  addRecentPrompt: (prompt: string) => void;
-  clearRecentPrompts: () => void;
+/**
+ * Recent analysis item (lightweight reference)
+ */
+export interface RecentAnalysis {
+  id: string;
+  fileName: string;
+  timestamp: number;
+  confidence: number;
+  specs: {
+    material?: string;
+    dimensions?: string;
+    componentType?: string;
+  };
 }
 
 /**
- * CAD Zustand Store
- * 
- * Persists user preferences for CAD generation including:
- * - Selected output format (STEP, STL, OBJ, GLTF)
- * - Selected units (mm, cm, m, in, ft)
- * - Recent prompts (up to 10 items, deduplicated)
- * 
- * Persistence Strategy:
- * - selectedFormat: Persisted to localStorage
- * - selectedUnits: Persisted to localStorage
- * - recentPrompts: Persisted to localStorage
- * - selectedCategory: Session-only (not persisted)
+ * Recent generation item (lightweight reference)
  */
-export const useCADStore = create<CADStore>()(
-  devtools(
-    persist(
-      (set) => ({
-        // Initial state
-        selectedFormat: 'step',
-        selectedUnits: 'mm',
-        selectedCategory: '',
-        recentPrompts: [],
+export interface RecentGeneration {
+  id: string;
+  prompt: string;
+  timestamp: number;
+  status: 'pending' | 'completed' | 'failed';
+  formats: CADFormat[];
+}
 
-        // Actions
-        setFormat: (format) => set({ selectedFormat: format }),
+/**
+ * CAD viewer preferences
+ */
+export interface ViewerPreferences {
+  showGrid: boolean;
+  showAxes: boolean;
+  backgroundColor: string;
+  wireframeMode: boolean;
+  autoRotate: boolean;
+}
 
-        setUnits: (units) => set({ selectedUnits: units }),
+/**
+ * Export settings
+ */
+export interface ExportSettings {
+  defaultFormat: CADFormat;
+  includeMetadata: boolean;
+  optimizeForSize: boolean;
+  unit: 'mm' | 'cm' | 'in';
+}
 
-        setCategory: (category) => set({ selectedCategory: category }),
+/**
+ * CAD State Interface
+ */
+interface CADState {
+  // Format Selection
+  selectedFormat: CADFormat;
+  setSelectedFormat: (format: CADFormat) => void;
+  
+  // Recent Analyses (max 20)
+  recentAnalyses: RecentAnalysis[];
+  addRecentAnalysis: (analysis: RecentAnalysis) => void;
+  removeRecentAnalysis: (id: string) => void;
+  clearRecentAnalyses: () => void;
+  
+  // Recent Generations (max 20)
+  recentGenerations: RecentGeneration[];
+  addRecentGeneration: (generation: RecentGeneration) => void;
+  updateGenerationStatus: (id: string, status: RecentGeneration['status']) => void;
+  removeRecentGeneration: (id: string) => void;
+  clearRecentGenerations: () => void;
+  
+  // Viewer Preferences
+  viewerPreferences: ViewerPreferences;
+  updateViewerPreferences: (preferences: Partial<ViewerPreferences>) => void;
+  resetViewerPreferences: () => void;
+  
+  // Export Settings
+  exportSettings: ExportSettings;
+  updateExportSettings: (settings: Partial<ExportSettings>) => void;
+  resetExportSettings: () => void;
+  
+  // Active CAD Model (transient, not persisted)
+  activeModelId: string | null;
+  setActiveModelId: (id: string | null) => void;
+}
 
-        /**
-         * Add a prompt to recent prompts list
-         * - Deduplicates: removes existing occurrence before adding to front
-         * - Limits to 10 items maximum
-         * - Most recent prompt appears first
-         */
-        addRecentPrompt: (prompt) =>
-          set((state) => {
-            // Remove the prompt if it already exists (deduplicate)
-            const filtered = state.recentPrompts.filter((p) => p !== prompt);
-            
-            // Add to front and limit to 10 items
-            const updated = [prompt, ...filtered].slice(0, 10);
-            
-            return { recentPrompts: updated };
-          }),
+/**
+ * Default viewer preferences
+ */
+const defaultViewerPreferences: ViewerPreferences = {
+  showGrid: true,
+  showAxes: true,
+  backgroundColor: '#f8fafc',
+  wireframeMode: false,
+  autoRotate: false,
+};
 
-        clearRecentPrompts: () => set({ recentPrompts: [] }),
-      }),
-      {
-        name: 'cad-store',
-        // Only persist selectedFormat, selectedUnits, and recentPrompts
-        // selectedCategory is session-only
-        partialize: (state) => ({
-          selectedFormat: state.selectedFormat,
-          selectedUnits: state.selectedUnits,
-          recentPrompts: state.recentPrompts,
-        }),
-      }
-    ),
+/**
+ * Default export settings
+ */
+const defaultExportSettings: ExportSettings = {
+  defaultFormat: 'step',
+  includeMetadata: true,
+  optimizeForSize: false,
+  unit: 'mm',
+};
+
+/**
+ * CAD Store
+ * 
+ * Manages all CAD-specific UI state with localStorage persistence.
+ * 
+ * @example
+ * ```tsx
+ * function CADFormatSelector() {
+ *   const { selectedFormat, setSelectedFormat } = useCADStore();
+ *   
+ *   return (
+ *     <select 
+ *       value={selectedFormat} 
+ *       onChange={(e) => setSelectedFormat(e.target.value as CADFormat)}
+ *     >
+ *       <option value="step">STEP</option>
+ *       <option value="stl">STL</option>
+ *       <option value="obj">OBJ</option>
+ *     </select>
+ *   );
+ * }
+ * ```
+ */
+export const useCADStore = create<CADState>()(
+  persist(
+    (set) => ({
+      // Format Selection
+      selectedFormat: 'step',
+      setSelectedFormat: (format) => set({ selectedFormat: format }),
+      
+      // Recent Analyses
+      recentAnalyses: [],
+      addRecentAnalysis: (analysis) => {
+        set((state) => {
+          // Remove duplicates and add to front
+          const filtered = state.recentAnalyses.filter((a) => a.id !== analysis.id);
+          // Keep only last 20 analyses
+          return {
+            recentAnalyses: [analysis, ...filtered].slice(0, 20),
+          };
+        });
+      },
+      removeRecentAnalysis: (id) => {
+        set((state) => ({
+          recentAnalyses: state.recentAnalyses.filter((a) => a.id !== id),
+        }));
+      },
+      clearRecentAnalyses: () => set({ recentAnalyses: [] }),
+      
+      // Recent Generations
+      recentGenerations: [],
+      addRecentGeneration: (generation) => {
+        set((state) => {
+          // Remove duplicates and add to front
+          const filtered = state.recentGenerations.filter((g) => g.id !== generation.id);
+          // Keep only last 20 generations
+          return {
+            recentGenerations: [generation, ...filtered].slice(0, 20),
+          };
+        });
+      },
+      updateGenerationStatus: (id, status) => {
+        set((state) => ({
+          recentGenerations: state.recentGenerations.map((g) =>
+            g.id === id ? { ...g, status } : g
+          ),
+        }));
+      },
+      removeRecentGeneration: (id) => {
+        set((state) => ({
+          recentGenerations: state.recentGenerations.filter((g) => g.id !== id),
+        }));
+      },
+      clearRecentGenerations: () => set({ recentGenerations: [] }),
+      
+      // Viewer Preferences
+      viewerPreferences: defaultViewerPreferences,
+      updateViewerPreferences: (preferences) => {
+        set((state) => ({
+          viewerPreferences: { ...state.viewerPreferences, ...preferences },
+        }));
+      },
+      resetViewerPreferences: () => set({ viewerPreferences: defaultViewerPreferences }),
+      
+      // Export Settings
+      exportSettings: defaultExportSettings,
+      updateExportSettings: (settings) => {
+        set((state) => ({
+          exportSettings: { ...state.exportSettings, ...settings },
+        }));
+      },
+      resetExportSettings: () => set({ exportSettings: defaultExportSettings }),
+      
+      // Active Model (not persisted)
+      activeModelId: null,
+      setActiveModelId: (id) => set({ activeModelId: id }),
+    }),
     {
-      name: 'CADStore',
+      name: 'metalyze-cad-storage',
+      storage: createJSONStorage(() => localStorage),
+      // Don't persist activeModelId (it's transient)
+      partialize: (state) => ({
+        selectedFormat: state.selectedFormat,
+        recentAnalyses: state.recentAnalyses,
+        recentGenerations: state.recentGenerations,
+        viewerPreferences: state.viewerPreferences,
+        exportSettings: state.exportSettings,
+      }),
     }
   )
 );
+
+/**
+ * Selectors for optimized re-renders
+ * 
+ * Use these to subscribe to specific parts of the store
+ * instead of the entire store.
+ * 
+ * @example
+ * ```tsx
+ * function FormatBadge() {
+ *   // Only re-renders when selectedFormat changes
+ *   const format = useCADStore(selectSelectedFormat);
+ *   
+ *   return <span className="badge">{format.toUpperCase()}</span>;
+ * }
+ * ```
+ */
+export const selectSelectedFormat = (state: CADState) => state.selectedFormat;
+export const selectSetSelectedFormat = (state: CADState) => state.setSelectedFormat;
+export const selectRecentAnalyses = (state: CADState) => state.recentAnalyses;
+export const selectAddRecentAnalysis = (state: CADState) => state.addRecentAnalysis;
+export const selectRecentGenerations = (state: CADState) => state.recentGenerations;
+export const selectAddRecentGeneration = (state: CADState) => state.addRecentGeneration;
+export const selectViewerPreferences = (state: CADState) => state.viewerPreferences;
+export const selectUpdateViewerPreferences = (state: CADState) => state.updateViewerPreferences;
+export const selectExportSettings = (state: CADState) => state.exportSettings;
+export const selectUpdateExportSettings = (state: CADState) => state.updateExportSettings;
+export const selectActiveModelId = (state: CADState) => state.activeModelId;
+export const selectSetActiveModelId = (state: CADState) => state.setActiveModelId;

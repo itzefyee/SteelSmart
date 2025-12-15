@@ -150,13 +150,19 @@ export async function proxy(req: NextRequest) {
 
   // Redirect authenticated users away from login/signup pages
   if (user && (req.nextUrl.pathname === '/login' || req.nextUrl.pathname === '/signup')) {
+    // Prevent redirect loops by checking if we're already being redirected
+    const redirectTo = req.nextUrl.searchParams.get('redirectTo');
+    if (redirectTo) {
+      // If there's a redirectTo param, use it
+      return NextResponse.redirect(new URL(redirectTo, req.url));
+    }
     // Redirect admin users to admin dashboard, regular users to homepage
     const redirectUrl = userRole?.toLowerCase() === 'admin' ? '/admin' : '/';
     return NextResponse.redirect(new URL(redirectUrl, req.url));
   }
 
-  // Redirect admin users from homepage to admin dashboard
-  if (user && userRole?.toLowerCase() === 'admin' && req.nextUrl.pathname === '/') {
+  // Redirect admin users from homepage to admin dashboard (but allow manual override)
+  if (user && userRole?.toLowerCase() === 'admin' && req.nextUrl.pathname === '/' && !req.nextUrl.searchParams.has('stay')) {
     return NextResponse.redirect(new URL('/admin', req.url));
   }
 

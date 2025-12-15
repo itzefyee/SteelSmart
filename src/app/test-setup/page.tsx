@@ -32,12 +32,12 @@ export default function TestSetupPage() {
   // Test Zustand store
   const {
     selectedFormat,
-    selectedUnits,
-    recentPrompts,
-    setFormat,
-    setUnits,
-    addRecentPrompt,
-    clearRecentPrompts,
+    setSelectedFormat,
+    exportSettings,
+    updateExportSettings,
+    recentGenerations,
+    addRecentGeneration,
+    clearRecentGenerations,
   } = useCADStore();
 
   // Test Redis connection
@@ -134,10 +134,10 @@ export default function TestSetupPage() {
                   <span className="text-slate-400">Format:</span> {selectedFormat}
                 </p>
                 <p className="text-white">
-                  <span className="text-slate-400">Units:</span> {selectedUnits}
+                  <span className="text-slate-400">Units:</span> {exportSettings.unit}
                 </p>
                 <p className="text-white">
-                  <span className="text-slate-400">Recent Prompts:</span> {recentPrompts.length} items
+                  <span className="text-slate-400">Recent Generations:</span> {recentGenerations.length} items
                 </p>
               </div>
             </div>
@@ -149,7 +149,7 @@ export default function TestSetupPage() {
                 </label>
                 <select
                   value={selectedFormat}
-                  onChange={(e) => setFormat(e.target.value as any)}
+                  onChange={(e) => setSelectedFormat(e.target.value as any)}
                   className="w-full px-3 py-2 bg-slate-900 text-white rounded border border-slate-700 focus:border-purple-500 focus:outline-none"
                 >
                   <option value="step">STEP</option>
@@ -164,22 +164,20 @@ export default function TestSetupPage() {
                   Test Units Selection:
                 </label>
                 <select
-                  value={selectedUnits}
-                  onChange={(e) => setUnits(e.target.value as any)}
+                  value={exportSettings.unit}
+                  onChange={(e) => updateExportSettings({ unit: e.target.value as any })}
                   className="w-full px-3 py-2 bg-slate-900 text-white rounded border border-slate-700 focus:border-purple-500 focus:outline-none"
                 >
                   <option value="mm">Millimeters</option>
                   <option value="cm">Centimeters</option>
-                  <option value="m">Meters</option>
                   <option value="in">Inches</option>
-                  <option value="ft">Feet</option>
                 </select>
               </div>
             </div>
 
             <div>
               <label className="block text-sm text-slate-400 mb-2">
-                Test Recent Prompts:
+                Test Recent Generations:
               </label>
               <div className="flex gap-2">
                 <input
@@ -188,26 +186,32 @@ export default function TestSetupPage() {
                   className="flex-1 px-3 py-2 bg-slate-900 text-white rounded border border-slate-700 focus:border-purple-500 focus:outline-none"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.currentTarget.value) {
-                      addRecentPrompt(e.currentTarget.value);
+                      addRecentGeneration({
+                        id: Date.now().toString(),
+                        prompt: e.currentTarget.value,
+                        timestamp: Date.now(),
+                        status: 'completed',
+                        formats: [selectedFormat]
+                      });
                       e.currentTarget.value = '';
                     }
                   }}
                 />
                 <button
-                  onClick={clearRecentPrompts}
+                  onClick={clearRecentGenerations}
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
                 >
                   Clear
                 </button>
               </div>
-              {recentPrompts.length > 0 && (
+              {recentGenerations.length > 0 && (
                 <div className="mt-2 space-y-1">
-                  {recentPrompts.map((prompt, index) => (
+                  {recentGenerations.map((gen, index) => (
                     <div
-                      key={index}
+                      key={gen.id}
                       className="text-sm text-slate-300 bg-slate-900/50 px-3 py-1 rounded"
                     >
-                      {index + 1}. {prompt}
+                      {index + 1}. {gen.prompt}
                     </div>
                   ))}
                 </div>

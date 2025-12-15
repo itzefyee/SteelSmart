@@ -94,14 +94,20 @@ export interface UseCADGenerationOptions {
 export const useCADGeneration = (options: UseCADGenerationOptions = {}) => {
   const { onSuccess, onError } = options;
   const queryClient = useQueryClient();
-  const addRecentPrompt = useCADStore((state) => state.addRecentPrompt);
+  const addRecentGeneration = useCADStore((state) => state.addRecentGeneration);
 
   const mutation = useMutation<CADGenerationResult, Error, CADGenerationRequest>({
     mutationFn: (request: CADGenerationRequest) => CADAPI.generateCAD(request),
     
     onSuccess: (data, variables) => {
-      // Add the prompt to recent prompts in Zustand store
-      addRecentPrompt(variables.description);
+      // Add the generation to recent generations in Zustand store
+      addRecentGeneration({
+        id: data.id,
+        prompt: variables.description,
+        timestamp: Date.now(),
+        status: 'completed',
+        formats: variables.format ? [variables.format] : ['step']
+      });
       
       /**
        * Cache Invalidation: Invalidate CAD history queries
