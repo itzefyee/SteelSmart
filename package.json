@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
+    "dev:turbo": "next dev --turbo",
+    "dev:fast": "npm run dev:clean && next dev --webpack",
+    "dev:clean": "rimraf .next",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",

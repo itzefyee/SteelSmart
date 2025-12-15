@@ -24,12 +24,12 @@ export default function DashboardPage() {
     setLoading(true);
     try {
       // Fetch products
-      const productsRes = await fetch('/api/products');
+      const productsRes = await fetch('/api/admin/products');
       const productsData = await productsRes.json();
       const products = productsData.data || [];
       
       // Fetch report statistics
-      const reportsRes = await fetch('/api/reports/statistics');
+      const reportsRes = await fetch('/api/admin/reports/statistics');
       const reportsData = await reportsRes.json();
       const reportStats = reportsData.data || {};
 

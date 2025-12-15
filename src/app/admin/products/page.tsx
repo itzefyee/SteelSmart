@@ -35,7 +35,7 @@ export default function ProductsPage() {
   const loadProducts = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/products');
+      const response = await fetch('/api/admin/products');
       const data = await response.json();
       if (data.data) {
         setProducts(data.data);
@@ -59,7 +59,7 @@ export default function ProductsPage() {
 
   const handleDelete = async (productId: string) => {
     try {
-      const response = await fetch(`/api/products/${productId}`, {
+      const response = await fetch(`/api/admin/products/${productId}`, {
         method: 'DELETE',
       });
       

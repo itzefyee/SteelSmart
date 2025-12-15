@@ -50,7 +50,7 @@ export default function EditProductPage() {
 
   const loadProduct = async () => {
     try {
-      const response = await fetch(`/api/products/${id}`);
+      const response = await fetch(`/api/admin/products/${id}`);
       const data = await response.json();
 
       if (data.data) {
@@ -139,7 +139,7 @@ export default function EditProductPage() {
     };
 
     try {
-      const response = await fetch(`/api/products/${id}`, {
+      const response = await fetch(`/api/admin/products/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productData),

@@ -33,7 +33,7 @@ export default function ReportsPage() {
   const loadReports = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/reports?page=${currentPage}&limit=10`);
+      const response = await fetch(`/api/admin/reports?page=${currentPage}&limit=10`);
       const data = await response.json();
 
       if (data.data) {
@@ -53,7 +53,7 @@ export default function ReportsPage() {
 
   const loadStatistics = async () => {
     try {
-      const response = await fetch('/api/reports/statistics');
+      const response = await fetch('/api/admin/reports/statistics');
       const data = await response.json();
 
       if (data.data) {
@@ -74,7 +74,7 @@ export default function ReportsPage() {
     if (!confirm('Are you sure you want to delete this report?')) return;
 
     try {
-      const response = await fetch(`/api/reports/${reportId}`, {
+      const response = await fetch(`/api/admin/reports/${reportId}`, {
         method: 'DELETE',
       });
 

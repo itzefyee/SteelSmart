@@ -45,7 +45,7 @@ export default function ReportDetailPage() {
 
   const loadReport = async () => {
     try {
-      const response = await fetch(`/api/reports/${id}`);
+      const response = await fetch(`/api/admin/reports/${id}`);
       const data = await response.json();
 
       if (data.data) {
@@ -64,7 +64,7 @@ export default function ReportDetailPage() {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`/api/reports/${id}`, {
+      const response = await fetch(`/api/admin/reports/${id}`, {
         method: 'DELETE',
       });
 
@@ -100,7 +100,7 @@ export default function ReportDetailPage() {
 
   const handleRetry = async () => {
     try {
-      const response = await fetch(`/api/reports/${id}/retry`, {
+      const response = await fetch(`/api/admin/reports/${id}/retry`, {
         method: 'POST',
       });
 

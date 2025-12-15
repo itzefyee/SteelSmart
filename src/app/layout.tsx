@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { Providers } from './providers';
+import ChunkRetryHandler from '@/components/ChunkRetryHandler';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -72,6 +73,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-background`}>
+        <ChunkRetryHandler />
         <Providers>
           <AuthProvider>
             <ToastProvider>
