@@ -8,6 +8,9 @@ import TechnicalPattern from '@/components/TechnicalPattern';
 import BlueprintSketchLayer from '@/components/BlueprintSketchLayer';
 
 export default function HomePage() {
+  // Note: Admin redirect is handled by middleware (src/proxy.ts)
+  // No need for client-side auth logic here
+
   return (
     <div className="min-h-screen flex flex-col relative">
       {/* Extended Technical Pattern Background with Gradient Effect */}

@@ -150,7 +150,14 @@ export async function proxy(req: NextRequest) {
 
   // Redirect authenticated users away from login/signup pages
   if (user && (req.nextUrl.pathname === '/login' || req.nextUrl.pathname === '/signup')) {
-    return NextResponse.redirect(new URL('/', req.url));
+    // Redirect admin users to admin dashboard, regular users to homepage
+    const redirectUrl = userRole?.toLowerCase() === 'admin' ? '/admin' : '/';
+    return NextResponse.redirect(new URL(redirectUrl, req.url));
+  }
+
+  // Redirect admin users from homepage to admin dashboard
+  if (user && userRole?.toLowerCase() === 'admin' && req.nextUrl.pathname === '/') {
+    return NextResponse.redirect(new URL('/admin', req.url));
   }
 
   return response;
