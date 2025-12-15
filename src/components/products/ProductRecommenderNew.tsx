@@ -194,13 +194,33 @@ const ProductRecommenderNew: React.FC = () => {
   useEffect(() => {
     if (!searchSpecs) return;
     
+    // Track if we've already processed this search to avoid infinite loops
+    const searchKey = JSON.stringify({ isLoading, isError, catalogCount: catalogMatches.length, altCount: alternatives.length });
+    
     if (isLoading) {
-      updateStage('catalog', 'active', 'Searching product catalog...');
-      updateStage('alternatives', 'active', 'Requesting AI alternatives...');
+      setLoadingStages(prev => {
+        const catalogStage = prev.find(s => s.id === 'catalog');
+        const altStage = prev.find(s => s.id === 'alternatives');
+        
+        // Only update if not already active
+        if (catalogStage?.status !== 'active' || altStage?.status !== 'active') {
+          return prev.map(stage => {
+            if (stage.id === 'catalog') return { ...stage, status: 'active' as StageStatus, message: 'Searching product catalog...' };
+            if (stage.id === 'alternatives') return { ...stage, status: 'active' as StageStatus, message: 'Requesting AI alternatives...' };
+            return stage;
+          });
+        }
+        return prev;
+      });
     } else if (isError) {
-      updateStage('catalog', 'error', 'Search failed');
-      updateStage('alternatives', 'error', 'AI request failed');
-      updateStage('ranking', 'error', 'Pipeline failed');
+      setLoadingStages(prev => 
+        prev.map(stage => {
+          if (stage.id === 'catalog') return { ...stage, status: 'error' as StageStatus, message: 'Search failed' };
+          if (stage.id === 'alternatives') return { ...stage, status: 'error' as StageStatus, message: 'AI request failed' };
+          if (stage.id === 'ranking') return { ...stage, status: 'error' as StageStatus, message: 'Pipeline failed' };
+          return stage;
+        })
+      );
       
       addToast({
         type: 'error',
@@ -209,29 +229,48 @@ const ProductRecommenderNew: React.FC = () => {
       });
     } else {
       // Success - update stages
-      updateStage(
-        'catalog',
-        'success',
-        catalogMatches.length ? `Found ${catalogMatches.length} catalog matches` : 'No direct catalog matches'
-      );
-      updateStage(
-        'alternatives',
-        'success',
-        alternatives.length
-          ? `AI suggested ${alternatives.length} alternatives`
-          : 'No AI alternatives available'
-      );
+      setLoadingStages(prev => {
+        const catalogStage = prev.find(s => s.id === 'catalog');
+        const altStage = prev.find(s => s.id === 'alternatives');
+        
+        // Only update if not already success
+        if (catalogStage?.status !== 'success' || altStage?.status !== 'success') {
+          return prev.map(stage => {
+            if (stage.id === 'catalog') {
+              return { 
+                ...stage, 
+                status: 'success' as StageStatus, 
+                message: catalogMatches.length ? `Found ${catalogMatches.length} catalog matches` : 'No direct catalog matches'
+              };
+            }
+            if (stage.id === 'alternatives') {
+              return {
+                ...stage,
+                status: 'success' as StageStatus,
+                message: alternatives.length ? `AI suggested ${alternatives.length} alternatives` : 'No AI alternatives available'
+              };
+            }
+            return stage;
+          });
+        }
+        return prev;
+      });
       
       // Rank results
-      updateStage('ranking', 'active', 'Scoring recommendations...');
-      
       try {
         const ranked = combineAndRank(catalogMatches, alternatives, searchSpecs);
         setRankedRecommendations(ranked);
-        updateStage(
-          'ranking',
-          'success',
-          ranked.length ? `Ranked ${ranked.length} results` : 'No recommendations to rank'
+        
+        setLoadingStages(prev =>
+          prev.map(stage =>
+            stage.id === 'ranking'
+              ? {
+                  ...stage,
+                  status: 'success' as StageStatus,
+                  message: ranked.length ? `Ranked ${ranked.length} results` : 'No recommendations to rank'
+                }
+              : stage
+          )
         );
         
         if (ranked.length > 0) {
@@ -250,10 +289,16 @@ const ProductRecommenderNew: React.FC = () => {
       } catch (error) {
         console.error('Ranking error:', error);
         setRankedRecommendations([]);
-        updateStage('ranking', 'error', 'Failed to score recommendations');
+        setLoadingStages(prev =>
+          prev.map(stage =>
+            stage.id === 'ranking'
+              ? { ...stage, status: 'error' as StageStatus, message: 'Failed to score recommendations' }
+              : stage
+          )
+        );
       }
     }
-  }, [isLoading, isError, catalogMatches, alternatives, searchSpecs, error, addToast]);
+  }, [isLoading, isError, catalogMatches.length, alternatives.length, searchSpecs]);
 
   const combineAndRank = (
     catalog: CatalogMatchResult[],

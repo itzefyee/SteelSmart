@@ -86,13 +86,15 @@ const CATEGORY_STYLES: Record<
       <div className="p-5 space-y-4 relative z-10 text-slate-900">
         {/* Category Badge */}
         <div className="flex items-center justify-between mb-2">
-          <Link 
-            href={`/catalog?category=${product.category}`}
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getCategoryColor(product.category)}`}
-          >
-            <span className="mr-1">{getCategoryIcon(product.category)}</span>
-            {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
-          </Link>
+          {product.category && (
+            <Link 
+              href={`/catalog?category=${product.category}`}
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getCategoryColor(product.category)}`}
+            >
+              <span className="mr-1">{getCategoryIcon(product.category)}</span>
+              {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+            </Link>
+          )}
           
           {/* Stock Status */}
           <div className="flex items-center">

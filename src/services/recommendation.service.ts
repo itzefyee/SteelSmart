@@ -50,6 +50,31 @@ export class RecommendationService {
   }
 
   /**
+   * Get compatible product recommendations with full product data
+   * 
+   * @param productId - Product ID to get recommendations for
+   * @param limit - Maximum number of recommendations
+   * @returns List of full product objects
+   */
+  static async getRecommendationsWithProducts(productId: string, limit: number = 4): Promise<any[]> {
+    // Get recommendation scores
+    const recommendations = await this.getRecommendations(productId);
+    
+    // Get full product data
+    const { ProductRepository } = await import('@/repositories/product.repository');
+    const { getSupabaseServer } = await import('@/lib/supabase-server');
+    
+    const supabase = await getSupabaseServer();
+    const repository = new ProductRepository(supabase);
+    
+    // Fetch products for the recommended IDs
+    const productIds = recommendations.slice(0, limit).map(r => r.productId);
+    const products = await repository.findByIds(productIds);
+    
+    return products;
+  }
+
+  /**
    * Get catalog matches for given specifications
    * 
    * Searches product catalog and returns scored matches.

@@ -52,7 +52,7 @@ export class GeminiClient {
     this.apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_BACKUP_API_KEY ||'';
     if (this.apiKey) {
       this.genAI = new GoogleGenerativeAI(this.apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     }
   }
 
@@ -150,15 +150,25 @@ export class GeminiClient {
     if (cadModelData.boundingBox) {
       const bbox = cadModelData.boundingBox;
       context += `**Bounding Box Dimensions**:\n`;
-      context += `- Length: ${bbox.length.toFixed(2)}" (${(bbox.length * 25.4).toFixed(1)}mm)\n`;
-      context += `- Width: ${bbox.width.toFixed(2)}" (${(bbox.width * 25.4).toFixed(1)}mm)\n`;
-      context += `- Height: ${bbox.height.toFixed(2)}" (${(bbox.height * 25.4).toFixed(1)}mm)\n`;
-      context += `- Volume: ${bbox.volume.toFixed(2)} cubic inches\n\n`;
+      if (bbox.length != null) {
+        context += `- Length: ${bbox.length.toFixed(2)}" (${(bbox.length * 25.4).toFixed(1)}mm)\n`;
+      }
+      if (bbox.width != null) {
+        context += `- Width: ${bbox.width.toFixed(2)}" (${(bbox.width * 25.4).toFixed(1)}mm)\n`;
+      }
+      if (bbox.height != null) {
+        context += `- Height: ${bbox.height.toFixed(2)}" (${(bbox.height * 25.4).toFixed(1)}mm)\n`;
+      }
+      if (bbox.volume != null) {
+        context += `- Volume: ${bbox.volume.toFixed(2)} cubic inches\n\n`;
+      }
     }
 
     if (cadModelData.boundingBoxWithTolerance) {
       const bbox = cadModelData.boundingBoxWithTolerance;
-      context += `**AISC 303 Tolerance**: ±${bbox.tolerance.toFixed(3)}"\n\n`;
+      if (bbox.tolerance != null) {
+        context += `**AISC 303 Tolerance**: ±${bbox.tolerance.toFixed(3)}"\n\n`;
+      }
     }
 
     if (cadModelData.faceCount) {
@@ -171,13 +181,17 @@ export class GeminiClient {
     if (cadModelData.holeAnalysis && cadModelData.holeAnalysis.count > 0) {
       const holes = cadModelData.holeAnalysis;
       context += `**Hole Analysis** (${holes.count} holes detected):\n`;
-      holes.holes.forEach((hole: any, idx: number) => {
-        context += `- Hole #${idx + 1}: Diameter ${hole.diameter.toFixed(4)}" ${hole.isStandardSize ? '(standard)' : '(non-standard)'}\n`;
-      });
-      if (holes.nonStandardSizes.length > 0) {
+      if (holes.holes && Array.isArray(holes.holes)) {
+        holes.holes.forEach((hole: any, idx: number) => {
+          if (hole.diameter != null) {
+            context += `- Hole #${idx + 1}: Diameter ${hole.diameter.toFixed(4)}" ${hole.isStandardSize ? '(standard)' : '(non-standard)'}\n`;
+          }
+        });
+      }
+      if (holes.nonStandardSizes && holes.nonStandardSizes.length > 0) {
         context += `- ${holes.nonStandardSizes.length} non-standard drill sizes detected\n`;
       }
-      if (holes.spacingViolations.length > 0) {
+      if (holes.spacingViolations && holes.spacingViolations.length > 0) {
         context += `- ${holes.spacingViolations.length} AISC 360 spacing violations\n`;
       }
       context += '\n';
@@ -185,16 +199,26 @@ export class GeminiClient {
 
     if (cadModelData.thicknessAnalysis) {
       const thickness = cadModelData.thicknessAnalysis;
-      context += `**Material Thickness**: ${thickness.estimatedThickness.toFixed(3)}"\n`;
-      context += `- Standard Gauge: ${thickness.isStandardGauge ? 'Yes' : 'No'}\n`;
-      context += `- Min Weld Size (AISC 360): ${thickness.minWeldSize.toFixed(3)}"\n`;
-      context += `- Preheat Required (AWS D1.1): ${thickness.requiresPreheat ? 'Yes' : 'No'}\n\n`;
+      if (thickness.estimatedThickness != null) {
+        context += `**Material Thickness**: ${thickness.estimatedThickness.toFixed(3)}"\n`;
+      }
+      if (thickness.isStandardGauge != null) {
+        context += `- Standard Gauge: ${thickness.isStandardGauge ? 'Yes' : 'No'}\n`;
+      }
+      if (thickness.minWeldSize != null) {
+        context += `- Min Weld Size (AISC 360): ${thickness.minWeldSize.toFixed(3)}"\n`;
+      }
+      if (thickness.requiresPreheat != null) {
+        context += `- Preheat Required (AWS D1.1): ${thickness.requiresPreheat ? 'Yes' : 'No'}\n\n`;
+      }
     }
 
     if (cadModelData.edgeAnalysis) {
       const edges = cadModelData.edgeAnalysis;
-      context += `**Edge Analysis**: ${edges.totalEdges} edges\n`;
-      if (edges.sharpCorners.length > 0) {
+      if (edges.totalEdges != null) {
+        context += `**Edge Analysis**: ${edges.totalEdges} edges\n`;
+      }
+      if (edges.sharpCorners && edges.sharpCorners.length > 0) {
         context += `- ${edges.sharpCorners.length} sharp corners detected (< 1/8" radius)\n\n`;
       }
     }

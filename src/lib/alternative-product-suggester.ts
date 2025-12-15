@@ -57,7 +57,7 @@ export class AlternativeProductSuggester {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_BACKUP_API_KEY;
     if (apiKey) {
       this.geminiClient = new GoogleGenerativeAI(apiKey);
-      this.geminiModel = this.geminiClient.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      this.geminiModel = this.geminiClient.getGenerativeModel({ model: 'gemini-2.5-flash' });
     }
   }
 

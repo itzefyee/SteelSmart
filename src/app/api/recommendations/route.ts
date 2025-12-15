@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
     // Controller responsibility: Parse request
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
+    const limit = parseInt(searchParams.get('limit') || '4');
 
     if (!productId) {
       return NextResponse.json<APIResponse<null>>(
@@ -56,12 +57,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Service layer handles validation, caching, and business logic
-    const recommendations = await RecommendationService.getRecommendations(productId);
+    const products = await RecommendationService.getRecommendationsWithProducts(productId, limit);
 
     // Controller responsibility: Return response
-    return NextResponse.json<APIResponse<RecommendationScore[]>>({
+    return NextResponse.json<APIResponse<any>>({
       success: true,
-      data: recommendations,
+      data: products,
     });
   } catch (error) {
     console.error('Recommendations API error:', error);

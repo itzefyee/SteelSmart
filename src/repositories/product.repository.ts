@@ -54,6 +54,23 @@ export class ProductRepository {
     return data as Product;
   }
 
+  async findByIds(ids: string[]): Promise<Product[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from('products')
+      .select('*')
+      .in('id', ids);
+
+    if (error) {
+      throw error;
+    }
+
+    return (data || []) as Product[];
+  }
+
   async findWithFilters(
     filters: ProductFilters = {},
     options: ProductQueryOptions = {},
