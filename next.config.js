@@ -6,6 +6,16 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'localhost',
       },
+      // Supabase storage images
+      ...(process.env.NEXT_PUBLIC_SUPABASE_URL
+        ? [
+            {
+              protocol: 'https',
+              hostname: new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname,
+              pathname: '/storage/v1/object/public/**',
+            },
+          ]
+        : []),
     ],
     formats: ['image/webp', 'image/avif'],
   },
@@ -14,7 +24,19 @@ const nextConfig = {
       allowedOrigins: ['localhost:3000'],
     },
   },
-  webpack: (config, { isServer }) => {
+  // Add timeout configuration to prevent chunk loading issues
+  onDemandEntries: {
+    // Period (in ms) where the server will keep pages in the buffer
+    maxInactiveAge: 60 * 1000, // Increased from 25s to 60s
+    // Number of pages that should be kept simultaneously without being disposed
+    pagesBufferLength: 5, // Increased buffer
+  },
+  // Add development server configuration
+  devIndicators: {
+    buildActivity: true,
+    buildActivityPosition: 'bottom-right',
+  },
+  webpack: (config, { isServer, dev }) => {
     // Handle WASM files as assets
     config.module.rules.push({
       test: /\.wasm$/,
@@ -40,6 +62,51 @@ const nextConfig = {
         path: false,
         crypto: false,
       };
+    }
+
+    // Optimize for faster development builds
+    if (dev) {
+      // Faster builds in development
+      config.optimization = {
+        ...config.optimization,
+        removeAvailableModules: false,
+        removeEmptyChunks: false,
+        splitChunks: {
+          chunks: 'all',
+          minSize: 20000,
+          maxSize: 244000,
+          cacheGroups: {
+            default: {
+              minChunks: 2,
+              priority: -20,
+              reuseExistingChunk: true,
+            },
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendors',
+              priority: -10,
+              chunks: 'all',
+              enforce: true,
+            },
+            // Separate chunk for large libraries
+            three: {
+              test: /[\\/]node_modules[\\/](three|@react-three)[\\/]/,
+              name: 'three',
+              priority: 10,
+              chunks: 'all',
+            },
+            supabase: {
+              test: /[\\/]node_modules[\\/]@supabase[\\/]/,
+              name: 'supabase',
+              priority: 10,
+              chunks: 'all',
+            },
+          },
+        },
+      };
+      
+      // Faster module resolution
+      config.resolve.symlinks = false;
     }
 
     return config;

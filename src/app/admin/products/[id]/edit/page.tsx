@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -50,7 +50,7 @@ export default function EditProductPage() {
 
   const loadProduct = async () => {
     try {
-      const response = await fetch(`/api/products/${id}`);
+      const response = await fetch(`/api/admin/products/${id}`);
       const data = await response.json();
 
       if (data.data) {
@@ -139,7 +139,7 @@ export default function EditProductPage() {
     };
 
     try {
-      const response = await fetch(`/api/products/${id}`, {
+      const response = await fetch(`/api/admin/products/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productData),

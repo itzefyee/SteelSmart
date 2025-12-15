@@ -2,11 +2,18 @@ import { ProductRepository, type ProductFilters, type CreateProductInput, type U
 import type { Product } from '@/types';
 import { NotFoundError, ValidationError } from '@/lib/errors/app-errors';
 
+// Singleton pattern for repository to reuse connections
+let repositoryInstance: ProductRepository | null = null;
+
 export class ProductService {
   private repository: ProductRepository;
 
   constructor() {
-    this.repository = new ProductRepository();
+    // Reuse repository instance to avoid creating multiple connections
+    if (!repositoryInstance) {
+      repositoryInstance = new ProductRepository();
+    }
+    this.repository = repositoryInstance;
   }
 
   async getAll(filters?: ProductFilters): Promise<Product[]> {

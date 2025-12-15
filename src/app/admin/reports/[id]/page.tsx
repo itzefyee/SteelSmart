@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -45,7 +45,7 @@ export default function ReportDetailPage() {
 
   const loadReport = async () => {
     try {
-      const response = await fetch(`/api/reports/${id}`);
+      const response = await fetch(`/api/admin/reports/${id}`);
       const data = await response.json();
 
       if (data.data) {
@@ -64,7 +64,7 @@ export default function ReportDetailPage() {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`/api/reports/${id}`, {
+      const response = await fetch(`/api/admin/reports/${id}`, {
         method: 'DELETE',
       });
 
@@ -100,7 +100,7 @@ export default function ReportDetailPage() {
 
   const handleRetry = async () => {
     try {
-      const response = await fetch(`/api/reports/${id}/retry`, {
+      const response = await fetch(`/api/admin/reports/${id}/retry`, {
         method: 'POST',
       });
 

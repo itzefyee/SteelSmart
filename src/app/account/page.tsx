@@ -20,10 +20,7 @@ export default function AccountPage() {
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
-      const isLogout = sessionStorage.getItem('isLoggingOut');
-      if (!isLogout) {
-        router.push('/');
-      }
+      router.push('/login');
     }
   }, [authLoading, user, router]);
 

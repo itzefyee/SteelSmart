@@ -1,71 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, FileText, TrendingUp, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useAdminDashboard } from '@/hooks/admin/useAdminDashboard';
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({
-    totalProducts: 0,
-    inStockProducts: 0,
-    totalReports: 0,
-    completedReports: 0,
-    processingReports: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const { data: stats, isLoading: loading, refetch } = useAdminDashboard();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      // Fetch products
-      const productsRes = await fetch('/api/products');
-      const productsData = await productsRes.json();
-      const products = productsData.data || [];
-      
-      // Fetch report statistics
-      const reportsRes = await fetch('/api/reports/statistics');
-      const reportsData = await reportsRes.json();
-      const reportStats = reportsData.data || {};
-
-      setStats({
-        totalProducts: products.length,
-        inStockProducts: products.filter((p: any) => p.in_stock !== false).length,
-        totalReports: reportStats.total || 0,
-        completedReports: reportStats.completed || 0,
-        processingReports: reportStats.processing || 0,
-      });
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleRefresh = () => {
+    refetch();
   };
 
   const statCards = [
     {
       title: 'Total Products',
-      value: loading ? '...' : stats.totalProducts.toString(),
-      description: `${stats.inStockProducts} in stock`,
+      value: loading ? '...' : (stats?.totalProducts || 0).toString(),
+      description: `${stats?.inStockProducts || 0} in stock`,
       icon: Package,
       color: 'text-primary',
     },
     {
       title: 'Reports Generated',
-      value: loading ? '...' : stats.totalReports.toString(),
-      description: `${stats.completedReports} completed, ${stats.processingReports} processing`,
+      value: loading ? '...' : (stats?.totalReports || 0).toString(),
+      description: `${stats?.completedReports || 0} completed, ${stats?.processingReports || 0} processing`,
       icon: FileText,
       color: 'text-success',
     },
     {
       title: 'In Stock Products',
-      value: loading ? '...' : stats.inStockProducts.toString(),
-      description: `${stats.totalProducts - stats.inStockProducts} out of stock`,
+      value: loading ? '...' : (stats?.inStockProducts || 0).toString(),
+      description: `${(stats?.totalProducts || 0) - (stats?.inStockProducts || 0)} out of stock`,
       icon: TrendingUp,
       color: 'text-warning',
     },
@@ -80,7 +46,7 @@ export default function DashboardPage() {
             Welcome to your admin dashboard. Manage products and reports efficiently.
           </p>
         </div>
-        <Button onClick={loadData} disabled={loading} variant="outline">
+        <Button onClick={handleRefresh} disabled={loading} variant="outline">
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           {loading ? 'Refreshing...' : 'Refresh'}
         </Button>

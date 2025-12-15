@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -21,58 +21,55 @@ import { useToast } from '@/components/ui/ToastProvider';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Product } from '@/types';
+import { useAdminProducts, useDeleteAdminProduct } from '@/hooks/admin/useAdminProducts';
+// Using inline debounce implementation instead of separate hook
+import { ProductGridSkeleton } from '@/components/admin/ProductCardSkeleton';
+import { AdminErrorBoundary } from '@/components/admin/AdminErrorBoundary';
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const { addToast } = useToast();
-
+  
+  // Debounce search term to avoid excessive API calls
   useEffect(() => {
-    loadProducts();
-  }, []);
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
 
-  const loadProducts = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/products');
-      const data = await response.json();
-      if (data.data) {
-        setProducts(data.data);
-      }
-    } catch (error) {
-      addToast({
-        title: 'Error',
-        description: 'Failed to load products',
-        type: 'error',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+  
+  // Use React Query for data fetching with search filters
+  const { data: products = [], isLoading: loading, error } = useAdminProducts({
+    search: debouncedSearchTerm || undefined,
+  });
+  
+  const deleteProductMutation = useDeleteAdminProduct();
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Memoize filtered products to avoid recalculating on every render
+  const filteredProducts = useMemo(() => {
+    if (!debouncedSearchTerm) return products;
+    
+    const searchLower = debouncedSearchTerm.toLowerCase();
+    return products.filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchLower) ||
+        (product.description && product.description.toLowerCase().includes(searchLower)) ||
+        (product.category && product.category.toLowerCase().includes(searchLower))
+    );
+  }, [products, debouncedSearchTerm]);
 
   const handleDelete = async (productId: string) => {
     try {
-      const response = await fetch(`/api/products/${productId}`, {
-        method: 'DELETE',
+      await deleteProductMutation.mutateAsync(productId);
+      addToast({
+        title: 'Success',
+        description: 'Product deleted successfully',
+        type: 'success',
       });
-      
-      if (response.ok) {
-        setProducts(products.filter((p) => p.id !== productId));
-        addToast({
-          title: 'Product Deleted',
-          description: 'Product has been deleted successfully',
-          type: 'success',
-        });
-      } else {
-        throw new Error('Failed to delete');
-      }
     } catch (error) {
       addToast({
         title: 'Error',
@@ -112,8 +109,14 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="text-center py-8 text-muted-foreground">Loading products...</div>
+      {error ? (
+        <AdminErrorBoundary 
+          error={error as Error}
+          title="Failed to load products"
+          description="There was an error loading the product data. Please try again."
+        />
+      ) : loading ? (
+        <ProductGridSkeleton count={8} />
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((product) => (
@@ -136,8 +139,12 @@ export default function ProductsPage() {
               </CardHeader>
               <CardContent className="space-y-3 flex-1">
                 <div className="flex gap-2 flex-wrap">
-                  {product.category && <Badge>{product.category}</Badge>}
-                  <Badge variant={(product as any).in_stock !== false ? 'default' : 'destructive'}>
+                  {product.category && (
+                    <Badge variant={product.category as 'robotic' | 'structural' | 'fasteners' | 'custom'}>
+                      {product.category}
+                    </Badge>
+                  )}
+                  <Badge variant={(product as any).in_stock !== false ? 'success' : 'destructive'}>
                     {(product as any).in_stock !== false ? 'In Stock' : 'Out of Stock'}
                   </Badge>
                 </div>

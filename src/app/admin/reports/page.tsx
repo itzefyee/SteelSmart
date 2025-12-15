@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Download, Trash2, Search, FileText, Calendar } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -33,7 +33,7 @@ export default function ReportsPage() {
   const loadReports = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/reports?page=${currentPage}&limit=10`);
+      const response = await fetch(`/api/admin/reports?page=${currentPage}&limit=10`);
       const data = await response.json();
 
       if (data.data) {
@@ -53,7 +53,7 @@ export default function ReportsPage() {
 
   const loadStatistics = async () => {
     try {
-      const response = await fetch('/api/reports/statistics');
+      const response = await fetch('/api/admin/reports/statistics');
       const data = await response.json();
 
       if (data.data) {
@@ -74,7 +74,7 @@ export default function ReportsPage() {
     if (!confirm('Are you sure you want to delete this report?')) return;
 
     try {
-      const response = await fetch(`/api/reports/${reportId}`, {
+      const response = await fetch(`/api/admin/reports/${reportId}`, {
         method: 'DELETE',
       });
 

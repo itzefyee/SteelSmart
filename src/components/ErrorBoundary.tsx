@@ -40,6 +40,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     // Log error details for debugging
     console.error('ErrorBoundary caught an error:', error);
     console.error('Error info:', errorInfo);
+    
+    // Check if it's a chunk loading error
+    if (error.message.includes('Loading chunk') || error.message.includes('ChunkLoadError')) {
+      console.warn('Chunk loading error detected - this usually resolves on refresh');
+    }
   }
 
   handleRetry = (): void => {
@@ -82,7 +87,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </h2>
             
             <p className="text-gray-600 text-center mb-4">
-              We encountered an error while loading this page. Please try again.
+              {this.state.error.message.includes('Loading chunk') 
+                ? 'The page is still loading. This usually happens on the first visit and resolves quickly.'
+                : 'We encountered an error while loading this page. Please try again.'
+              }
             </p>
             
             {/* Error details in development */}
