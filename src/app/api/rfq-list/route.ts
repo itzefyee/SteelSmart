@@ -8,8 +8,6 @@ import { handleApiError } from '@/lib/api/error-handler';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await getSupabaseServer();
-    const repository = new RFQRepository(supabase);
-    const service = new RFQService(repository);
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -21,8 +19,9 @@ export async function GET(request: NextRequest) {
       }, { status: 401 });
     }
 
-    // Fetch user's RFQ submissions
-    const rfqData = await service.listForUser(user.id);
+    // Fetch user's RFQ submissions using repository directly
+    const repository = new RFQRepository(supabase);
+    const rfqData = await repository.findByUserId(user.id);
 
     // Transform data to match frontend expectations
     const transformedData = rfqData.map(rfq => ({

@@ -3,8 +3,9 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone, FileRejection } from 'react-dropzone';
 import { Button } from '@/components/ui/Button';
-import { FileUploadState, APIResponse, DrawingAnalysis } from '@/types';
+import { FileUploadState } from '@/types';
 import { formatFileSize } from '@/lib/utils';
+import { useAnalyzeDrawing } from '@/hooks/useCADAnalysis';
 
 const CADAnalyzer: React.FC = () => {
   const [uploadState, setUploadState] = useState<FileUploadState>({
@@ -16,6 +17,30 @@ const CADAnalyzer: React.FC = () => {
   
   const [sampleLoadSuccess, setSampleLoadSuccess] = useState<string | null>(null);
 
+  // Use React Query hook for CAD analysis with automatic caching
+  const { mutate: analyzeDrawingMutation, isPending: isAnalyzing } = useAnalyzeDrawing({
+    onSuccess: (data) => {
+      setUploadState(prev => ({ ...prev, status: 'success', progress: 100 }));
+      
+      // Store analysis data in sessionStorage for the full page
+      sessionStorage.setItem('cadAnalysisResult', JSON.stringify(data));
+      
+      // Show success message
+      setSampleLoadSuccess('Analysis Complete! Redirecting...');
+      
+      // Redirect to full CAD analyzer page after a brief delay to show success
+      setTimeout(() => {
+        window.location.href = '/cad-analyzer?showResults=true';
+      }, 1500);
+    },
+    onError: (error) => {
+      setUploadState(prev => ({
+        ...prev,
+        status: 'error',
+        error: error.message || 'Analysis failed'
+      }));
+    }
+  });
 
   const maxSizeInMB = 10;
 
@@ -70,55 +95,28 @@ const CADAnalyzer: React.FC = () => {
     multiple: false
   });
 
-  const analyzeDrawing = async () => {
+  const analyzeDrawing = () => {
     if (!uploadState.file) return;
 
     setUploadState(prev => ({ ...prev, status: 'uploading', progress: 0 }));
 
-    try {
-      const formData = new FormData();
-      formData.append('file', uploadState.file);
-
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadState(prev => ({
-          ...prev,
-          progress: Math.min(prev.progress + 10, 90)
-        }));
-      }, 200);
-
-      const response = await fetch('/api/analyze-drawing', {
-        method: 'POST',
-        body: formData,
-      });
-
-      clearInterval(progressInterval);
-
-      const result: APIResponse<DrawingAnalysis> = await response.json();
-
-      if (result.success && result.data) {
-        setUploadState(prev => ({ ...prev, status: 'success', progress: 100 }));
-        
-        // Store analysis data in sessionStorage for the full page
-        sessionStorage.setItem('cadAnalysisResult', JSON.stringify(result.data));
-        
-        // Show success message
-        setSampleLoadSuccess('Analysis Complete! Redirecting...');
-        
-        // Redirect to full CAD analyzer page after a brief delay to show success
-        setTimeout(() => {
-          window.location.href = '/cad-analyzer?showResults=true';
-        }, 1500);
-      } else {
-        throw new Error(result.error || 'Analysis failed');
-      }
-    } catch (error) {
+    // Simulate upload progress
+    const progressInterval = setInterval(() => {
       setUploadState(prev => ({
         ...prev,
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Analysis failed'
+        progress: Math.min(prev.progress + 10, 90)
       }));
-    }
+    }, 200);
+
+    // Use React Query mutation for analysis (with automatic caching)
+    analyzeDrawingMutation(
+      { file: uploadState.file },
+      {
+        onSettled: () => {
+          clearInterval(progressInterval);
+        }
+      }
+    );
   };
 
   const resetAnalysis = () => {
@@ -251,18 +249,18 @@ const CADAnalyzer: React.FC = () => {
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
           <Button
             onClick={analyzeDrawing}
-            disabled={!uploadState.file || uploadState.status === 'uploading'}
-            isLoading={uploadState.status === 'uploading'}
+            disabled={!uploadState.file || isAnalyzing}
+            isLoading={isAnalyzing}
             className="flex-1"
           >
-            {uploadState.status === 'uploading' ? 'Analyzing...' : 'Analyze Drawing'}
+            {isAnalyzing ? 'Analyzing...' : 'Analyze Drawing'}
           </Button>
           
           {uploadState.file && (
             <Button
               variant="outline"
               onClick={resetAnalysis}
-              disabled={uploadState.status === 'uploading'}
+              disabled={isAnalyzing}
             >
               Clear
             </Button>
@@ -292,7 +290,7 @@ const CADAnalyzer: React.FC = () => {
                 <button
                   onClick={() => tryWithSample('i-beam-drawing.pdf', 'I-Beam')}
                   className="w-full text-xs text-primary hover:text-blue-700 underline font-medium py-1 mt-auto"
-                  disabled={uploadState.status === 'uploading'}
+                  disabled={isAnalyzing}
                 >
                   Load Sample
                 </button>
@@ -312,7 +310,7 @@ const CADAnalyzer: React.FC = () => {
                 <button
                   onClick={() => tryWithSample('drill-guide-drawing.pdf', 'Drill Guide')}
                   className="w-full text-xs text-primary hover:text-blue-700 underline font-medium py-1 mt-auto"
-                  disabled={uploadState.status === 'uploading'}
+                  disabled={isAnalyzing}
                 >
                   Load Sample
                 </button>
@@ -332,7 +330,7 @@ const CADAnalyzer: React.FC = () => {
                 <button
                   onClick={() => tryWithSample('brake-rotor-drawing.pdf', 'Brake Rotor')}
                   className="w-full text-xs text-primary hover:text-blue-700 underline font-medium py-1 mt-auto"
-                  disabled={uploadState.status === 'uploading'}
+                  disabled={isAnalyzing}
                 >
                   Load Sample
                 </button>

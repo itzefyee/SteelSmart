@@ -18,6 +18,8 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
     relatedProducts
 }) => {
     const [selectedImage, setSelectedImage] = useState(0);
+    // Track selected image for each related product by product ID
+    const [relatedSelectedImages, setRelatedSelectedImages] = useState<Record<string, number>>({});
     
     // Get all images or use a placeholder
     const images = product.images && product.images.length > 0 ? product.images : [null];
@@ -280,7 +282,14 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                 {relatedProducts.map((relatedProduct) => {
                                     const relatedImages = relatedProduct.images && relatedProduct.images.length > 0 ? relatedProduct.images : [null];
-                                    const [relatedSelectedImage, setRelatedSelectedImage] = useState(0);
+                                    const relatedSelectedImage = relatedSelectedImages[relatedProduct.id] || 0;
+                                    
+                                    const setRelatedSelectedImage = (value: number | ((prev: number) => number)) => {
+                                        setRelatedSelectedImages(prev => ({
+                                            ...prev,
+                                            [relatedProduct.id]: typeof value === 'function' ? value(prev[relatedProduct.id] || 0) : value
+                                        }));
+                                    };
                                     
                                     return (
                                         <div key={relatedProduct.id} className="product-glass-card group">

@@ -1,38 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import type { Product } from '@/lib/supabase';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/ToastProvider';
 import { StagedProgress, StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
-
-interface AlternativeProduct {
-  name: string;
-  description: string;
-  category: string;
-  material?: string;
-  specifications: {
-    dimensions?: string;
-    loadCapacity?: string;
-    standards?: string[];
-    partNumber?: string;
-  };
-  source: string;
-  confidence: number;
-  reasoning: string;
-  supplierInfo?: {
-    suggestedSuppliers: string[];
-    estimatedPrice?: string;
-    leadTime?: string;
-  };
-  standards?: Array<{
-    code: string;
-    name: string;
-    section?: string;
-  }>;
-}
+import { useCombinedRecommendations } from '@/hooks/useRecommendations';
+import type { ProductSpecs, CatalogMatchResult, AlternativeProduct } from '@/lib/api/recommendation-api';
 
 interface RecommendationItem {
   type: 'catalog' | 'alternative';
@@ -40,14 +16,6 @@ interface RecommendationItem {
   alternative?: AlternativeProduct;
   matchScore: number;
   reasoning: string;
-}
-
-interface CatalogMatchResult {
-  product: Product;
-  matchScore: number;
-  rawScore: number;
-  reasoning: string;
-  matchedSpecs: string[];
 }
 
 const buildStageTemplate = (): StagedProgressItem[] => ([
@@ -65,15 +33,24 @@ const ProductRecommenderNew: React.FC = () => {
   });
 
   const { addToast } = useToast();
-  const [catalogMatches, setCatalogMatches] = useState<CatalogMatchResult[]>([]);
-  const [alternatives, setAlternatives] = useState<AlternativeProduct[]>([]);
+  
+  // State for search specs (triggers React Query when set)
+  const [searchSpecs, setSearchSpecs] = useState<ProductSpecs | null>(null);
+  
+  // Use React Query hook for combined recommendations (parallel queries with caching)
+  const {
+    catalogMatches,
+    alternatives,
+    isLoading,
+    isError,
+    error,
+  } = useCombinedRecommendations(searchSpecs || {}, !!searchSpecs);
+  
   const [rankedRecommendations, setRankedRecommendations] = useState<RecommendationItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'direct' | 'alternatives' | 'ranked'>('direct');
   const [sortBy, setSortBy] = useState<'score' | 'price'>('score');
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [loadingStages, setLoadingStages] = useState<StagedProgressItem[]>(() => buildStageTemplate());
-  const catalogCacheRef = useRef<Map<string, CatalogMatchResult[]>>(new Map());
 
   const stageProgressActive = useMemo(
     () => isLoading || loadingStages.some(stage => stage.status === 'active' || stage.status === 'error'),
@@ -190,66 +167,66 @@ const ProductRecommenderNew: React.FC = () => {
     };
   }, [addToast]); // Empty dependency array - only run once on mount
 
-  const handleFindRecommendations = async (specs?: any) => {
-    setIsLoading(true);
+  const handleFindRecommendations = (specs?: any) => {
     resetStages();
     
-    try {
-      const searchSpecs = specs || requirements;
-      
-      // Step 1 & 2: OPTIMIZATION - Run catalog and AI searches in PARALLEL using Promise.all()
+    const newSearchSpecs = specs || requirements;
+    
+    // Map componentType to category if needed
+    const mappedCategory = mapComponentTypeToCategory(newSearchSpecs.componentType || '');
+    
+    const specsToSearch: ProductSpecs = {
+      material: newSearchSpecs.material || undefined,
+      dimensions: newSearchSpecs.dimensions || undefined,
+      loadCapacity: newSearchSpecs.loadCapacity || undefined,
+      category: newSearchSpecs.category !== 'all' ? newSearchSpecs.category : mappedCategory,
+      componentType: newSearchSpecs.componentType || undefined,
+    };
+    
+    console.log('🔍 Starting search with specs:', specsToSearch);
+    
+    // Trigger React Query by setting search specs
+    // This will automatically fetch both catalog matches and alternatives in parallel
+    setSearchSpecs(specsToSearch);
+  };
+
+  // Effect to handle results from React Query and update stages
+  useEffect(() => {
+    if (!searchSpecs) return;
+    
+    if (isLoading) {
       updateStage('catalog', 'active', 'Searching product catalog...');
       updateStage('alternatives', 'active', 'Requesting AI alternatives...');
+    } else if (isError) {
+      updateStage('catalog', 'error', 'Search failed');
+      updateStage('alternatives', 'error', 'AI request failed');
+      updateStage('ranking', 'error', 'Pipeline failed');
       
-      console.log('🔍 Starting parallel searches...');
-      const [catalogResults, alternativeResults] = await Promise.all([
-        searchCatalog(searchSpecs).catch(error => {
-          console.error('❌ Catalog search error:', error);
-          addToast({
-            type: 'error',
-            title: 'Catalog search failed',
-            description: error instanceof Error ? error.message : 'Unknown error during catalog search.'
-          });
-          return [] as CatalogMatchResult[];
-        }),
-        getAlternativeSuggestions(searchSpecs).catch(error => {
-          console.error('❌ Alternative suggestions error:', error);
-          addToast({
-            type: 'error',
-            title: 'AI alternatives failed',
-            description: error instanceof Error ? error.message : 'Unable to fetch AI alternatives.'
-          });
-          return [] as AlternativeProduct[];
-        })
-      ]);
-      
-      // Update state with results
-      console.log('✅ Catalog results:', catalogResults.length);
-      console.log('✅ AI alternatives:', alternativeResults.length);
-      setCatalogMatches(catalogResults);
-      setAlternatives(alternativeResults);
-      
-      // Update stage statuses based on results
+      addToast({
+        type: 'error',
+        title: 'Search failed',
+        description: error?.message || 'Unable to fetch recommendations'
+      });
+    } else {
+      // Success - update stages
       updateStage(
         'catalog',
         'success',
-        catalogResults.length ? `Found ${catalogResults.length} catalog matches` : 'No direct catalog matches'
+        catalogMatches.length ? `Found ${catalogMatches.length} catalog matches` : 'No direct catalog matches'
       );
       updateStage(
         'alternatives',
         'success',
-        alternativeResults.length
-          ? `AI suggested ${alternativeResults.length} alternatives`
+        alternatives.length
+          ? `AI suggested ${alternatives.length} alternatives`
           : 'No AI alternatives available'
       );
       
-      // Step 3: Combine and rank all recommendations
+      // Rank results
       updateStage('ranking', 'active', 'Scoring recommendations...');
-      console.log('⭐ Ranking results...');
       
       try {
-        const ranked = combineAndRank(catalogResults, alternativeResults, searchSpecs);
-        console.log('✅ Ranked:', ranked.length);
+        const ranked = combineAndRank(catalogMatches, alternatives, searchSpecs);
         setRankedRecommendations(ranked);
         updateStage(
           'ranking',
@@ -274,91 +251,9 @@ const ProductRecommenderNew: React.FC = () => {
         console.error('Ranking error:', error);
         setRankedRecommendations([]);
         updateStage('ranking', 'error', 'Failed to score recommendations');
-        addToast({
-          type: 'error',
-          title: 'Ranking failed',
-          description: error instanceof Error ? error.message : 'Unable to score recommendations.'
-        });
       }
-      
-    } catch (error) {
-      console.error('Error finding recommendations:', error);
-      addToast({
-        type: 'error',
-        title: 'Recommendation search failed',
-        description: error instanceof Error ? error.message : 'Unknown error occurred.'
-      });
-      setCatalogMatches([]);
-      setAlternatives([]);
-      setRankedRecommendations([]);
-      updateStage('ranking', 'error', 'Pipeline failed');
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  const searchCatalog = async (specs: any): Promise<CatalogMatchResult[]> => {
-    const normalizedSpecs = {
-      material: (specs.material || '').trim(),
-      dimensions: (specs.dimensions || '').trim(),
-      loadCapacity: (specs.loadCapacity || '').trim(),
-      category: specs.category || 'all',
-      componentType: specs.componentType
-    };
-
-    const cacheKey = JSON.stringify(normalizedSpecs);
-    const cached = catalogCacheRef.current.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    try {
-      const response = await fetch('/api/recommendations/match', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ specs: normalizedSpecs })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch catalog matches');
-      }
-
-      const result = await response.json();
-      const matches: CatalogMatchResult[] = (result.matches || []).map((match: any) => ({
-        product: match.product as Product,
-        matchScore: typeof match.matchScore === 'number' ? match.matchScore : Math.round((match.score || 0) * 100),
-        rawScore: typeof match.rawScore === 'number' ? match.rawScore : (match.score || 0),
-        reasoning: match.reasoning || 'General compatibility based on specifications',
-        matchedSpecs: match.matchedSpecs || []
-      }));
-
-      catalogCacheRef.current.set(cacheKey, matches);
-      return matches;
-    } catch (error) {
-      console.error('Catalog search exception:', error);
-      return [];
-    }
-  };
-
-  const getAlternativeSuggestions = async (specs: any): Promise<AlternativeProduct[]> => {
-    try {
-      const response = await fetch('/api/recommendations/alternatives', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ specifications: specs })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to get alternative suggestions');
-      }
-      
-      const result = await response.json();
-      return result.alternatives || [];
-    } catch (error) {
-      console.error('Alternative suggestions error:', error);
-      return [];
-    }
-  };
+  }, [isLoading, isError, catalogMatches, alternatives, searchSpecs, error, addToast]);
 
   const combineAndRank = (
     catalog: CatalogMatchResult[],

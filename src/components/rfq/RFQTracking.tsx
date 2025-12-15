@@ -1,70 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-
-interface RFQ {
-  id: string;
-  drawing: string;
-  quantity: number;
-  status: 'Submitted' | 'In Review' | 'Approved' | 'Rejected' | 'Completed';
-  submittedDate: string;
-  expectedDelivery: string;
-  priority: 'Low' | 'Medium' | 'High';
-  contactInfo?: {
-    name: string;
-    email: string;
-    company: string;
-    phone: string;
-  };
-  requirements?: {
-    projectDescription: string;
-    quantity: number;
-    material: string;
-    specifications: string;
-    deadline: string;
-    budget: string;
-  };
-  attachedFiles?: string[];
-  createdAt?: string;
-  updatedAt?: string;
-}
+import { useRFQList } from '@/hooks/useRFQ';
+import type { RFQ } from '@/lib/api/rfq-api';
 
 const RFQTracking: React.FC = () => {
-  const [rfqs, setRfqs] = useState<RFQ[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  // Use React Query hook for RFQ list with automatic caching
+  const { data: rfqs = [], isLoading: loading, error: queryError, refetch } = useRFQList();
+  const error = queryError?.message || '';
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedRFQ, setSelectedRFQ] = useState<RFQ | null>(null);
-
-  // Fetch RFQs from database
-  useEffect(() => {
-    fetchRFQs();
-  }, []);
-
-  const fetchRFQs = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      
-      const response = await fetch('/api/rfq-list');
-      const result = await response.json();
-      
-      if (result.success) {
-        setRfqs(result.data || []);
-      } else {
-        setError(result.error || 'Failed to fetch RFQs');
-      }
-    } catch (err) {
-      console.error('Error fetching RFQs:', err);
-      setError('Failed to load RFQs. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -155,7 +105,7 @@ const RFQTracking: React.FC = () => {
           </div>
           <div className="flex items-end">
             <Button
-              onClick={fetchRFQs}
+              onClick={() => refetch()}
               variant="outline"
               disabled={loading}
               className="w-full"

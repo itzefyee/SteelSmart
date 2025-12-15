@@ -9,14 +9,37 @@ import { RFQFormData, ValidationErrors, APIResponse } from '@/types';
 import { validateEmail, formatFileSize, isValidFileType, isValidFileSize } from '@/lib/utils';
 import { sampleDrawings, cadTemplates } from '@/data/sample-data';
 import { useToast } from '@/components/ui/ToastProvider';
+import { useRFQSubmit } from '@/hooks/useRFQ';
+import type { RFQFormData as RFQAPIFormData } from '@/lib/api/rfq-api';
 
 const RFQForm: React.FC = () => {
   const router = useRouter();
   const { addToast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [rfqId, setRfqId] = useState<string>('');
+  
+  // Use React Query mutation for RFQ submission
+  const { mutate: submitRFQMutation, isPending: isSubmitting } = useRFQSubmit({
+    onSuccess: (rfq) => {
+      setRfqId(rfq.id);
+      setCurrentStep(4);
+      addToast({
+        type: 'success',
+        title: 'RFQ submitted',
+        description: `Request ID ${rfq.id.slice(-8).toUpperCase()}`
+      });
+    },
+    onError: (error) => {
+      console.error('Error submitting RFQ:', error);
+      setErrors({ submit: error.message });
+      addToast({
+        type: 'error',
+        title: 'RFQ submission failed',
+        description: error.message
+      });
+    },
+  });
 
   const [formData, setFormData] = useState<RFQFormData>({
     contactInfo: {
@@ -244,8 +267,6 @@ const RFQForm: React.FC = () => {
       return;
     }
 
-    setIsSubmitting(true);
-
     try {
       // Check authentication first
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -254,62 +275,35 @@ const RFQForm: React.FC = () => {
         throw new Error('You must be logged in to submit an RFQ. Please log in and try again.');
       }
       
-      const formDataToSubmit = new FormData();
+      // Prepare data for API
+      const rfqData: RFQAPIFormData = {
+        contactInfo: {
+          name: formData.contactInfo.name.trim(),
+          email: formData.contactInfo.email.trim(),
+          company: formData.contactInfo.company.trim(),
+          phone: formData.contactInfo.phone?.trim(),
+        },
+        requirements: {
+          projectDescription: formData.requirements.projectDescription.trim(),
+          quantity: formData.requirements.quantity,
+          material: formData.requirements.material?.trim(),
+          specifications: formData.requirements.specifications?.trim(),
+          deadline: formData.requirements.deadline?.trim(),
+          budget: formData.requirements.budget?.trim(),
+        },
+        attachedFiles: formData.files,
+      };
       
-      // Add contact info
-      Object.entries(formData.contactInfo).forEach(([key, value]) => {
-        const cleanValue = value?.trim() || '';
-        formDataToSubmit.append(key, cleanValue);
-      });
-
-      // Add requirements
-      Object.entries(formData.requirements).forEach(([key, value]) => {
-        const cleanValue = value?.toString().trim() || '';
-        formDataToSubmit.append(key, cleanValue);
-      });
-
-      // Add files
-      formData.files.forEach((file, index) => {
-        formDataToSubmit.append('files', file);
-      });
-
-      const response = await fetch('/api/submit-rfq', {
-        method: 'POST',
-        body: formDataToSubmit,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const result: APIResponse<{ rfqId: string }> = await response.json();
-
-      if (result.success && result.data) {
-        setRfqId(result.data.rfqId);
-        setCurrentStep(4);
-        addToast({
-          type: 'success',
-          title: 'RFQ submitted',
-          description: `Request ID ${result.data.rfqId}`
-        });
-      } else {
-        // Handle authentication errors specifically
-        if (response.status === 401) {
-          throw new Error('Please log in to submit an RFQ. You need to be authenticated to save your request.');
-        }
-        throw new Error(result.error || 'Failed to submit RFQ');
-      }
+      // Submit using React Query mutation
+      submitRFQMutation(rfqData);
     } catch (error) {
-      console.error('Error submitting RFQ:', error);
-      setErrors({ submit: error instanceof Error ? error.message : 'Failed to submit RFQ' });
+      console.error('Error preparing RFQ:', error);
+      setErrors({ submit: error instanceof Error ? error.message : 'Failed to prepare RFQ' });
       addToast({
         type: 'error',
-        title: 'RFQ submission failed',
-        description: error instanceof Error ? error.message : 'Unknown error while submitting.'
+        title: 'RFQ preparation failed',
+        description: error instanceof Error ? error.message : 'Unknown error while preparing submission.'
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

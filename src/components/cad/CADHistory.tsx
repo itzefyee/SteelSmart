@@ -33,7 +33,7 @@ const CADHistory: React.FC<CADHistoryProps> = ({ onSelectHistory, className = ''
   // Map React Query data to component format
   const history: CADHistoryItem[] = React.useMemo(() => {
     if (!historyResponse?.data) return [];
-    return historyResponse.data.map((item) => ({
+    return historyResponse.data.map((item: any) => ({
       id: item.id,
       prompt: item.prompt || 'No prompt available',
       category: item.category || 'custom',

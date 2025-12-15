@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import ProductCard from '@/components/products/ProductCard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import type { Product } from '@/lib/supabase';
-import { RecommendationScore, APIResponse } from '@/types';
+import { useProductRecommendations } from '@/hooks/useRecommendations';
 
 interface ProductRecommendationsProps {
   productId: string;
@@ -17,49 +17,12 @@ const ProductRecommendations: React.FC<ProductRecommendationsProps> = ({
   title = "You Might Also Need",
   maxRecommendations = 4
 }) => {
-  const [recommendations, setRecommendations] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchRecommendations = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const response = await fetch(`/api/recommendations?productId=${productId}`);
-        const result: APIResponse<RecommendationScore[]> = await response.json();
-
-        if (result.success && result.data) {
-          // Get actual product data for the recommendations from Supabase
-          const productIds = result.data.slice(0, maxRecommendations).map(rec => rec.productId);
-          
-          const productsResponse = await fetch(`/api/products?${productIds.map(id => `id=${id}`).join('&')}`);
-          const productsData = await productsResponse.json();
-          
-          if (productsData.products) {
-            // Sort products to match recommendation order
-            const recommendedProducts = productIds
-              .map(id => productsData.products.find((p: Product) => p.id === id))
-              .filter(Boolean) as Product[];
-            
-            setRecommendations(recommendedProducts);
-          } else {
-            setRecommendations([]);
-          }
-        } else {
-          throw new Error(result.error || 'Failed to fetch recommendations');
-        }
-      } catch (err) {
-        console.error('Error fetching recommendations:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load recommendations');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRecommendations();
-  }, [productId, maxRecommendations]);
+  // Use React Query hook for recommendations with automatic caching
+  const { 
+    data: recommendations = [], 
+    isLoading: loading, 
+    error 
+  } = useProductRecommendations(productId, maxRecommendations);
 
   if (loading) {
     return (
@@ -87,7 +50,7 @@ const ProductRecommendations: React.FC<ProductRecommendationsProps> = ({
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No recommendations available</h3>
           <p className="text-gray-600">
-            {error ? 'Unable to load recommendations at this time.' : 'Check back later for personalized product suggestions.'}
+            {error ? `Unable to load recommendations: ${error.message}` : 'Check back later for personalized product suggestions.'}
           </p>
         </div>
       </div>
