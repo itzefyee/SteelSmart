@@ -73,7 +73,7 @@ const CATEGORY_STYLES: Record<
   const imageHeight = isCompact ? 'h-32' : 'h-48';
   
   return (
-    <div className={`product-glass-card group ${className.replace('compact', '')}`}>
+    <div className={`product-glass-card group flex flex-col h-full ${className.replace('compact', '')}`}>
       {/* Product Image */}
       <div className="relative rounded-t-2xl overflow-hidden bg-gradient-to-br from-slate-800/40 to-slate-900/60">
         <div className={`w-full ${imageHeight}`}>
@@ -83,90 +83,96 @@ const CATEGORY_STYLES: Record<
         <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       </div>
 
-      <div className="p-5 space-y-4 relative z-10 text-slate-900">
-        {/* Category Badge */}
-        <div className="flex items-center justify-between mb-2">
-          {product.category && (
-            <Link 
-              href={`/catalog?category=${product.category}`}
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getCategoryColor(product.category)}`}
+      <div className="p-5 flex flex-col flex-1 relative z-10 text-slate-900">
+        {/* Top Content - Variable Height */}
+        <div className="flex-1">
+          {/* Category Badge */}
+          <div className="flex items-center justify-between mb-2">
+            {product.category && (
+              <Link 
+                href={`/catalog?category=${product.category}`}
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getCategoryColor(product.category)}`}
+              >
+                <span className="mr-1">{getCategoryIcon(product.category)}</span>
+                {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+              </Link>
+            )}
+            
+            {/* Stock Status */}
+            <div className="flex items-center">
+              <div className={`w-2 h-2 rounded-full mr-1 ${product.in_stock ? 'bg-emerald-400' : 'bg-rose-400'}`}></div>
+              <span className="text-xs text-slate-500">
+                {product.in_stock ? 'In Stock' : 'Out of Stock'}
+              </span>
+            </div>
+          </div>
+
+          {/* Product Name */}
+          <h3 className="font-semibold text-slate-900 mb-4 line-clamp-2 text-base">
+            {product.name}
+          </h3>
+
+          {/* Key Specifications - Fixed 2-row height for each field */}
+          <div className="space-y-2 text-xs text-slate-600 mb-4">
+            {typeof product.specifications === 'object' && product.specifications !== null && 'dimensions' in product.specifications && (
+              <div className="grid grid-cols-2 gap-x-3 h-6">
+                <span className="text-left flex items-start">Dimensions:</span>
+                <span className="font-semibold text-slate-900 text-right break-words leading-tight">{(product.specifications as any).dimensions}</span>
+              </div>
+            )}
+            {product.material && (
+              <div className="grid grid-cols-2 gap-x-3 h-6">
+                <span className="text-left flex items-start">Material:</span>
+                <span className="font-semibold text-slate-900 text-right break-words leading-tight">{product.material}</span>
+              </div>
+            )}
+            {typeof product.specifications === 'object' && product.specifications !== null && 'loadCapacity' in product.specifications && (
+              <div className="grid grid-cols-2 gap-x-3 h-6">
+                <span className="text-left flex items-start">Capacity:</span>
+                <span className="font-semibold text-slate-900 text-right break-words leading-tight">{(product.specifications as any).loadCapacity}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Compatible Products (if enabled) */}
+          {showCompatibility && product.compatible_with && product.compatible_with.length > 0 && (
+            <div className="mb-4 p-2 bg-blue-100 border border-blue-300 rounded text-xs text-blue-800">
+              <span className="font-medium text-blue-900">Compatible with:</span>
+              <span className="text-blue-800 ml-1">
+                {product.compatible_with.length} product{product.compatible_with.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Content - Fixed Position */}
+        <div className="mt-auto">
+          {/* Price and Lead Time */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-lg font-bold text-blue-700">
+              {formatPrice(product.price)}
+            </div>
+            {product.lead_time && (
+              <div className="text-xs text-slate-500">
+                {product.lead_time}
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <Link
+              href={`/catalog/${product.id}`}
+              className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded-lg text-sm font-medium border border-blue-600 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-all"
             >
-              <span className="mr-1">{getCategoryIcon(product.category)}</span>
-              {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+              View Details
             </Link>
-          )}
-          
-          {/* Stock Status */}
-          <div className="flex items-center">
-            <div className={`w-2 h-2 rounded-full mr-1 ${product.in_stock ? 'bg-emerald-400' : 'bg-rose-400'}`}></div>
-            <span className="text-xs text-slate-500">
-              {product.in_stock ? 'In Stock' : 'Out of Stock'}
-            </span>
+            <button className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-all">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </button>
           </div>
-        </div>
-
-        {/* Product Name */}
-        <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 text-base">
-          {product.name}
-        </h3>
-
-        {/* Key Specifications */}
-        <div className="space-y-1 text-xs text-slate-600">
-          {typeof product.specifications === 'object' && product.specifications !== null && 'dimensions' in product.specifications && (
-            <div className="flex justify-between">
-              <span>Dimensions:</span>
-              <span className="font-semibold text-slate-900">{(product.specifications as any).dimensions}</span>
-            </div>
-          )}
-          {product.material && (
-            <div className="flex justify-between">
-              <span>Material:</span>
-              <span className="font-semibold text-slate-900">{product.material}</span>
-            </div>
-          )}
-          {typeof product.specifications === 'object' && product.specifications !== null && 'loadCapacity' in product.specifications && (
-            <div className="flex justify-between">
-              <span>Capacity:</span>
-              <span className="font-semibold text-slate-900">{(product.specifications as any).loadCapacity}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Price and Lead Time */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-lg font-bold text-blue-700">
-            {formatPrice(product.price)}
-          </div>
-          {product.lead_time && (
-            <div className="text-xs text-slate-500">
-              {product.lead_time}
-            </div>
-          )}
-        </div>
-
-        {/* Compatible Products (if enabled) */}
-        {showCompatibility && product.compatible_with && product.compatible_with.length > 0 && (
-          <div className="mb-3 p-2 bg-blue-100 border border-blue-300 rounded text-xs text-blue-800">
-            <span className="font-medium text-blue-900">Compatible with:</span>
-            <span className="text-blue-800 ml-1">
-              {product.compatible_with.length} product{product.compatible_with.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          <Link
-            href={`/catalog/${product.id}`}
-            className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded-lg text-sm font-medium border border-blue-600 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-all"
-          >
-            View Details
-          </Link>
-          <button className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-all">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-          </button>
         </div>
       </div>
     </div>
