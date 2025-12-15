@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The current Metalyze codebase **partially implements** the hybrid 3-tiered + MVC architecture shown in the diagram. While the foundational structure exists, there are gaps in separation of concerns and some architectural patterns are incomplete.
+The current SteelSmart codebase **partially implements** the hybrid 3-tiered + MVC architecture shown in the diagram. While the foundational structure exists, there are gaps in separation of concerns and some architectural patterns are incomplete.
 
 **Alignment Score: 70%**
 

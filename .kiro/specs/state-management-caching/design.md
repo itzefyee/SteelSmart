@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design implements a three-layer state management and caching architecture for the Metalyze application:
+This design implements a three-layer state management and caching architecture for the SteelSmart application:
 
 1. **React Query Layer**: Manages server state with automatic caching, background refetching, and request deduplication
 2. **Zustand Layer**: Manages client-side UI state with localStorage persistence

@@ -15,7 +15,7 @@ const Header: React.FC = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <img src="/images/logo.svg" alt="Metalyze" className="h-11 w-auto" />
+              <img src="/images/logo.svg" alt="SteelSmart" className="h-11 w-auto" />
             </Link>
           </div>
 

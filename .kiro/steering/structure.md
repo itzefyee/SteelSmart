@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-Metalyze follows a **3-tier + MVC hybrid architecture** with clean separation of concerns:
+SteelSmart follows a **3-tier + MVC hybrid architecture** with clean separation of concerns:
 
 - **Presentation Layer**: React components and pages
 - **Business Logic Layer**: Services for domain logic

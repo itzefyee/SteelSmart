@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design document outlines the implementation strategy for applying the Liquid Glass design pattern across all card components in the Metalyze application. The liquid glass design creates a modern, cohesive visual aesthetic using translucent backgrounds, backdrop blur effects, subtle gradients, and layered shadows. This design is currently implemented in the Product Catalog and will be systematically rolled out to all other card-based UI components.
+This design document outlines the implementation strategy for applying the Liquid Glass design pattern across all card components in the SteelSmart application. The liquid glass design creates a modern, cohesive visual aesthetic using translucent backgrounds, backdrop blur effects, subtle gradients, and layered shadows. This design is currently implemented in the Product Catalog and will be systematically rolled out to all other card-based UI components.
 
 The implementation will leverage existing CSS utility classes (`.product-glass-card`, `.catalog-glass-container`) and create additional variants as needed to maintain consistency while allowing for component-specific customization.
 

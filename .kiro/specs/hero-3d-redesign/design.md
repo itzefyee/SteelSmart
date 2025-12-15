@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design document outlines the implementation of a new hero section for the Metalyze homepage featuring an animated text prompt and interactive 3D model preview. The design follows a blue and white blueprint aesthetic inspired by technical engineering drawings, creating an immediate visual connection to the platform's CAD capabilities.
+This design document outlines the implementation of a new hero section for the SteelSmart homepage featuring an animated text prompt and interactive 3D model preview. The design follows a blue and white blueprint aesthetic inspired by technical engineering drawings, creating an immediate visual connection to the platform's CAD capabilities.
 
 The hero section will replace the current hero component and become the primary focal point of the homepage, with existing sections (AI-Powered Tools, Featured Products, etc.) repositioned below it. The design emphasizes visual engagement through animation, interactivity, and a clean professional appearance suitable for both technical and business audiences.
 

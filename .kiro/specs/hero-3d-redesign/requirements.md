@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This feature redesigns the Metalyze homepage hero section to include an animated text prompt and an interactive rotating 3D model preview, styled in a blue and white blueprint light theme. The redesign aims to create a more engaging, modern, and visually striking first impression that showcases the platform's AI-powered CAD capabilities. The existing "AI-Powered Steel Parts Marketplace" and "CAD Drawing Analyzer" components will be moved down to make room for this new hero section.
+This feature redesigns the SteelSmart homepage hero section to include an animated text prompt and an interactive rotating 3D model preview, styled in a blue and white blueprint light theme. The redesign aims to create a more engaging, modern, and visually striking first impression that showcases the platform's AI-powered CAD capabilities. The existing "AI-Powered Steel Parts Marketplace" and "CAD Drawing Analyzer" components will be moved down to make room for this new hero section.
 
 ## Glossary
 
@@ -10,7 +10,7 @@ This feature redesigns the Metalyze homepage hero section to include an animated
 - **Animated Text Prompt**: A text element that displays typing animation or text transitions to demonstrate the AI text-to-CAD capability
 - **3D Model Preview**: An interactive 3D visualization component that displays a rotating CAD model
 - **Blueprint Theme**: A design aesthetic using blue and white colors reminiscent of technical engineering blueprints
-- **Homepage**: The main landing page of the Metalyze application (page.tsx)
+- **Homepage**: The main landing page of the SteelSmart application (page.tsx)
 - **CAD Model**: Computer-Aided Design three-dimensional representation of a mechanical part or component
 - **Wireframe Rendering**: A 3D visualization style showing only the edges and vertices of a model
 
@@ -18,7 +18,7 @@ This feature redesigns the Metalyze homepage hero section to include an animated
 
 ### Requirement 1
 
-**User Story:** As a visitor landing on the Metalyze homepage, I want to immediately see an engaging animated demonstration of the text-to-CAD capability, so that I understand the platform's core value proposition within seconds.
+**User Story:** As a visitor landing on the SteelSmart homepage, I want to immediately see an engaging animated demonstration of the text-to-CAD capability, so that I understand the platform's core value proposition within seconds.
 
 #### Acceptance Criteria
 

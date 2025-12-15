@@ -6,7 +6,7 @@ export default function Loading() {
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-solid border-blue-600 border-r-transparent" role="status">
           <span className="sr-only">Loading...</span>
         </div>
-        <p className="mt-4 text-gray-600">Loading Metalyze...</p>
+        <p className="mt-4 text-gray-600">Loading SteelSmart...</p>
         <p className="mt-2 text-sm text-gray-500">
           First load may take a moment while we prepare everything
         </p>

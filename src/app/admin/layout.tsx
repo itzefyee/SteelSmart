@@ -44,7 +44,7 @@ export default function AdminLayout({
         )}
       >
         <div className="flex h-16 items-center justify-between px-6 border-b">
-          <h1 className="text-xl font-bold">Metalyze Admin</h1>
+          <h1 className="text-xl font-bold">SteelSmart Admin</h1>
           <Button
             variant="ghost"
             size="icon"

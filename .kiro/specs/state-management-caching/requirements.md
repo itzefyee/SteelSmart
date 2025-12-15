@@ -2,11 +2,11 @@
 
 ## Introduction
 
-This document outlines the requirements for implementing a modern state management and caching architecture for the Metalyze application. The system will introduce React Query for server state management, Zustand for client state management, and Upstash Redis for server-side caching to improve performance, reduce database load, and enhance user experience.
+This document outlines the requirements for implementing a modern state management and caching architecture for the SteelSmart application. The system will introduce React Query for server state management, Zustand for client state management, and Upstash Redis for server-side caching to improve performance, reduce database load, and enhance user experience.
 
 ## Glossary
 
-- **Application**: The Metalyze web application
+- **Application**: The SteelSmart web application
 - **React Query**: TanStack Query library for server state management
 - **Zustand**: Lightweight state management library for client state
 - **Redis Cache**: Upstash Redis serverless cache for API responses

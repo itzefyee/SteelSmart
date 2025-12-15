@@ -101,7 +101,7 @@ export default function LoginPage() {
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-            <p className="text-gray-600">Sign in to your Metalyze account</p>
+            <p className="text-gray-600">Sign in to your SteelSmart account</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">

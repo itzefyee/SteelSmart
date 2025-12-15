@@ -1,6 +1,6 @@
 # Product Overview
 
-Metalyze (formerly SteelSmart) is an AI-enhanced metal & steel parts marketplace built for engineers and manufacturers. The platform enables users to discover, analyze, and source metal components with intelligent AI assistance.
+SteelSmart is an AI-enhanced metal & steel parts marketplace built for engineers and manufacturers. The platform enables users to discover, analyze, and source metal components with intelligent AI assistance.
 
 ## Core Features
 

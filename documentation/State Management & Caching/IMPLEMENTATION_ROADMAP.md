@@ -6,7 +6,7 @@
 
 ## 🎯 Overview
 
-This roadmap provides a step-by-step implementation plan for expanding React Query, Zustand, and Redis caching across the Metalyze application.
+This roadmap provides a step-by-step implementation plan for expanding React Query, Zustand, and Redis caching across the SteelSmart application.
 
 ---
 

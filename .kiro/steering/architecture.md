@@ -2,7 +2,7 @@
 
 ## Overview
 
-Metalyze follows a **3-tier + MVC hybrid architecture** with clean separation of concerns. This architecture was implemented in December 2025 to improve maintainability, testability, and scalability.
+SteelSmart follows a **3-tier + MVC hybrid architecture** with clean separation of concerns. This architecture was implemented in December 2025 to improve maintainability, testability, and scalability.
 
 ## Architecture Layers
 
