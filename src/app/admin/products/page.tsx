@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -121,24 +121,33 @@ export default function ProductsPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((product) => (
             <Card key={product.id} className="overflow-hidden flex flex-col">
-              <CardHeader className="pb-3">
-                {product.images && product.images.length > 0 && (
-                  <div className="h-60 bg-muted rounded-lg mb-3 overflow-hidden relative">
-                    <Image
-                      src={product.images[0]}
-                      alt={product.name}
-                      fill
-                      className="object-cover rounded-lg"
-                    />
+              {/* Product Image */}
+              <div className="relative h-64 bg-muted rounded-lg overflow-hidden">
+                {product.images && product.images.length > 0 ? (
+                  <Image
+                    src={product.images[0]}
+                    alt={product.name}
+                    fill
+                    className="object-cover rounded-lg"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-muted-foreground text-sm">No Image</div>
                   </div>
                 )}
+              </div>
+
+              <CardHeader className="pb-3">
                 <CardTitle className="text-lg line-clamp-1">{product.name}</CardTitle>
                 <CardDescription className="line-clamp-2 min-h-[2.5rem]">
                   {product.description}
                 </CardDescription>
               </CardHeader>
+
               <CardContent className="space-y-3 flex-1">
-                <div className="flex gap-2 flex-wrap">
+                {/* Category and Stock Status Badges */}
+                <div className="flex justify-between items-center">
                   {product.category && (
                     <Badge variant={product.category as 'robotic' | 'structural' | 'fasteners' | 'custom'}>
                       {product.category}
@@ -150,6 +159,8 @@ export default function ProductsPage() {
                 </div>
                 <div className="text-2xl font-bold text-primary">${product.price.toFixed(2)}</div>
               </CardContent>
+
+              {/* Action Buttons */}
               <CardFooter className="flex gap-2 pt-3 mt-auto">
                 <Link href={`/admin/products/${product.id}`} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full">

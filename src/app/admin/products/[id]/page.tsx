@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Edit, Trash2, Package, Tag, Warehouse } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Package, Tag, Warehouse, FileText, Wrench, Mail, Phone } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import type { Product } from '@/types';
 
@@ -177,220 +177,250 @@ export default function ProductDetailPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-white text-gray-900">
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Breadcrumb Navigation */}
+        <nav className="flex items-center space-x-2 text-sm text-gray-600">
+          <Link href="/admin" className="hover:text-gray-900 transition-colors">Admin</Link>
+          <span>/</span>
+          <Link href="/admin/products" className="hover:text-gray-900 transition-colors">Products</Link>
+          <span>/</span>
+          <span className="text-gray-900 font-medium">{product.name}</span>
+        </nav>
+
+        {/* Admin Actions Bar */}
+        <div className="flex items-center justify-between">
           <Link href="/admin/products">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              Back to Products
             </Button>
           </Link>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
-            <p className="text-muted-foreground">{product.category}</p>
+          <div className="flex gap-2">
+            <Link href={`/admin/products/${product.id}/edit`}>
+              <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Product
+              </Button>
+            </Link>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="bg-red-600 hover:bg-red-700">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Product</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete "{product.name}"? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Link href={`/admin/products/${product.id}/edit`}>
-            <Button variant="outline">
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Product
-            </Button>
-          </Link>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Product</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete "{product.name}"? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle>Product Images</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 p-6 space-y-4">
-            {images.length > 0 ? (
-              <>
-                {/* Main Image Display */}
+        {/* Main Product Layout */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Left Side - Product Image */}
+          <div className="space-y-4">
+            {/* Main Product Image */}
+            <div className="bg-gray-50 rounded-3xl p-8 shadow-lg border border-gray-200">
+              {images.length > 0 ? (
                 <div className="relative group">
-                  <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-muted">
+                  <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-50">
                     <Image
                       src={images[selectedImage]}
                       alt={`${product.name} - View ${selectedImage + 1}`}
                       fill
-                      className="object-contain"
+                      className="object-contain p-4"
                     />
                   </div>
 
-                {/* Navigation Arrows - Only show if multiple images */}
-                {images.length > 1 && (
-                  <>
-                    <button
-                      onClick={handlePreviousImage}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-slate-800 p-2 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100"
-                      aria-label="Previous image"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={handleNextImage}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-slate-800 p-2 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100"
-                      aria-label="Next image"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                  </>
-                )}
-
                   {/* Image Counter */}
                   {images.length > 1 && (
-                    <div className="absolute bottom-3 right-3 bg-slate-900/75 text-white px-3 py-1 rounded-full text-sm font-medium">
+                    <div className="absolute bottom-4 right-4 bg-black/75 text-white px-3 py-1 rounded-full text-sm font-medium">
                       {selectedImage + 1} / {images.length}
                     </div>
                   )}
                 </div>
+              ) : (
+                <div className="aspect-square rounded-2xl bg-gray-100 flex items-center justify-center">
+                  <div className="text-gray-400 text-lg">No Image Available</div>
+                </div>
+              )}
+            </div>
 
-                {/* Image Thumbnails */}
-                {images.length > 1 && (
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {images.map((image, index) => (
-                      <button
-                        key={index}
-                        className={`flex-shrink-0 w-20 h-20 rounded-lg border-2 transition-all overflow-hidden relative ${
-                          selectedImage === index
-                            ? 'border-primary ring-2 ring-primary/20'
-                            : 'border-border hover:border-primary/50'
-                        }`}
-                        onClick={() => setSelectedImage(index)}
-                      >
-                        <div className="w-full h-full bg-muted">
-                          <Image src={image} alt={`Thumbnail ${index + 1}`} fill className="object-contain" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                No images available for this product
+            {/* Image Thumbnails */}
+            {images.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {images.map((image, index) => (
+                  <button
+                    key={index}
+                    className={`flex-shrink-0 w-20 h-20 rounded-xl border-2 transition-all overflow-hidden relative bg-gray-50 ${
+                      selectedImage === index
+                        ? 'border-blue-500 ring-2 ring-blue-500/30'
+                        : 'border-gray-200 hover:border-blue-400/50'
+                    }`}
+                    onClick={() => setSelectedImage(index)}
+                  >
+                    <Image src={image} alt={`Thumbnail ${index + 1}`} fill className="object-contain p-2" />
+                  </button>
+                ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        <div className="space-y-6 flex flex-col">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Tag className="h-5 w-5" />
-                Product Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                {product.category && (
-                  <Badge variant={getCategoryBadgeVariant(product.category)}>{product.category}</Badge>
-                )}
-                <Badge variant={getStockBadgeVariant((product as any).in_stock !== false)}>
-                  {(product as any).in_stock !== false ? 'In Stock' : 'Out of Stock'}
+          {/* Right Side - Product Information */}
+          <div className="space-y-6">
+            {/* Category and Stock Status */}
+            <div className="flex items-center gap-4">
+              {product.category && (
+                <Badge className="bg-gray-100 text-gray-700 border-gray-200 rounded-full px-4 py-2 text-sm font-medium">
+                  {product.category}
                 </Badge>
-              </div>
-              <div className="text-3xl font-bold text-primary">${product.price.toFixed(2)}</div>
-              <p className="text-muted-foreground">{product.description}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Warehouse className="h-5 w-5" />
-                Inventory Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span>Stock Status:</span>
-                <span className="font-medium">
-                  {(product as any).in_stock !== false ? 'Available' : 'Out of Stock'}
+              )}
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${(product as any).in_stock !== false ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-sm font-medium text-gray-700">
+                  {(product as any).in_stock !== false ? 'In Stock' : 'Out of Stock'}
+                  {(product as any).in_stock !== false && ' • 4-6 business days'}
                 </span>
               </div>
-              {(product as any).stock_quantity !== undefined && (
-                <div className="flex justify-between">
-                  <span>Quantity:</span>
-                  <span className="font-medium">{(product as any).stock_quantity}</span>
-                </div>
-              )}
-              <Separator />
-              {product.created_at && (
-                <div className="flex justify-between">
-                  <span>Created:</span>
-                  <span className="font-medium">{new Date(product.created_at).toLocaleDateString()}</span>
-                </div>
-              )}
-              {product.updated_at && (
-                <div className="flex justify-between">
-                  <span>Last Updated:</span>
-                  <span className="font-medium">{new Date(product.updated_at).toLocaleDateString()}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </div>
 
-      {product.specifications && Object.keys(product.specifications).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Product Specifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {/* Product Title */}
+            <h1 className="text-4xl font-bold leading-tight text-gray-900">{product.name}</h1>
+
+            {/* Price */}
+            <div className="text-4xl font-bold text-blue-600">${product.price.toFixed(2)}</div>
+
+            {/* Description */}
+            <p className="text-gray-600 text-lg leading-relaxed">{product.description}</p>
+
+            {/* Key Specifications */}
+            <div className="bg-white/10 rounded-2xl p-6 backdrop-blur-sm">
+              <h3 className="text-xl font-semibold mb-4">Key Specifications</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {(product as any).dimensions && (
+                  <div>
+                    <div className="text-blue-200 text-sm">Dimensions</div>
+                    <div className="font-semibold">{(product as any).dimensions}</div>
+                  </div>
+                )}
+                {(product as any).material && (
+                  <div>
+                    <div className="text-blue-200 text-sm">Material</div>
+                    <div className="font-semibold">{(product as any).material}</div>
+                  </div>
+                )}
+                {(product as any).weight && (
+                  <div>
+                    <div className="text-blue-200 text-sm">Weight</div>
+                    <div className="font-semibold">{(product as any).weight}</div>
+                  </div>
+                )}
+                {(product as any).tolerance && (
+                  <div>
+                    <div className="text-blue-200 text-sm">Tolerance</div>
+                    <div className="font-semibold">{(product as any).tolerance}</div>
+                  </div>
+                )}
+                {(product as any).load_capacity && (
+                  <div>
+                    <div className="text-blue-200 text-sm">Load Capacity</div>
+                    <div className="font-semibold">{(product as any).load_capacity}</div>
+                  </div>
+                )}
+                {(product as any).operating_temperature && (
+                  <div>
+                    <div className="text-blue-200 text-sm">Operating Temperature</div>
+                    <div className="font-semibold">{(product as any).operating_temperature}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4">
+              <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl py-3 text-lg font-semibold">
+                Request Quote
+              </Button>
+              <Button variant="outline" className="bg-white text-blue-700 border-0 rounded-2xl px-6 py-3 font-semibold hover:bg-gray-50">
+                <Wrench className="h-5 w-5 mr-2" />
+                Generate Drawing
+              </Button>
+            </div>
+
+            {/* Help Section */}
+            <div className="bg-white/10 rounded-2xl p-6 backdrop-blur-sm">
+              <h3 className="text-lg font-semibold mb-2">Need Help?</h3>
+              <p className="text-blue-100 text-sm mb-4">Our technical experts are here to help you find the right solution.</p>
+              <div className="flex flex-col gap-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <span className="text-blue-300">steelsmart.cad@gmail.com</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  <span className="text-blue-300">+1 (555) 012-3456</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Technical Details Section */}
+        {product.specifications && Object.keys(product.specifications).length > 0 && (
+          <div className="bg-white/10 rounded-3xl p-8 backdrop-blur-sm">
+            <h2 className="text-2xl font-bold mb-6">Technical Details</h2>
+            <p className="text-blue-100 mb-6">
+              {product.description || 'Detailed technical specifications and manufacturing information for this product.'}
+            </p>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {Object.entries(product.specifications).map(
                 ([key, value]) =>
                   value && (
-                    <div key={key} className="space-y-1">
-                      <div className="text-sm font-medium capitalize">
-                        {key.replace(/([A-Z])/g, ' $1').trim()}:
+                    <div key={key} className="space-y-2">
+                      <div className="text-blue-200 text-sm font-medium capitalize">
+                        {key.replace(/([A-Z])/g, ' $1').trim()}
                       </div>
-                      <div className="text-sm text-muted-foreground">{String(value)}</div>
+                      <div className="font-semibold">{String(value)}</div>
                     </div>
                   )
               )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
+
+        {/* Compatible Products Section */}
+        <div className="bg-white/10 rounded-3xl p-8 backdrop-blur-sm">
+          <h2 className="text-2xl font-bold mb-6">Compatible Products</h2>
+          <div className="flex gap-3 flex-wrap">
+            {/* Mock compatible products - replace with actual data */}
+            <Badge className="bg-white/20 text-white border-white/30 rounded-full px-4 py-2">
+              hex-bolt-m12
+            </Badge>
+            <Badge className="bg-white/20 text-white border-white/30 rounded-full px-4 py-2">
+              hex-nut-m12
+            </Badge>
+            <Badge className="bg-white/20 text-white border-white/30 rounded-full px-4 py-2">
+              washer-m12
+            </Badge>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

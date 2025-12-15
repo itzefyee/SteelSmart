@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Download, Trash2, Search, FileText, Calendar } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -16,6 +16,7 @@ export default function ReportsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -23,17 +24,48 @@ export default function ReportsPage() {
     completed: 0,
     failed: 0,
   });
-  const { addToast } = useToast();
+
+  // Safe toast hook with error handling
+  let addToast: ((toast: any) => void) | null = null;
+  try {
+    const toastHook = useToast();
+    addToast = toastHook?.addToast || null;
+  } catch (error) {
+    console.error('Toast context not available:', error);
+  }
+
+  // Ensure component is mounted before running effects
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Safe toast function
+  const safeAddToast = (toast: any) => {
+    if (addToast && mounted) {
+      try {
+        addToast(toast);
+      } catch (error) {
+        console.error('Toast error:', error);
+      }
+    } else {
+      console.log('Toast:', toast.title, '-', toast.description);
+    }
+  };
 
   useEffect(() => {
-    loadReports();
-    loadStatistics();
-  }, [currentPage]);
+    if (mounted) {
+      loadReports();
+      loadStatistics();
+    }
+  }, [currentPage, mounted]);
 
   const loadReports = async () => {
     setLoading(true);
     try {
       const response = await fetch(`/api/admin/reports?page=${currentPage}&limit=10`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
 
       if (data.data) {
@@ -41,7 +73,8 @@ export default function ReportsPage() {
         setTotalPages(data.pagination?.totalPages || 1);
       }
     } catch (error) {
-      addToast({
+      console.error('Failed to load reports:', error);
+      safeAddToast({
         title: 'Error',
         description: 'Failed to load reports',
         type: 'error',
@@ -54,6 +87,9 @@ export default function ReportsPage() {
   const loadStatistics = async () => {
     try {
       const response = await fetch('/api/admin/reports/statistics');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
 
       if (data.data) {
@@ -61,6 +97,7 @@ export default function ReportsPage() {
       }
     } catch (error) {
       console.error('Failed to load statistics:', error);
+      // Don't show toast for statistics failure, just log it
     }
   };
 
@@ -80,7 +117,7 @@ export default function ReportsPage() {
 
       if (response.ok) {
         setReports(reports.filter((r) => r.id !== reportId));
-        addToast({
+        safeAddToast({
           title: 'Report Deleted',
           description: 'Report has been successfully deleted',
           type: 'success',
@@ -90,7 +127,7 @@ export default function ReportsPage() {
         throw new Error('Failed to delete');
       }
     } catch (error) {
-      addToast({
+      safeAddToast({
         title: 'Error',
         description: 'Failed to delete report',
         type: 'error',
@@ -100,7 +137,7 @@ export default function ReportsPage() {
 
   const handleDownload = (report: Report) => {
     if (report.status !== 'COMPLETED' || !report.file_url) {
-      addToast({
+      safeAddToast({
         title: 'Error',
         description: 'Report is not ready for download',
         type: 'error',
@@ -109,7 +146,7 @@ export default function ReportsPage() {
     }
 
     window.open(report.file_url, '_blank');
-    addToast({
+    safeAddToast({
       title: 'Download Started',
       description: `Downloading ${report.title}...`,
       type: 'info',
@@ -147,6 +184,17 @@ export default function ReportsPage() {
         return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  // Don't render until component is mounted to avoid hydration issues
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-lg text-muted-foreground">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

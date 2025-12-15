@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { CADModelData } from '@/lib/cad-parser';
 import { CADViewGenerator, GeneratedView } from '@/lib/cad-view-generator';
 

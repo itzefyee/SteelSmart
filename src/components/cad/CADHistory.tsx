@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { VariableSizeList } from 'react-window';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useCADHistory } from '@/hooks/useCADGeneration';
 
