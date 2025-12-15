@@ -97,6 +97,20 @@ export default function LoginPage() {
       <TechnicalPattern />
       <div className="absolute inset-0 bg-black/30"></div>
       <BlueprintSketchLayer variant="hero" />
+      
+      {/* Back to Main Page Button */}
+      <div className="absolute top-6 left-6 z-20">
+        <Link 
+          href="/"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-lg hover:bg-white/20 transition-colors border border-white/20"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Main Page
+        </Link>
+      </div>
+
       <div className="max-w-md w-full relative z-10">
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-8">
           <div className="text-center mb-8">
