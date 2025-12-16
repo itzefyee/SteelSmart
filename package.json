@@ -20,7 +20,12 @@
     "list-storage-images": "npx tsx scripts/list-storage-images.ts",
     "update-product-images": "npx tsx scripts/update-product-image-urls.ts",
     "auto-match-products": "npx tsx scripts/auto-match-products.ts",
-    "fix-product-images": "npx tsx scripts/manual-product-image-fix.ts"
+    "fix-product-images": "npx tsx scripts/manual-product-image-fix.ts",
+    "audit-data": "npx tsx scripts/audit-product-data.ts",
+    "enrich-data": "npx tsx scripts/enrich-product-data.ts",
+    "enrich-data:dry-run": "npx tsx scripts/enrich-product-data.ts --dry-run",
+    "setup-enrichment": "npx tsx scripts/add-missing-columns.ts",
+    "verify-schema": "npx tsx scripts/verify-products-schema.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

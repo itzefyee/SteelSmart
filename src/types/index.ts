@@ -139,6 +139,14 @@ export interface RecommendationScore {
   score: number;
   reasoning: string;
   matchedSpecs: string[];
+  confidence?: number; // 0-1, based on data completeness
+  dataQuality?: {
+    hasDimensions: boolean;
+    hasLoadCapacity: boolean;
+    hasMaterialFamily: boolean;
+    hasComponentType: boolean;
+    completeness: number; // 0-1
+  };
 }
 
 // Form validation types

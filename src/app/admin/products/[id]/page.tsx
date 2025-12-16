@@ -1,9 +1,10 @@
 import { AdminProductDetailsContent } from '@/components/admin/products/AdminProductDetailsContent';
 
 interface ProductDetailPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default function ProductDetailPage({ params }: ProductDetailPageProps) {
-  return <AdminProductDetailsContent productId={params.id} />;
+export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+  const { id } = await params;
+  return <AdminProductDetailsContent productId={id} />;
 }
