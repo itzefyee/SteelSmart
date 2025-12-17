@@ -149,6 +149,7 @@ export class CADAnalysisService {
         // Convert Gemini response to DrawingAnalysis
         analysis = {
           extractedSpecs: {
+            productName: geminiResponse.extractedSpecs.productName || undefined,
             dimensions: geminiResponse.extractedSpecs.dimensions || undefined,
             material: geminiResponse.extractedSpecs.material || undefined,
             loadRequirements: geminiResponse.extractedSpecs.loadRequirements || undefined,
@@ -333,6 +334,7 @@ export class CADAnalysisService {
 
       return {
         extractedSpecs: {
+          productName: componentType, // Use componentType as productName for CAD models
           dimensions,
           material,
           loadRequirements: undefined,
@@ -359,6 +361,7 @@ export class CADAnalysisService {
     if (fileName.includes('bracket')) {
       return {
         extractedSpecs: {
+          productName: 'Mounting Bracket',
           dimensions: '140mm x 90mm x 20mm',
           material: 'Steel',
           loadRequirements: '500N static load',
@@ -375,6 +378,7 @@ export class CADAnalysisService {
     } else if (fileName.includes('steel-beam')) {
       return {
         extractedSpecs: {
+          productName: 'Steel Beam',
           dimensions: '200mm x 100mm x 6m length',
           material: 'Grade S355 Steel',
           loadRequirements: '355 MPa yield strength',
@@ -392,6 +396,7 @@ export class CADAnalysisService {
       // Default servo motor analysis
       return {
         extractedSpecs: {
+          productName: 'Servo Motor',
           dimensions: '120mm x 80mm x 65mm',
           material: 'Aluminum',
           loadRequirements: '50 Nm torque',

@@ -26,6 +26,7 @@ const buildStageTemplate = (): StagedProgressItem[] => ([
 
 const ProductRecommenderNew: React.FC = () => {
   const [requirements, setRequirements] = useState({
+    productName: '',
     material: '',
     dimensions: '',
     loadCapacity: '',
@@ -131,7 +132,11 @@ const ProductRecommenderNew: React.FC = () => {
               // Map componentType to proper database category
               const mappedCategory = mapComponentTypeToCategory(data.extractedSpecs.componentType || '');
               
+              // Use productName from analysis (which is the componentType) or fall back to componentType
+              const productNameFromAnalysis = data.extractedSpecs.productName || data.extractedSpecs.componentType || '';
+              
               const specs = {
+                productName: productNameFromAnalysis,
                 material: data.extractedSpecs.material || '',
                 dimensions: data.extractedSpecs.dimensions || '',
                 loadCapacity: data.extractedSpecs.loadRequirements || '',
@@ -140,6 +145,7 @@ const ProductRecommenderNew: React.FC = () => {
               
               console.log('📊 Mapped analysis data:', {
                 originalComponentType: data.extractedSpecs.componentType,
+                productName: productNameFromAnalysis,
                 mappedCategory: mappedCategory,
                 specs: specs
               });
@@ -176,6 +182,7 @@ const ProductRecommenderNew: React.FC = () => {
     const mappedCategory = mapComponentTypeToCategory(newSearchSpecs.componentType || '');
     
     const specsToSearch: ProductSpecs = {
+      productName: newSearchSpecs.productName || undefined,
       material: newSearchSpecs.material || undefined,
       dimensions: newSearchSpecs.dimensions || undefined,
       loadCapacity: newSearchSpecs.loadCapacity || undefined,
@@ -370,6 +377,26 @@ const ProductRecommenderNew: React.FC = () => {
       <div className="glass-container glass-container-with-liquid-compact p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Product Requirements</h2>
         
+        {/* Product Name Search - Featured */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+            <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Product Name or Keywords
+          </label>
+          <input
+            type="text"
+            value={requirements.productName}
+            onChange={(e) => setRequirements({ ...requirements, productName: e.target.value })}
+            placeholder="e.g., Servo Motor, Steel Beam, Hex Bolt, Mounting Bracket..."
+            className="glass-input text-base"
+          />
+          <p className="mt-1.5 text-xs text-gray-500">
+            💡 Search by product name, type, or keywords for faster results
+          </p>
+        </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Material</label>
@@ -418,13 +445,6 @@ const ProductRecommenderNew: React.FC = () => {
               className="glass-input"
             />
           </div>
-        </div>
-        
-        <div className="inline-flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 w-fit">
-          <svg className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 18.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13z" />
-          </svg>
-          <p>Add a quick material, dimension, or load hint to help us surface direct matches faster.</p>
         </div>
         
         <div className="flex flex-col items-center space-y-3 mt-2">

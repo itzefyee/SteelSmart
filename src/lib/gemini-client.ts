@@ -6,16 +6,30 @@ You are a technical expert analyzing engineering drawings and technical specific
 
 Analyze the uploaded technical drawing/document and extract:
 
-1. **Dimensions & Measurements**: Any specified dimensions, sizes, or measurements
-2. **Material Requirements**: Specified materials or material properties  
-3. **Load/Stress Requirements**: Weight capacity, force ratings, or stress specifications
-4. **Component Type**: What type of component this appears to be (structural, mechanical, robotic, etc.)
-5. **Tolerances**: Any precision or tolerance requirements mentioned
-6. **Connection Methods**: How this component connects to others (bolts, welds, etc.)
+1. **Product Name**: The specific product name or identifier (e.g., "I-Beam Steel", "Servo Motor", "Hex Bolt M12")
+2. **Dimensions & Measurements**: Any specified dimensions, sizes, or measurements
+3. **Material Requirements**: Specified materials or material properties  
+4. **Load/Stress Requirements**: Weight capacity, force ratings, or stress specifications
+5. **Component Type**: What type of component this appears to be (structural, mechanical, robotic, etc.)
+6. **Tolerances**: Any precision or tolerance requirements mentioned
+7. **Connection Methods**: How this component connects to others (bolts, welds, etc.)
+
+**IMPORTANT for Product Name**:
+- Be as specific as possible (e.g., "I-Beam Steel" not just "beam")
+- Include size/grade if visible (e.g., "Hex Bolt M12" not just "bolt")
+- Use industry-standard terminology
+- If the drawing has a title or part name, use that
+- Examples of good product names:
+  * "I-Beam Steel" (not "structural beam")
+  * "Servo Motor" (not "motor")
+  * "Brake Rotor" (not "rotor")
+  * "Mounting Bracket" (not "bracket")
+  * "Hex Bolt M12" (not "fastener")
 
 Respond ONLY with valid JSON in this exact format:
 {
   "extractedSpecs": {
+    "productName": "specific product name or null",
     "dimensions": "extracted dimensions or null",
     "material": "material type or null", 
     "loadRequirements": "load/capacity info or null",
@@ -32,6 +46,7 @@ Be specific about measurements and technical details. If information is unclear 
 
 interface GeminiAnalysisResponse {
   extractedSpecs: {
+    productName?: string | null;
     dimensions?: string | null;
     material?: string | null;
     loadRequirements?: string | null;
@@ -265,6 +280,7 @@ export class GeminiClient {
 
       return {
         extractedSpecs: {
+          productName: componentType, // Use componentType as productName
           dimensions,
           material,
           loadRequirements: null,
@@ -281,6 +297,7 @@ export class GeminiClient {
     if (filename?.includes('bracket')) {
       return {
         extractedSpecs: {
+          productName: "Mounting Bracket",
           dimensions: "140mm x 90mm x 20mm",
           material: "Steel",
           loadRequirements: "500N static load",
@@ -294,6 +311,7 @@ export class GeminiClient {
     } else if (filename?.includes('steel-beam')) {
       return {
         extractedSpecs: {
+          productName: "Steel Beam",
           dimensions: "200mm x 100mm x 6m length",
           material: "Grade S355 Steel",
           loadRequirements: "355 MPa yield strength",
@@ -308,6 +326,7 @@ export class GeminiClient {
       // Default servo motor analysis
       return {
         extractedSpecs: {
+          productName: "Servo Motor",
           dimensions: "120mm x 80mm x 65mm",
           material: "Aluminum",
           loadRequirements: "50 Nm torque",

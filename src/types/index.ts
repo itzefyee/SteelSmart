@@ -28,6 +28,7 @@ export interface LegacyProduct {
 
 export interface DrawingAnalysis {
   extractedSpecs: {
+    productName?: string;
     dimensions?: string;
     material?: string;
     loadRequirements?: string;

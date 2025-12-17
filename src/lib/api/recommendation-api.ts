@@ -16,6 +16,7 @@
 import type { Product } from '@/types';
 
 export interface ProductSpecs {
+  productName?: string;
   material?: string;
   dimensions?: string;
   loadCapacity?: string;

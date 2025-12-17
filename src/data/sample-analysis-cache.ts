@@ -14,6 +14,7 @@ export type SampleCacheKey = 'iBeam' | 'drillGuide' | 'brakeRotor';
 export const SAMPLE_ANALYSIS_CACHE: Record<SampleCacheKey, DrawingAnalysis> = {
   iBeam: {
     extractedSpecs: {
+      productName: 'I-Beam Steel',
       dimensions: '12" length x 4" height x 2.66" flange width',
       material: 'Grade S355 structural steel',
       loadRequirements: '≥120 kN/m² service load',
@@ -34,6 +35,7 @@ export const SAMPLE_ANALYSIS_CACHE: Record<SampleCacheKey, DrawingAnalysis> = {
   },
   drillGuide: {
     extractedSpecs: {
+      productName: 'Surgical Drill Guide',
       dimensions: '150 mm handle with twin Ø2 / Ø3.2 mm sleeves',
       material: 'Surgical stainless steel',
       componentType: 'Surgical drill guide',
@@ -54,6 +56,7 @@ export const SAMPLE_ANALYSIS_CACHE: Record<SampleCacheKey, DrawingAnalysis> = {
   },
   brakeRotor: {
     extractedSpecs: {
+      productName: 'Brake Rotor',
       dimensions: 'Ø320 mm x 32 mm vented rotor, 5 x 114.3 mm pattern',
       material: 'High-carbon cast iron',
       componentType: 'Automotive brake rotor',

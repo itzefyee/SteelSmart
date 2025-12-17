@@ -44,6 +44,7 @@ export class ProductMatcher {
    */
   async matchFromSpecs(
     specs: Partial<{
+      productName: string;
       material: string;
       dimensions: string;
       loadCapacity: string;
@@ -52,6 +53,44 @@ export class ProductMatcher {
     }>,
     client?: SupabaseClient
   ): Promise<RecommendationScore[]> {
+    const supabase = client ?? await getSupabaseServer();
+
+    // If product name is provided, do a direct name/keyword search first
+    if (specs.productName && specs.productName.trim()) {
+      const nameResults = await this.searchByProductName(specs.productName, supabase);
+      
+      // If we have good name matches, return them
+      if (nameResults.length > 0) {
+        // If other specs are provided, filter name results by those specs
+        if (specs.material || specs.dimensions || specs.loadCapacity || (specs.category && specs.category !== 'all')) {
+          const componentType =
+            specs.componentType ||
+            (specs.category && specs.category !== 'all' ? specs.category : undefined);
+
+          const extractedSpecs: DrawingAnalysis['extractedSpecs'] = {
+            material: specs.material,
+            dimensions: specs.dimensions,
+            loadRequirements: specs.loadCapacity,
+            componentType,
+          };
+          
+          // Re-score name results with additional specs
+          const normalized = await this.normalizeSpecs(extractedSpecs, supabase);
+          const candidates = await this.fetchProductsByIds(nameResults.map(r => r.productId), supabase);
+          
+          const rescored = candidates
+            .map(product => this.scoreProduct(product, normalized))
+            .filter((score): score is RecommendationScore => Boolean(score))
+            .sort((a, b) => b.score - a.score);
+          
+          return rescored.length > 0 ? rescored : nameResults;
+        }
+        
+        return nameResults;
+      }
+    }
+
+    // Fall back to spec-based matching
     const componentType =
       specs.componentType ||
       (specs.category && specs.category !== 'all' ? specs.category : undefined);
@@ -63,6 +102,118 @@ export class ProductMatcher {
       componentType,
     };
     return this.findMatchesFromSpecs(extractedSpecs, client);
+  }
+
+  /**
+   * Search products by name or keywords
+   * Uses full-text search on product name and description
+   */
+  private async searchByProductName(
+    searchTerm: string,
+    client: SupabaseClient
+  ): Promise<RecommendationScore[]> {
+    const searchTokens = searchTerm.toLowerCase().trim().split(/\s+/);
+    
+    // Build search query using ilike for fuzzy matching
+    let query = client
+      .from('products')
+      .select('*')
+      .limit(20);
+
+    // Search in name and description
+    const searchPattern = `%${searchTerm.toLowerCase()}%`;
+    query = query.or(`name.ilike.${searchPattern},description.ilike.${searchPattern}`);
+
+    const { data: products, error } = await query;
+
+    if (error || !products || products.length === 0) {
+      return [];
+    }
+
+    // Get structured specs for scoring
+    const specsMap = await this.getStructuredSpecsMap(products.map(p => p.id), client);
+
+    // Score products based on name relevance
+    const scored = products.map(product => {
+      const productWithSpecs = {
+        ...product,
+        structuredSpecs: specsMap.get(product.id),
+      };
+
+      const nameTokens = product.name.toLowerCase().split(/\s+/);
+      const descTokens = (product.description || '').toLowerCase().split(/\s+/);
+      
+      // Calculate token overlap
+      const nameMatches = searchTokens.filter(token => 
+        nameTokens.some(nameToken => nameToken.includes(token) || token.includes(nameToken))
+      ).length;
+      
+      const descMatches = searchTokens.filter(token =>
+        descTokens.some(descToken => descToken.includes(token) || token.includes(descToken))
+      ).length;
+
+      // Calculate relevance score
+      let relevanceScore = 0;
+      
+      // Exact name match gets highest score
+      if (product.name.toLowerCase() === searchTerm.toLowerCase()) {
+        relevanceScore = 0.95;
+      }
+      // Name contains exact search term
+      else if (product.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+        relevanceScore = 0.85;
+      }
+      // Token-based scoring
+      else {
+        const nameScore = nameMatches / searchTokens.length;
+        const descScore = descMatches / searchTokens.length;
+        relevanceScore = (nameScore * 0.7) + (descScore * 0.3);
+      }
+
+      // Boost for in-stock items
+      if (product.in_stock) {
+        relevanceScore += 0.05;
+      }
+
+      return {
+        productId: product.id,
+        score: Math.min(relevanceScore, 0.99),
+        reasoning: `Matches search term "${searchTerm}"`,
+        matchedSpecs: ['productName', product.in_stock ? 'availability' : ''].filter(Boolean),
+      };
+    })
+    .filter(score => score.score > 0.3) // Filter out weak matches
+    .sort((a, b) => b.score - a.score);
+
+    return scored;
+  }
+
+  /**
+   * Fetch products by IDs
+   */
+  private async fetchProductsByIds(
+    productIds: string[],
+    client: SupabaseClient
+  ): Promise<ProductWithStructuredSpecs[]> {
+    if (productIds.length === 0) {
+      return [];
+    }
+
+    const { data: products, error } = await client
+      .from('products')
+      .select('*')
+      .in('id', productIds);
+
+    if (error || !products) {
+      return [];
+    }
+
+    const specsMap = await this.getStructuredSpecsMap(productIds, client);
+
+    return products.map(product => ({
+      ...product,
+      structuredSpecs: specsMap.get(product.id),
+    }));
   }
 
   /**

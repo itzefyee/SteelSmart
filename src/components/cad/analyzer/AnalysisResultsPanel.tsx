@@ -21,10 +21,25 @@ const AnalysisResultsPanel: React.FC<AnalysisResultsPanelProps> = React.memo(({ 
       </div>
       
       <div className="space-y-4">
+        {/* Product Name - Featured */}
+        {analysis.extractedSpecs.productName && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-2 border-blue-200">
+            <div className="flex items-center space-x-2 mb-1">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              <span className="font-semibold text-blue-900 text-sm">Product Name</span>
+            </div>
+            <span className="text-lg font-bold text-blue-900 block">{analysis.extractedSpecs.productName}</span>
+            <p className="text-xs text-blue-700 mt-1">AI-identified product for precise search results</p>
+          </div>
+        )}
+        
+        {/* Other Specifications */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           {Object.entries(analysis.extractedSpecs).map(([key, value]) => {
-            // Skip if no value
-            if (!value) return null;
+            // Skip productName (already shown above) and empty values
+            if (key === 'productName' || !value) return null;
             
             // Handle nested objects (like features)
             const displayValue = typeof value === 'object' && value !== null
