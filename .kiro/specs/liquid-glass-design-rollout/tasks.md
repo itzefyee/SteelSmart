@@ -66,7 +66,7 @@
 - [ ] 4. Update CAD Analyzer components
 -
 
-- [x] 4.1 Apply glass design to analyzer interface (CADAnalyzer.tsx or CADAnalyzerFull.tsx)
+- [x] 4.1 Apply glass design to analyzer interface (CADAnalyzer.tsx or CADAnalyzer.tsx)
 
 
 
@@ -78,7 +78,7 @@
   - _Requirements: 9.1, 9.2, 9.5_
 -
 
-- [x] 4.2 Apply glass design to analysis results (CADAnalyzer.tsx or CADAnalyzerFull.tsx)
+- [x] 4.2 Apply glass design to analysis results (CADAnalyzer.tsx or CADAnalyzer.tsx)
 
 
 

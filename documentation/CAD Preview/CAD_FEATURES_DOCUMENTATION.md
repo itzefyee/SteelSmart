@@ -173,7 +173,7 @@ Enhanced 3D preview component with Three.js rendering.
 />
 ```
 
-### CADAnalyzer / CADAnalyzerFull
+### CADAnalyzer / CADAnalyzer
 
 Updated file upload components with CAD format support.
 

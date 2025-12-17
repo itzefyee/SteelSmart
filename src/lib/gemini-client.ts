@@ -26,10 +26,17 @@ Analyze the uploaded technical drawing/document and extract:
   * "Mounting Bracket" (not "bracket")
   * "Hex Bolt M12" (not "fastener")
 
+CRITICAL: You MUST always provide a productName. If the exact product name is not visible in the drawing, infer it from:
+1. The component type and shape (e.g., "Brake Rotor", "Mounting Bracket", "Steel Beam")
+2. The visible features (e.g., if you see holes and flanges, it might be a "Flange Plate")
+3. The dimensions and material (e.g., "Steel I-Beam 200mm")
+
+Never leave productName as null. Always provide your best identification.
+
 Respond ONLY with valid JSON in this exact format:
 {
   "extractedSpecs": {
-    "productName": "specific product name or null",
+    "productName": "REQUIRED: specific product name (never null)",
     "dimensions": "extracted dimensions or null",
     "material": "material type or null", 
     "loadRequirements": "load/capacity info or null",
@@ -41,7 +48,7 @@ Respond ONLY with valid JSON in this exact format:
   "suggestedCategories": ["category1", "category2"]
 }
 
-Be specific about measurements and technical details. If information is unclear or missing, set those fields to null.
+Be specific about measurements and technical details. If information is unclear or missing, set those fields to null (except productName which is always required).
 `;
 
 interface GeminiAnalysisResponse {
@@ -128,6 +135,13 @@ export class GeminiClient {
           throw new Error('Invalid response structure from Gemini API');
         }
 
+        // Ensure productName is never null - use componentType as fallback
+        if (!analysisResult.extractedSpecs.productName) {
+          analysisResult.extractedSpecs.productName = 
+            analysisResult.extractedSpecs.componentType || 
+            'Unknown Component';
+        }
+
         return analysisResult;
         
       } catch (parseError) {
@@ -137,6 +151,7 @@ export class GeminiClient {
         // Fallback: return a structured response based on the raw text
         return {
           extractedSpecs: {
+            productName: "Unknown Component",
             dimensions: null,
             material: null,
             loadRequirements: null,

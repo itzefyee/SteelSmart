@@ -253,12 +253,12 @@ const { data: product, isLoading } = useProduct(id);
 
 ---
 
-### 9. 🟠 **Additional Large Components - CADAnalyzerFull & ProductRecommenderNew**
+### 9. 🟠 **Additional Large Components - CADAnalyzer & ProductRecommenderNew**
 
 **Root Cause:** Multiple monolithic components similar to CADGenerator
 
 **Issues:**
-- `CADAnalyzerFull.tsx` - **2655 lines** (even larger than CADGenerator)
+- `CADAnalyzer.tsx` - **2655 lines** (even larger than CADGenerator)
 - `ProductRecommenderNew.tsx` - **992 lines**
 - Both suffer from same issues: no splitting, missing memoization, inline functions
 
@@ -269,7 +269,7 @@ const { data: product, isLoading } = useProduct(id);
 
 **Evidence:**
 ```typescript
-// CADAnalyzerFull.tsx: 2655 lines
+// CADAnalyzer.tsx: 2655 lines
 // - Multiple useState hooks (20+)
 // - Complex useEffect chains
 // - No component splitting
@@ -804,10 +804,10 @@ const BrakeRotorBadges = React.memo(() => (
 
 #### 3.5 Split Additional Large Components
 
-**Action:** Break down CADAnalyzerFull and ProductRecommenderNew
+**Action:** Break down CADAnalyzer and ProductRecommenderNew
 
 ```typescript
-// CADAnalyzerFull.tsx structure:
+// CADAnalyzer.tsx structure:
 // - CADAnalyzerContainer.tsx (orchestrator)
 // - FileUploadSection.tsx
 // - AnalysisResults.tsx
@@ -849,7 +849,7 @@ const BrakeRotorBadges = React.memo(() => (
 10. ✅ Optimize Three.js rendering
 11. ✅ Add code splitting
 12. ✅ Memoize inline JSX elements
-13. ✅ Split CADAnalyzerFull and ProductRecommenderNew
+13. ✅ Split CADAnalyzer and ProductRecommenderNew
 
 ---
 
@@ -919,7 +919,7 @@ Implementing the Priority 1 and 2 improvements will provide **significant perfor
 
 ✅ **Confirmed:** All line numbers and code references are accurate  
 ✅ **Confirmed:** CADGenerator.tsx is 1337 lines (verified)  
-✅ **Confirmed:** CADAnalyzerFull.tsx is 2655 lines (larger than CADGenerator)  
+✅ **Confirmed:** CADAnalyzer.tsx is 2655 lines (larger than CADGenerator)  
 ✅ **Confirmed:** ProductRecommenderNew.tsx is 992 lines  
 ✅ **Confirmed:** CADHistory uses manual fetch (line 58)  
 ✅ **Confirmed:** ProductDetailPage uses manual fetch (line 41)  
@@ -932,7 +932,7 @@ Implementing the Priority 1 and 2 improvements will provide **significant perfor
 
 | Component | Lines | Status | Priority |
 |-----------|-------|--------|----------|
-| CADAnalyzerFull.tsx | 2655 | 🔴 Critical | P1 |
+| CADAnalyzer.tsx | 2655 | 🔴 Critical | P1 |
 | CADGenerator.tsx | 1337 | 🔴 Critical | P1 |
 | ProductRecommenderNew.tsx | 992 | 🟠 High | P2 |
 | CADHistory.tsx | 661 | 🟡 Medium | P2 |

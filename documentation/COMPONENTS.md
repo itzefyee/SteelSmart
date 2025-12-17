@@ -93,11 +93,11 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 Main feature components located in `src/components/`.
 
-### CADAnalyzerFull
+### CADAnalyzer
 
 Full-featured CAD analysis component with AI-powered analysis using Google Gemini.
 
-**Location:** `src/components/CADAnalyzerFull.tsx`
+**Location:** `src/components/CADAnalyzer.tsx`
 
 **Features:**
 - Upload CAD drawings (PDF, PNG, JPG, STEP, STL)
@@ -108,9 +108,9 @@ Full-featured CAD analysis component with AI-powered analysis using Google Gemin
 
 **Usage:**
 ```tsx
-import CADAnalyzerFull from '@/components/CADAnalyzerFull';
+import CADAnalyzer from '@/components/CADAnalyzer';
 
-<CADAnalyzerFull />
+<CADAnalyzer />
 ```
 
 **Key Dependencies:**

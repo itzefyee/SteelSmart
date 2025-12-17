@@ -3,7 +3,7 @@
 import React from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import CADAnalyzerFull from '@/components/cad/CADAnalyzerFull';
+import CADAnalyzer from '@/components/cad/CADAnalyzer';
 import PageHero from '@/components/layout/PageHero';
 import BlueprintDiagramLayer from '@/components/cad/BlueprintDiagramLayer';
 
@@ -31,7 +31,7 @@ export default function CADAnalyzerPage() {
             />
           </div>
           
-          <CADAnalyzerFull />
+          <CADAnalyzer />
         </div>
       </main>
       <Footer />

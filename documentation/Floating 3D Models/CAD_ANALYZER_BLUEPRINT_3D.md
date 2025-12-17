@@ -74,7 +74,7 @@ Identical to CAD Generator - 18 models total:
 │   ├─ 18 Floating 3D Models (z-index: 1, opacity: 0.15-0.25)│
 │   └─ Content Container (z-index: 10)                       │
 │       ├─ Page Title & Description                          │
-│       └─ CADAnalyzerFull Component                         │
+│       └─ CADAnalyzer Component                         │
 ├─────────────────────────────────────────────────────────────┤
 │ Footer                                                       │
 └─────────────────────────────────────────────────────────────┘
@@ -152,7 +152,7 @@ Both CAD pages now have:
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <h1 className="text-gray-900">CAD Drawing Analyzer</h1>
       <p className="text-gray-600">Description...</p>
-      <CADAnalyzerFull />
+      <CADAnalyzer />
     </div>
   </main>
   <Footer />
@@ -169,7 +169,7 @@ Both CAD pages now have:
     <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-white drop-shadow-lg">CAD Drawing Analyzer</h1>
       <p className="text-slate-200">Description...</p>
-      <CADAnalyzerFull />
+      <CADAnalyzer />
     </div>
   </main>
   <Footer />

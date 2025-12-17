@@ -165,8 +165,8 @@ These UI components are installed but never imported:
 ## ⚠️ Files That Are Used (Keep These)
 
 ### Data Files
-- **src/data/sample-data.ts** - Used in CADGenerator, RFQForm, ProductRecommender, CADAnalyzerFull
-- **src/data/sample-analysis-cache.ts** - Used in CADAnalyzerFull
+- **src/data/sample-data.ts** - Used in CADGenerator, RFQForm, ProductRecommender, CADAnalyzer
+- **src/data/sample-analysis-cache.ts** - Used in CADAnalyzer
 - **src/data/products.json** - Legacy data, may still be referenced
 - **src/data/categories.json** - Legacy data, may still be referenced
 
@@ -175,7 +175,7 @@ These UI components are installed but never imported:
 - **BlueprintSketchLayer.tsx** - Used in 7 files (Hero, CategoryShowcase, login, signup, etc.)
 - **FeatureIcon.tsx** - Used in RFQ page
 - **ProductRecommenderNew.tsx** - Used in product-recommender page
-- **CAD2DViewExtractor.tsx** - Used in CADAnalyzerFull
+- **CAD2DViewExtractor.tsx** - Used in CADAnalyzer
 
 ### Stores
 - **src/stores/cad.store.ts** - Zustand store (verify if actually used in components)
@@ -183,7 +183,7 @@ These UI components are installed but never imported:
 
 ### Libraries
 - **dotenv** - Used in 10+ scripts for loading .env.local
-- **react-dropzone** - Used in CADAnalyzer and CADAnalyzerFull
+- **react-dropzone** - Used in CADAnalyzer and CADAnalyzer
 - **opencascade.js** - Dynamically imported in cad-parser.ts
 - **deadline-utils.ts** - Used in rfq.service.ts
 

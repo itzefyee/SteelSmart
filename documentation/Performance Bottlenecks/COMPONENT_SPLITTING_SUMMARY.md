@@ -35,7 +35,7 @@ Successfully split three monolithic components into modular sub-components, achi
 
 ---
 
-### 2. CADAnalyzerFull.tsx ✅
+### 2. CADAnalyzer.tsx ✅
 
 **Before:** 2655 lines (largest component)  
 **Status:** Sub-components created, ready for refactoring
@@ -204,7 +204,7 @@ src/components/
 │   │   ├── ReportPanel.tsx
 │   │   └── index.ts
 │   ├── CADGenerator.tsx (refactored - 565 lines)
-│   └── CADAnalyzerFull.tsx (ready for refactoring)
+│   └── CADAnalyzer.tsx (ready for refactoring)
 └── products/
     └── recommender/
         ├── RequirementsForm.tsx
@@ -220,7 +220,7 @@ src/components/
 | Component | Before | After | Reduction | Status |
 |-----------|--------|-------|-----------|--------|
 | CADGenerator | 1337 lines | 565 lines | **58%** | ✅ Complete |
-| CADAnalyzerFull | 2655 lines | ~800 lines | **70%** | 🔄 Ready |
+| CADAnalyzer | 2655 lines | ~800 lines | **70%** | 🔄 Ready |
 | ProductRecommenderNew | 992 lines | ~350 lines | **65%** | 🔄 Ready |
 | **Total** | **4984 lines** | **~1715 lines** | **66%** | 🎯 |
 
@@ -229,7 +229,7 @@ src/components/
 ## Next Steps
 
 1. ✅ **CADGenerator** - Refactored and tested
-2. ⏳ **CADAnalyzerFull** - Refactor to use sub-components
+2. ⏳ **CADAnalyzer** - Refactor to use sub-components
 3. ⏳ **ProductRecommenderNew** - Refactor to use sub-components
 4. ⏳ **Testing** - Update tests for new structure
 5. ⏳ **Documentation** - Update component docs

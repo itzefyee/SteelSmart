@@ -713,7 +713,7 @@ Add caching for sample files and analysis results.
 
 #### Task 4.2: Update CAD Analyzer Components
 **Files**:
-- `src/components/cad/CADAnalyzerFull.tsx`
+- `src/components/cad/CADAnalyzer.tsx`
 - `src/components/cad/CADAnalyzer.tsx`
 
 Replace direct fetch calls with hooks.

@@ -3,7 +3,7 @@
 ## Recent Changes Noted
 
 The following new files and features have been added since the spec was created:
-- `CADAnalyzerFull.tsx` - Full-featured CAD analyzer with manufacturing analysis
+- `CADAnalyzer.tsx` - Full-featured CAD analyzer with manufacturing analysis
 - `CADPreview3D.tsx` - Advanced 3D model viewer
 - `cad-parser.ts` - Enhanced with manufacturing analysis capabilities
 - `cad-manufacturing-analyzer.ts` - NEW: Manufacturing analysis utilities
@@ -114,7 +114,7 @@ These components have been incorporated into the implementation plan below.
 
   - Move CADGenerator.tsx to components/cad/
   - Move CADAnalyzer.tsx to components/cad/
-  - Move CADAnalyzerFull.tsx to components/cad/
+  - Move CADAnalyzer.tsx to components/cad/
 
   - Move CADPreview3D.tsx to components/cad/
   - Move CADHistory.tsx to components/cad/

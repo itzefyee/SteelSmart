@@ -126,7 +126,7 @@ Created modular sub-components in `src/components/products/recommender/`:
 - `RecommendationsList.tsx` - Tabbed results display
 - `index.ts` - Barrel export
 
-### 3.5 Split CADAnalyzerFull Component
+### 3.5 Split CADAnalyzer Component
 **Status:** ✅ **COMPLETED**
 
 **Implementation:**
@@ -167,7 +167,7 @@ Created modular sub-components in `src/components/cad/analyzer/`:
   - `GeneratedDrawingDisplay.tsx`
   - `DrawingEditorModal.tsx`
   - `index.ts`
-- `src/components/cad/analyzer/` - 5 sub-components for CADAnalyzerFull
+- `src/components/cad/analyzer/` - 5 sub-components for CADAnalyzer
   - `FileUploadSection.tsx`
   - `AnalysisResultsPanel.tsx`
   - `ValidationPanel.tsx`

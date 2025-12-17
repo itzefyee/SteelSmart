@@ -40,7 +40,7 @@ Enhanced the "Get AI Recommendations" button in CAD Analyzer to automatically po
 
 ## Implementation
 
-### 1. CAD Analyzer (CADAnalyzerFull.tsx)
+### 1. CAD Analyzer (CADAnalyzer.tsx)
 
 **Updated "Get AI Recommendations" button**:
 
