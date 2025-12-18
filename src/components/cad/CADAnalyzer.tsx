@@ -1008,11 +1008,8 @@ const CADAnalyzer: React.FC = () => {
       page-break-inside: avoid;
     }
   </style>
-  <style>
-    /* Page settings - separate style block to avoid parsing issues */
-  </style>
   <style type="text/css" media="print">
-    ${'@'}page { 
+    @page { 
       size: A4 portrait; 
       margin: 15mm 15mm 20mm 15mm;
     }
