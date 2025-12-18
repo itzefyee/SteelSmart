@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useCADHistory } from '@/hooks/useCADHistory';
-import CADHistoryDetailModal from './CADHistoryDetailModal';
 import type { CADHistory, DrawingAnalysis, RFQSubmission } from '@/lib/supabase';
 import { getSupabaseClient } from '@/lib/supabase';
+
+// Lazy load the modal for better performance
+const CADHistoryDetailModal = lazy(() => import('./CADHistoryDetailModal'));
 
 type HistoryTab = 'generations' | 'analyses' | 'rfqs';
 
@@ -20,9 +22,22 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
   const [analysisHistory, setAnalysisHistory] = useState<DrawingAnalysis[]>([]);
   const [analysisLoading, setAnalysisLoading] = useState(true);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisPage, setAnalysisPage] = useState(1);
+  const [analysisTotalCount, setAnalysisTotalCount] = useState(0);
+  
   const [rfqHistory, setRFQHistory] = useState<RFQSubmission[]>([]);
   const [rfqLoading, setRFQLoading] = useState(true);
   const [rfqError, setRFQError] = useState<string | null>(null);
+  const [rfqPage, setRFQPage] = useState(1);
+  const [rfqTotalCount, setRFQTotalCount] = useState(0);
+  
+  // Dropdown states for glass design
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [formatDropdownOpen, setFormatDropdownOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [selectedFormat, setSelectedFormat] = useState<string>('');
+  
+  const PAGE_SIZE = 9; // 9 records per page for all tabs
   
   const {
     history,
@@ -38,7 +53,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
     setStatusFilter,
     setFormatFilter,
     refresh,
-  } = useCADHistory({ userId, pageSize: 10 });
+  } = useCADHistory({ userId, pageSize: PAGE_SIZE });
 
   const loadAnalysisHistory = useCallback(async () => {
     if (!userId) {
@@ -52,12 +67,25 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
     setAnalysisError(null);
     try {
       const supabase = getSupabaseClient();
+      
+      // Get total count
+      const { count } = await supabase
+        .from('drawing_analyses')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+      
+      setAnalysisTotalCount(count || 0);
+      
+      // Get paginated data
+      const from = (analysisPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      
       const { data, error } = await supabase
         .from('drawing_analyses')
         .select('*')
         .eq('user_id', userId)
         .order('analyzed_at', { ascending: false })
-        .limit(15);
+        .range(from, to);
 
       if (error) throw error;
       setAnalysisHistory(data || []);
@@ -68,7 +96,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
     } finally {
       setAnalysisLoading(false);
     }
-  }, [userId]);
+  }, [userId, analysisPage]);
 
   const loadRFQHistory = useCallback(async () => {
     if (!userId) {
@@ -82,12 +110,25 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
     setRFQError(null);
     try {
       const supabase = getSupabaseClient();
+      
+      // Get total count
+      const { count } = await supabase
+        .from('rfq_submissions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+      
+      setRFQTotalCount(count || 0);
+      
+      // Get paginated data
+      const from = (rfqPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      
       const { data, error } = await supabase
         .from('rfq_submissions')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(15);
+        .range(from, to);
 
       if (error) throw error;
       setRFQHistory(data || []);
@@ -98,7 +139,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
     } finally {
       setRFQLoading(false);
     }
-  }, [userId]);
+  }, [userId, rfqPage]);
 
   useEffect(() => {
     loadAnalysisHistory();
@@ -107,6 +148,12 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
   useEffect(() => {
     loadRFQHistory();
   }, [loadRFQHistory]);
+
+  // Reset pagination when switching tabs
+  useEffect(() => {
+    setAnalysisPage(1);
+    setRFQPage(1);
+  }, [activeTab]);
 
   const handleRefresh = () => {
     if (activeTab === 'generations') {
@@ -224,8 +271,8 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
 
   const tabMeta: { key: HistoryTab; label: string; count: string | number }[] = [
     { key: 'generations', label: 'CAD Generations', count: loading ? '…' : totalCount },
-    { key: 'analyses', label: 'AI Analyses', count: analysisLoading ? '…' : analysisHistory.length },
-    { key: 'rfqs', label: 'RFQ Requests', count: rfqLoading ? '…' : rfqHistory.length },
+    { key: 'analyses', label: 'AI Analyses', count: analysisLoading ? '…' : analysisTotalCount },
+    { key: 'rfqs', label: 'RFQ Requests', count: rfqLoading ? '…' : rfqTotalCount },
   ];
 
   return (
@@ -274,39 +321,170 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
 
       {activeTab === 'generations' && (
         <>
-      {/* Filters */}
+      {/* Filters - Glass Design */}
       <div className="flex gap-4 mb-6">
-        <div>
-          <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
+        {/* Status Filter */}
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Status
           </label>
-          <select
-            id="status-filter"
-            onChange={(e) => setStatusFilter(e.target.value || null)}
-            className="glass-input"
-          >
-            <option value="">All Statuses</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-            <option value="processing">Processing</option>
-          </select>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+              onBlur={() => setTimeout(() => setStatusDropdownOpen(false), 200)}
+              className="glass-input w-full text-left flex items-center justify-between cursor-pointer"
+            >
+              <span>
+                {selectedStatus === '' && '📋 All Statuses'}
+                {selectedStatus === 'completed' && '✅ Completed'}
+                {selectedStatus === 'failed' && '❌ Failed'}
+                {selectedStatus === 'processing' && '⏳ Processing'}
+              </span>
+              <svg className={`w-4 h-4 text-gray-500 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {statusDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-2 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="glass-card py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStatus('');
+                      setStatusFilter(null);
+                      setStatusDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    📋 All Statuses
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStatus('completed');
+                      setStatusFilter('completed');
+                      setStatusDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    ✅ Completed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStatus('failed');
+                      setStatusFilter('failed');
+                      setStatusDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    ❌ Failed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStatus('processing');
+                      setStatusFilter('processing');
+                      setStatusDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    ⏳ Processing
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div>
-          <label htmlFor="format-filter" className="block text-sm font-medium text-gray-700 mb-1">
+        {/* Format Filter */}
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Format
           </label>
-          <select
-            id="format-filter"
-            onChange={(e) => setFormatFilter(e.target.value || null)}
-            className="glass-input"
-          >
-            <option value="">All Formats</option>
-            <option value="step">STEP</option>
-            <option value="stl">STL</option>
-            <option value="obj">OBJ</option>
-            <option value="gltf">GLTF</option>
-          </select>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setFormatDropdownOpen(!formatDropdownOpen)}
+              onBlur={() => setTimeout(() => setFormatDropdownOpen(false), 200)}
+              className="glass-input w-full text-left flex items-center justify-between cursor-pointer"
+            >
+              <span>
+                {selectedFormat === '' && '📁 All Formats'}
+                {selectedFormat === 'step' && '📐 STEP'}
+                {selectedFormat === 'stl' && '🔷 STL'}
+                {selectedFormat === 'obj' && '🎨 OBJ'}
+                {selectedFormat === 'gltf' && '✨ GLTF'}
+              </span>
+              <svg className={`w-4 h-4 text-gray-500 transition-transform ${formatDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {formatDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-2 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="glass-card py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFormat('');
+                      setFormatFilter(null);
+                      setFormatDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    📁 All Formats
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFormat('step');
+                      setFormatFilter('step');
+                      setFormatDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    📐 STEP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFormat('stl');
+                      setFormatFilter('stl');
+                      setFormatDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    🔷 STL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFormat('obj');
+                      setFormatFilter('obj');
+                      setFormatDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    🎨 OBJ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFormat('gltf');
+                      setFormatFilter('gltf');
+                      setFormatDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    ✨ GLTF
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -428,17 +606,19 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
         </>
       )}
 
-      {/* Detail Modal */}
-      <CADHistoryDetailModal
-        item={selectedItem}
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedItem(null);
-          setDeleteError(null);
-        }}
-        onDelete={handleDelete}
-      />
+      {/* Detail Modal - Lazy Loaded */}
+      <Suspense fallback={null}>
+        <CADHistoryDetailModal
+          item={selectedItem}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedItem(null);
+            setDeleteError(null);
+          }}
+          onDelete={handleDelete}
+        />
+      </Suspense>
         </>
       )}
 
@@ -468,76 +648,103 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
           )}
 
           {!analysisLoading && !analysisError && analysisHistory.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {analysisHistory.map((item) => {
-                const specPairs = extractSpecPairs(item.extracted_specs);
-                const recommendations = extractRecommendations(item.recommended_products);
-                const confidence = Math.round((item.confidence || 0) * 100);
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {analysisHistory.map((item) => {
+                  const specPairs = extractSpecPairs(item.extracted_specs);
+                  const recommendations = extractRecommendations(item.recommended_products);
+                  const confidence = Math.round((item.confidence || 0) * 100);
 
-                return (
-                  <div
-                    key={item.id}
-                    className="glass-card-compact hover:shadow-lg transition-shadow"
-                  >
-                    <div className="flex flex-col h-full">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
-                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                          </svg>
+                  return (
+                    <div
+                      key={item.id}
+                      className="glass-card-compact hover:shadow-lg transition-shadow"
+                    >
+                      <div className="flex flex-col h-full">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            </svg>
+                          </div>
+                          <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-semibold">
+                            {confidence}%
+                          </span>
                         </div>
-                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-semibold">
-                          {confidence}%
-                        </span>
-                      </div>
-                      
-                      <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 text-sm">
-                        {item.file_name}
-                      </h3>
-                      
-                      {specPairs.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {specPairs.slice(0, 2).map(([label, value]) => (
-                            <span key={`${item.id}-${label}`} className="px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-full">
-                              {label}: {value as string}
-                            </span>
-                          ))}
-                          {specPairs.length > 2 && (
-                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                              +{specPairs.length - 2} more
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      
-                      {recommendations.length > 0 && (
-                        <div className="mb-3">
-                          <p className="text-xs text-gray-500 mb-1">Recommendations:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {recommendations.slice(0, 2).map((rec, idx) => (
-                              <span key={`${item.id}-rec-${idx}`} className="px-2 py-1 bg-white border border-purple-100 text-purple-700 text-xs rounded">
-                                {rec.name}
+                        
+                        <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 text-sm">
+                          {item.file_name}
+                        </h3>
+                        
+                        {specPairs.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {specPairs.slice(0, 2).map(([label, value]) => (
+                              <span key={`${item.id}-${label}`} className="px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-full">
+                                {label}: {value as string}
                               </span>
                             ))}
-                            {recommendations.length > 2 && (
-                              <span className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded">
-                                +{recommendations.length - 2}
+                            {specPairs.length > 2 && (
+                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                +{specPairs.length - 2} more
                               </span>
                             )}
                           </div>
+                        )}
+                        
+                        {recommendations.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs text-gray-500 mb-1">Recommendations:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {recommendations.slice(0, 2).map((rec, idx) => (
+                                <span key={`${item.id}-rec-${idx}`} className="px-2 py-1 bg-white border border-purple-100 text-purple-700 text-xs rounded">
+                                  {rec.name}
+                                </span>
+                              ))}
+                              {recommendations.length > 2 && (
+                                <span className="px-2 py-1 bg-gray-50 text-gray-600 text-xs rounded">
+                                  +{recommendations.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="mt-auto pt-3 border-t border-gray-100">
+                          <span className="text-xs text-gray-500">
+                            {formatDate(item.analyzed_at)}
+                          </span>
                         </div>
-                      )}
-                      
-                      <div className="mt-auto pt-3 border-t border-gray-100">
-                        <span className="text-xs text-gray-500">
-                          {formatDate(item.analyzed_at)}
-                        </span>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination for AI Analyses */}
+              {analysisTotalCount > PAGE_SIZE && (
+                <div className="flex justify-between items-center mt-6 pt-6 border-t border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    Page {analysisPage} of {Math.ceil(analysisTotalCount / PAGE_SIZE)}
                   </div>
-                );
-              })}
-            </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setAnalysisPage(prev => Math.max(1, prev - 1))}
+                      disabled={analysisPage === 1}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setAnalysisPage(prev => Math.min(Math.ceil(analysisTotalCount / PAGE_SIZE), prev + 1))}
+                      disabled={analysisPage >= Math.ceil(analysisTotalCount / PAGE_SIZE)}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -568,58 +775,85 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
           )}
 
           {!rfqLoading && !rfqError && rfqHistory.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {rfqHistory.map((rfq) => (
-                <div
-                  key={rfq.id}
-                  className="glass-card-compact hover:shadow-lg transition-shadow"
-                >
-                  <div className="flex flex-col h-full">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getRFQStatusStyle(rfq.status)}`}>
-                        {(rfq.status || 'Submitted').replace(/_/g, ' ')}
-                      </span>
-                    </div>
-                    
-                    <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 text-sm">
-                      {rfq.project_description}
-                    </h3>
-                    
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full">
-                        Qty: {rfq.quantity?.toLocaleString()}
-                      </span>
-                      {rfq.material && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                          {rfq.material}
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {rfqHistory.map((rfq) => (
+                  <div
+                    key={rfq.id}
+                    className="glass-card-compact hover:shadow-lg transition-shadow"
+                  >
+                    <div className="flex flex-col h-full">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getRFQStatusStyle(rfq.status)}`}>
+                          {(rfq.status || 'Submitted').replace(/_/g, ' ')}
                         </span>
-                      )}
-                    </div>
-                    
-                    {rfq.specifications && (
-                      <p className="text-xs text-gray-600 mb-3 line-clamp-2">
-                        {rfq.specifications}
-                      </p>
-                    )}
-                    
-                    <div className="mt-auto pt-3 border-t border-gray-100 space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-500">Deadline:</span>
-                        <span className="font-medium text-gray-700">{formatDateOnly(rfq.deadline)}</span>
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {formatDate(rfq.created_at)}
+                      
+                      <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 text-sm">
+                        {rfq.project_description}
+                      </h3>
+                      
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full">
+                          Qty: {rfq.quantity?.toLocaleString()}
+                        </span>
+                        {rfq.material && (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                            {rfq.material}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {rfq.specifications && (
+                        <p className="text-xs text-gray-600 mb-3 line-clamp-2">
+                          {rfq.specifications}
+                        </p>
+                      )}
+                      
+                      <div className="mt-auto pt-3 border-t border-gray-100 space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Deadline:</span>
+                          <span className="font-medium text-gray-700">{formatDateOnly(rfq.deadline)}</span>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {formatDate(rfq.created_at)}
+                        </div>
                       </div>
                     </div>
                   </div>
+                ))}
+              </div>
+
+              {/* Pagination for RFQ Requests */}
+              {rfqTotalCount > PAGE_SIZE && (
+                <div className="flex justify-between items-center mt-6 pt-6 border-t border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    Page {rfqPage} of {Math.ceil(rfqTotalCount / PAGE_SIZE)}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setRFQPage(prev => Math.max(1, prev - 1))}
+                      disabled={rfqPage === 1}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setRFQPage(prev => Math.min(Math.ceil(rfqTotalCount / PAGE_SIZE), prev + 1))}
+                      disabled={rfqPage >= Math.ceil(rfqTotalCount / PAGE_SIZE)}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       )}
