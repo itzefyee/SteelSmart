@@ -1,8 +1,7 @@
 // Alternative Product Suggestion Service
 // Suggests alternatives when no viable products are found in catalog
-// Uses AI, industry standards, and external references
+// Uses AI (OpenRouter), industry standards, and external references
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { DrawingAnalysis, RecommendationScore } from '@/types';
 
 export interface AlternativeProduct {
@@ -43,22 +42,19 @@ export interface AlternativeSuggestionResponse {
  * Alternative Product Suggester
  * 
  * When no products match in the catalog, this service:
- * 1. Uses AI (Gemini) to generate intelligent alternatives
+ * 1. Uses AI (OpenRouter) to generate intelligent alternatives
  * 2. References industry standards (AISC, ASTM, ISO, etc.)
  * 3. Suggests standard part numbers from common catalogs
  * 4. Provides custom fabrication recommendations
  * 5. Suggests external suppliers and marketplaces
  */
 export class AlternativeProductSuggester {
-  private geminiClient: GoogleGenerativeAI | null = null;
-  private geminiModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
+  private apiKey: string;
+  private appUrl: string;
 
   constructor() {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_BACKUP_API_KEY;
-    if (apiKey) {
-      this.geminiClient = new GoogleGenerativeAI(apiKey);
-      this.geminiModel = this.geminiClient.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    }
+    this.apiKey = process.env.OPENROUTER_API_KEY || '';
+    this.appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   }
 
   /**
@@ -101,31 +97,73 @@ export class AlternativeProductSuggester {
   }
 
   /**
-   * Use Gemini AI to generate intelligent alternative suggestions
+   * Use OpenRouter AI to generate intelligent alternative suggestions
    */
   private async generateAIAlternatives(
     specs: DrawingAnalysis['extractedSpecs'],
     context: string
   ): Promise<AlternativeProduct[]> {
-    if (!this.geminiModel) {
+    if (!this.apiKey) {
       // Fallback if AI not available
+      console.log('OpenRouter API not configured for alternatives');
       return this.getFallbackAIAlternatives(specs);
     }
 
     const prompt = this.buildAIPrompt(specs, context);
 
     try {
-      const result = await this.geminiModel.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      console.log('Generating AI alternatives with OpenRouter...');
+      
+      // Call OpenRouter API
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+          'HTTP-Referer': this.appUrl,
+          'X-Title': 'SteelSmart Alternative Suggester',
+        },
+        body: JSON.stringify({
+          model: 'mistralai/devstral-2512:free', // Free model for text generation
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert mechanical engineer and procurement specialist. Always respond with valid JSON only, no additional text.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.4,
+          max_tokens: 2000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      const text = data.choices[0].message.content;
 
       // Parse JSON response
-      const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      let cleanedText = text.trim();
+      if (cleanedText.startsWith('```json')) {
+        cleanedText = cleanedText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      } else if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/```\n?/g, '');
+      }
+      cleanedText = cleanedText.trim();
+
       const parsed = JSON.parse(cleanedText);
+
+      console.log(`✓ Generated ${parsed.alternatives?.length || 0} AI alternatives`);
 
       return parsed.alternatives || [];
     } catch (error) {
-      console.error('Error generating AI alternatives:', error);
+      console.error('Error requesting AI alternatives:', error);
       return this.getFallbackAIAlternatives(specs);
     }
   }

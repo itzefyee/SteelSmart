@@ -40,6 +40,7 @@ export interface DrawingAnalysis {
   confidence: number;
   reasoning: string;
   analysisId: string;
+  isSampleDrawing?: boolean; // Flag to identify if analysis is from a sample drawing
   alternativeSuggestions?: {
     alternatives: Array<{
       name: string;

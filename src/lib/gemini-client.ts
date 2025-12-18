@@ -1,7 +1,7 @@
-// Google Gemini API client for drawing analysis
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// OpenRouter API client for drawing analysis (using Mistral Devstral - Free)
+// Previously used Google Gemini, now migrated to OpenRouter for better availability
 
-export const GEMINI_ANALYSIS_PROMPT = `
+export const GEMINI_ANALYSIS_PROMPT_BASE = `
 You are a technical expert analyzing engineering drawings and technical specifications.
 
 Analyze the uploaded technical drawing/document and extract:
@@ -19,6 +19,7 @@ Analyze the uploaded technical drawing/document and extract:
 - Include size/grade if visible (e.g., "Hex Bolt M12" not just "bolt")
 - Use industry-standard terminology
 - If the drawing has a title or part name, use that
+- Try to match against products in our catalog (see list below)
 - Examples of good product names:
   * "I-Beam Steel" (not "structural beam")
   * "Servo Motor" (not "motor")
@@ -30,26 +31,11 @@ CRITICAL: You MUST always provide a productName. If the exact product name is no
 1. The component type and shape (e.g., "Brake Rotor", "Mounting Bracket", "Steel Beam")
 2. The visible features (e.g., if you see holes and flanges, it might be a "Flange Plate")
 3. The dimensions and material (e.g., "Steel I-Beam 200mm")
+4. Match against our catalog products (see below)
 
-Never leave productName as null. Always provide your best identification.
+Never leave productName as null. Always provide your best identification.`;
 
-Respond ONLY with valid JSON in this exact format:
-{
-  "extractedSpecs": {
-    "productName": "REQUIRED: specific product name (never null)",
-    "dimensions": "extracted dimensions or null",
-    "material": "material type or null", 
-    "loadRequirements": "load/capacity info or null",
-    "componentType": "component category or null",
-    "tolerance": "precision requirements or null"
-  },
-  "confidence": 0.85,
-  "reasoning": "Brief explanation of what was identified and extraction confidence",
-  "suggestedCategories": ["category1", "category2"]
-}
-
-Be specific about measurements and technical details. If information is unclear or missing, set those fields to null (except productName which is always required).
-`;
+export const GEMINI_ANALYSIS_PROMPT = GEMINI_ANALYSIS_PROMPT_BASE;
 
 interface GeminiAnalysisResponse {
   extractedSpecs: {
@@ -66,16 +52,12 @@ interface GeminiAnalysisResponse {
 }
 
 export class GeminiClient {
-  private genAI: GoogleGenerativeAI | null = null;
-  private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
   private apiKey: string;
+  private appUrl: string;
 
   constructor() {
-    this.apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_BACKUP_API_KEY ||'';
-    if (this.apiKey) {
-      this.genAI = new GoogleGenerativeAI(this.apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    }
+    this.apiKey = process.env.OPENROUTER_API_KEY || '';
+    this.appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   }
 
   async analyzeDrawing(
@@ -84,55 +66,133 @@ export class GeminiClient {
     filename?: string,
     cadModelData?: any
   ): Promise<GeminiAnalysisResponse> {
-    if (!this.apiKey || !this.model) {
-      throw new Error('Gemini API key not configured or model not initialized');
+    console.log('========================================');
+    console.log('🚀 [GeminiClient] analyzeDrawing() called');
+    console.log('========================================');
+    console.log(`API Key configured: ${!!this.apiKey}`);
+    console.log(`API Key length: ${this.apiKey?.length || 0}`);
+    
+    if (!this.apiKey) {
+      console.error('[GeminiClient] ERROR: No API key configured!');
+      throw new Error('OpenRouter API key not configured. Set OPENROUTER_API_KEY in .env.local');
     }
+    
+    console.log('[GeminiClient] API key OK, proceeding...');
 
     try {
-      // Convert file to base64 for Gemini
+      // Convert file to base64
       const base64Data = fileBuffer.toString('base64');
+
+      console.log(`[GeminiClient] File buffer size: ${fileBuffer.length} bytes`);
+      console.log(`[GeminiClient] Filename: ${filename}`);
+      console.log(`[GeminiClient] MIME type: ${mimeType}`);
 
       // Check if this is a sample file (very small size indicates placeholder)
       if (fileBuffer.length < 100) {
+        console.log(`[GeminiClient] File too small (${fileBuffer.length} bytes), using sample analysis`);
         // For sample files, use default mock analysis for better demo results
         return this.getSampleAnalysis(filename, cadModelData);
       }
 
-      // For real files, prepare the image part for Gemini
-      const imagePart = {
-        inlineData: {
-          data: base64Data,
-          mimeType: mimeType
-        }
-      };
+      console.log(`[GeminiClient] File size OK, proceeding with OpenRouter API call...`);
 
-      // Build enhanced prompt with CAD data if available
-      let promptText = GEMINI_ANALYSIS_PROMPT;
+      // Build enhanced prompt with catalog products and CAD data
+      let promptText = GEMINI_ANALYSIS_PROMPT_BASE;
+      
+      // Add catalog context
+      promptText += await this.buildCatalogContext();
+      
+      // Add CAD data context if available
       if (cadModelData) {
         promptText += this.buildCADDataContext(cadModelData);
       }
-
-      console.log('Analyzing drawing with Gemini API (with image and CAD data)...');
-
-      // Call Gemini API with the image and prompt
-      const result = await this.model.generateContent([
-        promptText,
-        imagePart
-      ]);
-
-      const response = await result.response;
-      const text = response.text();
       
+      // Add response format instructions
+      promptText += this.getResponseFormatInstructions();
+
+      console.log('========================================');
+      console.log('🤖 Analyzing drawing with OpenRouter API');
+      console.log('========================================');
+      console.log(`File: ${filename}`);
+      console.log(`Size: ${fileBuffer.length} bytes`);
+      console.log(`Type: ${mimeType}`);
+      console.log(`Model: mistralai/devstral-2512:free`);
+      console.log(`Catalog products included: YES`);
+      console.log(`CAD model data included: ${cadModelData ? 'YES' : 'NO'}`);
+      console.log('========================================');
+
+      // Prepare image URL for OpenRouter (data URL format)
+      // NOTE: Image input commented out - mistralai/devstral-2512:free doesn't support images
+      // const imageDataUrl = `data:${mimeType};base64,${base64Data}`;
+
+      // Add file metadata to prompt since we can't send the image
+      promptText += `\n\n## File Information\n`;
+      promptText += `- Filename: ${filename}\n`;
+      promptText += `- File type: ${mimeType}\n`;
+      promptText += `- File size: ${fileBuffer.length} bytes\n`;
+      
+      if (cadModelData) {
+        promptText += `\n**Note:** This analysis is based on parsed 3D CAD model data (see above). `;
+        promptText += `Use the extracted dimensions, hole analysis, and geometry information to identify the product.`;
+      } else {
+        promptText += `\n**Note:** Analyze based on the filename and any available context. `;
+        promptText += `Try to match against the catalog products listed above.`;
+      }
+
+      // Call OpenRouter API with text-only model
+      console.log('[OpenRouter] Sending request...');
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+          'HTTP-Referer': this.appUrl,
+          'X-Title': 'SteelSmart CAD Analyzer',
+        },
+        body: JSON.stringify({
+          model: 'mistralai/devstral-2512:free', // Free text model (no image support)
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a technical expert analyzing engineering drawings and CAD data. Always respond with valid JSON only, no additional text.'
+            },
+            {
+              role: 'user',
+              content: promptText // Text only - no image
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 2000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[OpenRouter] API Error:', response.status, errorText);
+        throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+      }
+
+      console.log('[OpenRouter] Response received successfully');
+      const data = await response.json();
+      const text = data.choices[0].message.content;
+      console.log('[OpenRouter] Raw response length:', text.length, 'characters');
 
       // Parse the JSON response
       try {
         // Clean up the response text (remove markdown code blocks if present)
-        const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        let cleanedText = text.trim();
+        if (cleanedText.startsWith('```json')) {
+          cleanedText = cleanedText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+        } else if (cleanedText.startsWith('```')) {
+          cleanedText = cleanedText.replace(/```\n?/g, '');
+        }
+        cleanedText = cleanedText.trim();
+
         const analysisResult = JSON.parse(cleanedText);
         
         // Validate the response structure
         if (!analysisResult.extractedSpecs || typeof analysisResult.confidence !== 'number') {
-          throw new Error('Invalid response structure from Gemini API');
+          throw new Error('Invalid response structure from OpenRouter API');
         }
 
         // Ensure productName is never null - use componentType as fallback
@@ -142,10 +202,12 @@ export class GeminiClient {
             'Unknown Component';
         }
 
+        console.log(`✓ Analysis completed. Product: ${analysisResult.extractedSpecs.productName}, Confidence: ${Math.round(analysisResult.confidence * 100)}%`);
+
         return analysisResult;
         
       } catch (parseError) {
-        console.error('Error parsing Gemini response:', parseError);
+        console.error('Error parsing OpenRouter response:', parseError);
         console.error('Raw response text:', text);
         
         // Fallback: return a structured response based on the raw text
@@ -165,13 +227,85 @@ export class GeminiClient {
       }
 
     } catch (error) {
-      console.error('Error calling Gemini API:', error);
-      throw new Error(`Failed to analyze drawing with Gemini API: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error calling OpenRouter API:', error);
+      throw new Error(`Failed to analyze drawing with OpenRouter API: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async isConfigured(): Promise<boolean> {
-    return !!(this.apiKey && this.model);
+    return !!this.apiKey;
+  }
+
+  private async buildCatalogContext(): Promise<string> {
+    try {
+      // Dynamically import to avoid circular dependencies
+      const { getSupabaseServer } = await import('./supabase-server');
+      const supabase = await getSupabaseServer();
+      
+      // Fetch all product names from catalog
+      const { data: products, error } = await supabase
+        .from('products')
+        .select('name, category')
+        .order('category', { ascending: true });
+      
+      if (error || !products || products.length === 0) {
+        console.warn('Could not fetch product catalog for AI context');
+        return '';
+      }
+      
+      // Group products by category
+      const byCategory: Record<string, string[]> = {};
+      products.forEach(p => {
+        if (!byCategory[p.category]) {
+          byCategory[p.category] = [];
+        }
+        byCategory[p.category].push(p.name);
+      });
+      
+      let context = '\n\n## 📦 Available Products in Our Catalog\n\n';
+      context += 'When identifying the product name, try to match against these products in our catalog:\n\n';
+      
+      Object.entries(byCategory).forEach(([category, names]) => {
+        context += `**${category.charAt(0).toUpperCase() + category.slice(1)}** (${names.length} products):\n`;
+        names.forEach(name => {
+          context += `  • ${name}\n`;
+        });
+        context += '\n';
+      });
+      
+      context += '**Matching Guidelines:**\n';
+      context += '- If the drawing closely matches a catalog product, use that exact product name\n';
+      context += '- If it\'s similar but not exact, use the closest match and note differences in reasoning\n';
+      context += '- If no match exists, use a descriptive name based on the component type\n';
+      context += '- Prioritize catalog matches to help users find existing products\n\n';
+      
+      return context;
+    } catch (error) {
+      console.error('Error building catalog context:', error);
+      return '';
+    }
+  }
+
+  private getResponseFormatInstructions(): string {
+    return `
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "extractedSpecs": {
+    "productName": "REQUIRED: specific product name (never null)",
+    "dimensions": "extracted dimensions or null",
+    "material": "material type or null", 
+    "loadRequirements": "load/capacity info or null",
+    "componentType": "component category or null",
+    "tolerance": "precision requirements or null"
+  },
+  "confidence": 0.85,
+  "reasoning": "Brief explanation of what was identified and extraction confidence",
+  "suggestedCategories": ["category1", "category2"]
+}
+
+Be specific about measurements and technical details. If information is unclear or missing, set those fields to null (except productName which is always required).
+`;
   }
 
   private buildCADDataContext(cadModelData: any): string {

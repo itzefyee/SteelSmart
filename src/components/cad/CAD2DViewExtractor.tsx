@@ -10,6 +10,8 @@ interface CAD2DViewExtractorProps {
   fileName?: string;
   initialOrthographicViews?: GeneratedView[];
   initialPerspectiveViews?: GeneratedView[];
+  disabled?: boolean;
+  loadingMessage?: string;
 }
 
 const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
@@ -17,6 +19,8 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
   fileName = 'model',
   initialOrthographicViews,
   initialPerspectiveViews,
+  disabled = false,
+  loadingMessage,
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedViews, setGeneratedViews] = useState<GeneratedView[]>([]);
@@ -119,7 +123,22 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border p-6">
+    <div className="bg-white rounded-xl shadow-lg border p-6 relative">
+      {/* Loading Overlay */}
+      {disabled && (
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-xl z-10 flex items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+            <p className="text-sm font-medium text-gray-700">
+              {loadingMessage || 'Loading 3D model...'}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              View extraction will be available once the model loads
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-gray-900 mb-2">
           2D View Extraction
@@ -134,13 +153,13 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
         <div className="mb-4 space-y-3">
           <Button
             onClick={handleExtractViews}
-            disabled={isGenerating}
+            disabled={isGenerating || disabled}
             isLoading={isGenerating}
             className="w-full"
           >
             {isGenerating ? 'Preparing Views...' : 'Extract 2D + Perspective Views'}
           </Button>
-          {!cadModelData && generatedViews.length === 0 && perspectiveViews.length === 0 && (
+          {!cadModelData && generatedViews.length === 0 && perspectiveViews.length === 0 && !disabled && (
             <p className="text-sm text-gray-500 mt-2">
               Upload a compatible 3D CAD file to unlock automated view extraction.
             </p>
@@ -164,7 +183,7 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
               onClick={handleRegenerateViews}
               variant="outline"
               size="sm"
-              disabled={isGenerating}
+              disabled={isGenerating || disabled}
               isLoading={isGenerating}
               className="w-full"
             >
@@ -174,6 +193,7 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
               onClick={handleDownloadAll}
               variant="outline"
               size="sm"
+              disabled={disabled}
               className="w-full"
             >
               Download Views
@@ -182,6 +202,7 @@ const CAD2DViewExtractor: React.FC<CAD2DViewExtractorProps> = ({
               onClick={handleClearViews}
               variant="outline"
               size="sm"
+              disabled={disabled}
               className="w-full"
             >
               Clear Views

@@ -17,13 +17,32 @@ interface ProductWithStructuredSpecs extends ProductRow {
 interface NormalizedSpecs {
   raw: DrawingAnalysis['extractedSpecs'];
   componentTokens: string[];
-  componentTypeId?: string;
-  categoryHint?: string;
+  componentTypeId?: string; // Specific component taxonomy ID (e.g., "servo-motor-high-torque")
+  categoryHint?: string; // Inferred broad category (structural, robotic, fasteners, custom)
+  explicitCategory?: string; // User-selected category from dropdown (not inferred)
   materialFamily?: string;
   materialToken?: string;
   dimensionValues: number[];
   loadValues: number[];
+  isSampleDrawing?: boolean; // Flag to identify if from sample drawing (for scoring bonus)
 }
+
+/**
+ * IMPORTANT: Component Type vs Category
+ * 
+ * - Component Type: Specific product type from taxonomy (e.g., "High-Torque Servo Motor", "I-Beam", "Hex Bolt M8")
+ *   - Stored in: component_type_id (references component_taxonomy table)
+ *   - Used for: Precise matching within a category
+ *   - Example: "servo-motor-high-torque" is a component type within "robotic" category
+ * 
+ * - Category: Broad product classification (structural, robotic, fasteners, custom)
+ *   - Stored in: category (enum field on products table)
+ *   - Used for: High-level filtering and user navigation
+ *   - Example: All servo motors, actuators, sensors belong to "robotic" category
+ * 
+ * Hierarchy: Category > Component Type > Individual Product
+ * Example: Robotic > Servo Motor > "Dynamixel AX-12A Servo Motor"
+ */
 
 export class ProductMatcher {
   private taxonomyCache: { data: ComponentTaxonomyRow[]; expires: number } | null = null;
@@ -36,7 +55,7 @@ export class ProductMatcher {
     analysis: DrawingAnalysis,
     client?: SupabaseClient
   ): Promise<RecommendationScore[]> {
-    return this.findMatchesFromSpecs(analysis.extractedSpecs, client);
+    return this.findMatchesFromSpecs(analysis.extractedSpecs, client, undefined, analysis.isSampleDrawing);
   }
 
   /**
@@ -55,17 +74,30 @@ export class ProductMatcher {
   ): Promise<RecommendationScore[]> {
     const supabase = client ?? await getSupabaseServer();
 
+    // Check if user explicitly selected a category
+    const hasExplicitCategory = specs.category && specs.category !== 'all';
+    const hasOtherSpecs = !!(specs.productName || specs.material || specs.dimensions || specs.loadCapacity);
+
+    // If only category is selected (no other specs), do category-only search
+    if (hasExplicitCategory && !hasOtherSpecs) {
+      return this.searchByCategory(specs.category!, supabase);
+    }
+
     // If product name is provided, do a direct name/keyword search first
     if (specs.productName && specs.productName.trim()) {
-      const nameResults = await this.searchByProductName(specs.productName, supabase);
+      const nameResults = await this.searchByProductName(
+        specs.productName, 
+        supabase,
+        hasExplicitCategory ? specs.category : undefined
+      );
       
       // If we have good name matches, return them
       if (nameResults.length > 0) {
         // If other specs are provided, filter name results by those specs
-        if (specs.material || specs.dimensions || specs.loadCapacity || (specs.category && specs.category !== 'all')) {
+        if (specs.material || specs.dimensions || specs.loadCapacity || hasExplicitCategory) {
           const componentType =
             specs.componentType ||
-            (specs.category && specs.category !== 'all' ? specs.category : undefined);
+            (hasExplicitCategory ? specs.category : undefined);
 
           const extractedSpecs: DrawingAnalysis['extractedSpecs'] = {
             material: specs.material,
@@ -75,7 +107,7 @@ export class ProductMatcher {
           };
           
           // Re-score name results with additional specs
-          const normalized = await this.normalizeSpecs(extractedSpecs, supabase);
+          const normalized = await this.normalizeSpecs(extractedSpecs, supabase, hasExplicitCategory ? specs.category : undefined);
           const candidates = await this.fetchProductsByIds(nameResults.map(r => r.productId), supabase);
           
           const rescored = candidates
@@ -93,7 +125,7 @@ export class ProductMatcher {
     // Fall back to spec-based matching
     const componentType =
       specs.componentType ||
-      (specs.category && specs.category !== 'all' ? specs.category : undefined);
+      (hasExplicitCategory ? specs.category : undefined);
 
     const extractedSpecs: DrawingAnalysis['extractedSpecs'] = {
       material: specs.material,
@@ -101,7 +133,48 @@ export class ProductMatcher {
       loadRequirements: specs.loadCapacity,
       componentType,
     };
-    return this.findMatchesFromSpecs(extractedSpecs, client);
+    return this.findMatchesFromSpecs(extractedSpecs, client, hasExplicitCategory ? specs.category : undefined);
+  }
+
+  /**
+   * Search products by category only
+   * Used when user selects category without other specs
+   */
+  private async searchByCategory(
+    category: string,
+    client: SupabaseClient
+  ): Promise<RecommendationScore[]> {
+    const { data: products, error } = await client
+      .from('products')
+      .select('*')
+      .eq('category', category)
+      .order('in_stock', { ascending: false }) // In-stock first
+      .order('name', { ascending: true })
+      .limit(50);
+
+    if (error || !products || products.length === 0) {
+      return [];
+    }
+
+    // Score based on availability and data completeness
+    return products.map((product, index) => {
+      let score = 0.75; // Base score for category match
+      
+      // Boost for in-stock
+      if (product.in_stock) {
+        score += 0.15;
+      }
+      
+      // Small penalty for position (to differentiate)
+      score -= index * 0.005;
+      
+      return {
+        productId: product.id,
+        score: Math.min(score, 0.95),
+        reasoning: `${category.charAt(0).toUpperCase() + category.slice(1)} category product${product.in_stock ? ' (in stock)' : ''}`,
+        matchedSpecs: ['category', ...(product.in_stock ? ['availability'] : [])],
+      };
+    });
   }
 
   /**
@@ -110,7 +183,8 @@ export class ProductMatcher {
    */
   private async searchByProductName(
     searchTerm: string,
-    client: SupabaseClient
+    client: SupabaseClient,
+    filterCategory?: string
   ): Promise<RecommendationScore[]> {
     const searchTokens = searchTerm.toLowerCase().trim().split(/\s+/);
     
@@ -119,6 +193,11 @@ export class ProductMatcher {
       .from('products')
       .select('*')
       .limit(20);
+
+    // Filter by category if provided
+    if (filterCategory && filterCategory !== 'all') {
+      query = query.eq('category', filterCategory);
+    }
 
     // Search in name and description
     const searchPattern = `%${searchTerm.toLowerCase()}%`;
@@ -152,8 +231,9 @@ export class ProductMatcher {
         descTokens.some(descToken => descToken.includes(token) || token.includes(descToken))
       ).length;
 
-      // Calculate relevance score
+      // Calculate base relevance score
       let relevanceScore = 0;
+      const matchedSpecs: string[] = ['productName'];
       
       // Exact name match gets highest score
       if (product.name.toLowerCase() === searchTerm.toLowerCase()) {
@@ -170,16 +250,41 @@ export class ProductMatcher {
         relevanceScore = (nameScore * 0.7) + (descScore * 0.3);
       }
 
+      // Boost for category match (if filtering by category)
+      if (filterCategory && filterCategory !== 'all' && product.category === filterCategory) {
+        relevanceScore += 0.05;
+        matchedSpecs.push('category');
+      }
+
       // Boost for in-stock items
       if (product.in_stock) {
         relevanceScore += 0.05;
+        matchedSpecs.push('availability');
+      }
+
+      // Calculate data quality for confidence
+      const dataQuality = this.calculateDataQuality(productWithSpecs);
+      const confidenceMultiplier = 0.85 + (0.15 * dataQuality.completeness); // 85-100%
+
+      // Apply confidence multiplier
+      const finalScore = relevanceScore * confidenceMultiplier;
+
+      // Build reasoning
+      let reasoning = `Matches search term "${searchTerm}"`;
+      if (filterCategory && filterCategory !== 'all') {
+        reasoning += ` in ${filterCategory} category`;
+      }
+      if (product.in_stock) {
+        reasoning += ' (in stock)';
       }
 
       return {
         productId: product.id,
-        score: Math.min(relevanceScore, 0.99),
-        reasoning: `Matches search term "${searchTerm}"`,
-        matchedSpecs: ['productName', product.in_stock ? 'availability' : ''].filter(Boolean),
+        score: Math.min(finalScore, 0.99),
+        confidence: dataQuality.completeness,
+        dataQuality,
+        reasoning,
+        matchedSpecs,
       };
     })
     .filter(score => score.score > 0.3) // Filter out weak matches
@@ -306,10 +411,12 @@ export class ProductMatcher {
 
   private async findMatchesFromSpecs(
     extractedSpecs: DrawingAnalysis['extractedSpecs'],
-    client?: SupabaseClient
+    client?: SupabaseClient,
+    explicitCategory?: string,
+    isSampleDrawing?: boolean
   ): Promise<RecommendationScore[]> {
     const supabase = client ?? await getSupabaseServer();
-    const normalized = await this.normalizeSpecs(extractedSpecs, supabase);
+    const normalized = await this.normalizeSpecs(extractedSpecs, supabase, explicitCategory, isSampleDrawing);
     const candidates = await this.fetchCandidateProducts(normalized, supabase);
     const scored = candidates
       .map(product => this.scoreProduct(product, normalized))
@@ -325,7 +432,9 @@ export class ProductMatcher {
 
   private async normalizeSpecs(
     specs: DrawingAnalysis['extractedSpecs'],
-    client: SupabaseClient
+    client: SupabaseClient,
+    explicitCategory?: string,
+    isSampleDrawing?: boolean
   ): Promise<NormalizedSpecs> {
     const componentTokens = this.tokenize(specs.componentType);
     const taxonomy = await this.getComponentTaxonomy(client);
@@ -347,8 +456,10 @@ export class ProductMatcher {
       }
     }
 
-    const materialToken = specs.material?.toLowerCase().split(/[\s,/]+/).filter(Boolean)[0];
-    const normalizedMaterial = specs.material?.toLowerCase();
+    // Ensure material is a string before processing
+    const materialString = typeof specs.material === 'string' ? specs.material : String(specs.material || '');
+    const materialToken = materialString ? materialString.toLowerCase().split(/[\s,/]+/).filter(Boolean)[0] : undefined;
+    const normalizedMaterial = materialString ? materialString.toLowerCase() : undefined;
     let materialFamily = undefined as string | undefined;
 
     if (normalizedMaterial) {
@@ -360,10 +471,12 @@ export class ProductMatcher {
       componentTokens,
       componentTypeId,
       categoryHint,
+      explicitCategory,
       materialFamily,
       materialToken,
-      dimensionValues: this.extractNumbers(specs.dimensions ?? ''),
-      loadValues: this.extractNumbers(specs.loadRequirements ?? ''),
+      dimensionValues: this.extractNumbers(String(specs.dimensions || '')),
+      loadValues: this.extractNumbers(String(specs.loadRequirements || '')),
+      isSampleDrawing,
     };
   }
 
@@ -395,9 +508,16 @@ export class ProductMatcher {
       .select('*')
       .limit(100);
 
-    if (specs.componentTypeId) {
+    // Priority 1: Explicit category (user-selected)
+    if (specs.explicitCategory && specs.explicitCategory !== 'all') {
+      query = query.eq('category', specs.explicitCategory);
+    }
+    // Priority 2: Component type ID
+    else if (specs.componentTypeId) {
       query = query.eq('component_type_id', specs.componentTypeId);
-    } else if (specs.categoryHint) {
+    }
+    // Priority 3: Inferred category hint
+    else if (specs.categoryHint) {
       query = query.eq('category', specs.categoryHint);
     }
 
@@ -452,28 +572,32 @@ export class ProductMatcher {
   ): RecommendationScore | null {
     // Calculate individual component scores
     const componentScore = this.calculateComponentScore(product, specs);
+    const categoryScore = this.calculateCategoryScore(product, specs);
     const materialScore = this.calculateMaterialScore(product, specs);
     const dimensionScore = this.calculateDimensionContribution(product, specs);
     const loadScore = this.calculateLoadContribution(product, specs);
 
     const matchedSpecs: string[] = [];
     if (componentScore > 0) matchedSpecs.push('componentType');
+    if (categoryScore > 0) matchedSpecs.push('category');
     if (materialScore > 0) matchedSpecs.push('material');
     if (dimensionScore > 0) matchedSpecs.push('dimensions');
     if (loadScore > 0) matchedSpecs.push('loadRequirements');
 
     // Determine which fields have data in the search specs
     const hasComponentData = specs.componentTokens.length > 0 || !!specs.componentTypeId;
+    const hasExplicitCategory = !!specs.explicitCategory && specs.explicitCategory !== 'all';
     const hasMaterialData = !!specs.raw.material;
     const hasDimensionData = specs.dimensionValues.length > 0;
     const hasLoadData = specs.loadValues.length > 0;
 
     // Calculate adaptive weights (redistribute if data missing)
     let weights = {
-      component: hasComponentData ? 0.45 : 0,
-      material: hasMaterialData ? 0.20 : 0,
-      dimension: hasDimensionData ? 0.20 : 0,
-      load: hasLoadData ? 0.15 : 0,
+      component: hasComponentData ? 0.35 : 0,
+      category: hasExplicitCategory ? 0.30 : 0, // Significant weight when explicitly selected
+      material: hasMaterialData ? 0.15 : 0,
+      dimension: hasDimensionData ? 0.15 : 0,
+      load: hasLoadData ? 0.05 : 0,
     };
 
     // Redistribute unused weights proportionally
@@ -488,6 +612,7 @@ export class ProductMatcher {
     // Calculate weighted score
     let finalScore =
       componentScore * weights.component +
+      categoryScore * weights.category +
       materialScore * weights.material +
       dimensionScore * weights.dimension +
       loadScore * weights.load;
@@ -498,12 +623,38 @@ export class ProductMatcher {
       matchedSpecs.push('availability');
     }
 
+    // Sample drawing bonus - boost scores to 90% minimum for sample drawings
+    if (specs.isSampleDrawing && finalScore > 0.05) {
+      // Ensure sample drawing matches get at least 90% score
+      finalScore = Math.max(finalScore, 0.90);
+      matchedSpecs.push('sample-drawing-match');
+    }
+
+    // Exact product name match bonus (non-sample drawings only)
+    if (!specs.isSampleDrawing && specs.raw.productName) {
+      const productNameLower = product.name.toLowerCase();
+      const searchNameLower = specs.raw.productName.toLowerCase();
+      
+      // Check for exact or very close name match
+      if (productNameLower === searchNameLower || 
+          productNameLower.includes(searchNameLower) || 
+          searchNameLower.includes(productNameLower)) {
+        finalScore += 0.15; // 15% bonus for name match
+        matchedSpecs.push('exact-name-match');
+      }
+    }
+
     // Calculate data completeness for confidence scoring
     const dataQuality = this.calculateDataQuality(product);
     const confidenceMultiplier = 0.7 + (0.3 * dataQuality.completeness); // 70-100%
 
-    // Apply confidence multiplier
-    finalScore = finalScore * confidenceMultiplier;
+    // Apply confidence multiplier (but not to sample drawing bonus)
+    if (!specs.isSampleDrawing) {
+      finalScore = finalScore * confidenceMultiplier;
+    } else {
+      // For sample drawings, apply a lighter multiplier to preserve the 90% minimum
+      finalScore = Math.max(0.90, finalScore * confidenceMultiplier);
+    }
 
     if (finalScore <= 0.05) {
       return null;
@@ -524,10 +675,27 @@ export class ProductMatcher {
    */
   private calculateComponentScore(product: ProductWithStructuredSpecs, specs: NormalizedSpecs): number {
     if (specs.componentTypeId && product.component_type_id === specs.componentTypeId) {
-      return 0.45;
+      return 1.0; // Perfect match (will be weighted)
     } else if (this.keywordMatch(product, specs.componentTokens)) {
-      return 0.35;
+      return 0.8; // Good keyword match (will be weighted)
     }
+    return 0;
+  }
+
+  /**
+   * Calculate category match score (when explicitly selected by user)
+   */
+  private calculateCategoryScore(product: ProductWithStructuredSpecs, specs: NormalizedSpecs): number {
+    // Only score if user explicitly selected a category
+    if (!specs.explicitCategory || specs.explicitCategory === 'all') {
+      return 0;
+    }
+
+    // Exact category match
+    if (product.category === specs.explicitCategory) {
+      return 1.0; // Perfect match (will be weighted)
+    }
+
     return 0;
   }
 
@@ -645,6 +813,10 @@ export class ProductMatcher {
     matchedSpecs: string[]
   ): string {
     const reasons: string[] = [];
+
+    if (matchedSpecs.includes('category') && specs.explicitCategory) {
+      reasons.push(`${specs.explicitCategory.charAt(0).toUpperCase() + specs.explicitCategory.slice(1)} category match`);
+    }
 
     if (matchedSpecs.includes('componentType') && specs.raw.componentType) {
       reasons.push(`Matches component type (${specs.raw.componentType})`);
@@ -815,6 +987,10 @@ export class ProductMatcher {
   }
 
   private extractNumbers(text: string): number[] {
+    // Ensure text is a string
+    if (!text || typeof text !== 'string') {
+      return [];
+    }
     const matches = text.match(/\d+\.?\d*/g);
     return matches ? matches.map(Number) : [];
   }

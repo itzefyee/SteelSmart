@@ -32,6 +32,7 @@ export const SAMPLE_ANALYSIS_CACHE: Record<SampleCacheKey, DrawingAnalysis> = {
     reasoning:
       'Cached AI analysis from the I-Beam STEP sample (May 2024 run). Geometry validated against S355 span tables and matched to compatible plates, brackets, and M12 hardware.',
     analysisId: 'sample_analysis_ibeam_v1',
+    isSampleDrawing: true,
   },
   drillGuide: {
     extractedSpecs: {
@@ -53,6 +54,7 @@ export const SAMPLE_ANALYSIS_CACHE: Record<SampleCacheKey, DrawingAnalysis> = {
     reasoning:
       'Cached AI analysis from the Drill Guide STEP sample. Identified stainless tooling requirements plus compatible brackets and hardware for fixture integration.',
     analysisId: 'sample_analysis_drillguide_v1',
+    isSampleDrawing: true,
   },
   brakeRotor: {
     extractedSpecs: {
@@ -74,6 +76,7 @@ export const SAMPLE_ANALYSIS_CACHE: Record<SampleCacheKey, DrawingAnalysis> = {
     reasoning:
       'Cached AI analysis for the Brake Rotor STEP sample. Matched to heat-treated rotors plus supporting Grade 8 hardware for hub assemblies.',
     analysisId: 'sample_analysis_brakerotor_v1',
+    isSampleDrawing: true,
   },
 };
 

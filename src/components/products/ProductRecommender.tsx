@@ -7,7 +7,7 @@ import type { Product } from '@/lib/supabase';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/ToastProvider';
 import StagedProgress, { StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
-import { useCombinedRecommendations } from '@/hooks/useRecommendations';
+import { useCatalogMatches, useAlternatives } from '@/hooks/useRecommendations';
 import type { ProductSpecs, CatalogMatchResult, AlternativeProduct } from '@/lib/api/recommendation-api';
 
 interface RecommendationItem {
@@ -20,8 +20,7 @@ interface RecommendationItem {
 
 const buildStageTemplate = (): StagedProgressItem[] => ([
   { id: 'catalog', label: 'Catalog Search', status: 'pending' },
-  { id: 'alternatives', label: 'AI Alternatives', status: 'pending' },
-  { id: 'ranking', label: 'Scoring & Ranking', status: 'pending' }
+  { id: 'alternatives', label: 'AI Alternatives', status: 'pending' }
 ]);
 
 const ProductRecommender: React.FC = () => {
@@ -38,14 +37,22 @@ const ProductRecommender: React.FC = () => {
   // State for search specs (triggers React Query when set)
   const [searchSpecs, setSearchSpecs] = useState<ProductSpecs | null>(null);
   
-  // Use React Query hook for combined recommendations (parallel queries with caching)
-  const {
-    catalogMatches,
-    alternatives,
-    isLoading,
-    isError,
-    error,
-  } = useCombinedRecommendations(searchSpecs || {}, !!searchSpecs);
+  // State to control when to fetch alternatives
+  const [shouldFetchAlternatives, setShouldFetchAlternatives] = useState(false);
+  
+  // Dropdown states
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  
+  // Use separate hooks for catalog and alternatives
+  const catalogQuery = useCatalogMatches(searchSpecs || {}, !!searchSpecs);
+  const alternativesQuery = useAlternatives(searchSpecs || {}, !!searchSpecs && shouldFetchAlternatives);
+  
+  const catalogMatches = catalogQuery.data || [];
+  const alternatives = alternativesQuery.data || [];
+  const isLoading = catalogQuery.isLoading || (shouldFetchAlternatives && alternativesQuery.isLoading);
+  const isError = catalogQuery.isError || alternativesQuery.isError;
+  const error = catalogQuery.error || alternativesQuery.error;
   
   const [rankedRecommendations, setRankedRecommendations] = useState<RecommendationItem[]>([]);
   const [activeTab, setActiveTab] = useState<'direct' | 'alternatives' | 'ranked'>('direct');
@@ -110,6 +117,49 @@ const ProductRecommender: React.FC = () => {
     return 'all';
   };
 
+  // Save results to localStorage when they change
+  useEffect(() => {
+    if (catalogMatches.length > 0 || alternatives.length > 0) {
+      localStorage.setItem('recommenderResults', JSON.stringify({
+        catalogMatches,
+        alternatives,
+        rankedRecommendations,
+        timestamp: Date.now()
+      }));
+      localStorage.setItem('recommenderRequirements', JSON.stringify(requirements));
+    }
+  }, [catalogMatches, alternatives, rankedRecommendations, requirements]);
+
+  // Restore results from localStorage on mount (if less than 5 minutes old)
+  useEffect(() => {
+    const savedResults = localStorage.getItem('recommenderResults');
+    const savedRequirements = localStorage.getItem('recommenderRequirements');
+    
+    if (savedResults && savedRequirements) {
+      try {
+        const { catalogMatches: savedCatalog, alternatives: savedAlternatives, rankedRecommendations: savedRanked, timestamp } = JSON.parse(savedResults);
+        const fiveMinutes = 5 * 60 * 1000;
+        
+        if (Date.now() - timestamp < fiveMinutes) {
+          setRequirements(JSON.parse(savedRequirements));
+          // Results will be restored via React Query cache
+          addToast({
+            type: 'info',
+            title: 'Previous search restored',
+            description: 'Your recent recommendations are still available'
+          });
+        } else {
+          localStorage.removeItem('recommenderResults');
+          localStorage.removeItem('recommenderRequirements');
+        }
+      } catch (error) {
+        console.error('Error restoring results:', error);
+        localStorage.removeItem('recommenderResults');
+        localStorage.removeItem('recommenderRequirements');
+      }
+    }
+  }, [addToast]);
+
   // Check for analysis data from CAD Analyzer (only once on mount)
   useEffect(() => {
     let isMounted = true;
@@ -122,6 +172,11 @@ const ProductRecommender: React.FC = () => {
           try {
             const data = JSON.parse(storedAnalysis);
             setAnalysisData(data);
+            
+            // Clear previous results when new analysis is loaded
+            localStorage.removeItem('recommenderResults');
+            localStorage.removeItem('recommenderRequirements');
+            
             addToast({
               type: 'info',
               title: 'Loaded CAD analysis specs'
@@ -192,76 +247,67 @@ const ProductRecommender: React.FC = () => {
     
     console.log('🔍 Starting search with specs:', specsToSearch);
     
+    // Clear previous results from localStorage on new search
+    localStorage.removeItem('recommenderResults');
+    localStorage.removeItem('recommenderRequirements');
+    
     // Trigger React Query by setting search specs
-    // This will automatically fetch both catalog matches and alternatives in parallel
+    // Reset alternatives flag on new search
+    setShouldFetchAlternatives(false);
     setSearchSpecs(specsToSearch);
   };
 
-  // Effect to handle results from React Query and update stages
+  // Effect to handle catalog search results
   useEffect(() => {
     if (!searchSpecs) return;
     
-    // Track if we've already processed this search to avoid infinite loops
-    const searchKey = JSON.stringify({ isLoading, isError, catalogCount: catalogMatches.length, altCount: alternatives.length });
-    
-    if (isLoading) {
-      setLoadingStages(prev => {
-        const catalogStage = prev.find(s => s.id === 'catalog');
-        const altStage = prev.find(s => s.id === 'alternatives');
-        
-        // Only update if not already active
-        if (catalogStage?.status !== 'active' || altStage?.status !== 'active') {
-          return prev.map(stage => {
-            if (stage.id === 'catalog') return { ...stage, status: 'active' as StageStatus, message: 'Searching product catalog...' };
-            if (stage.id === 'alternatives') return { ...stage, status: 'active' as StageStatus, message: 'Requesting AI alternatives...' };
-            return stage;
-          });
-        }
-        return prev;
-      });
-    } else if (isError) {
-      setLoadingStages(prev => 
-        prev.map(stage => {
-          if (stage.id === 'catalog') return { ...stage, status: 'error' as StageStatus, message: 'Search failed' };
-          if (stage.id === 'alternatives') return { ...stage, status: 'error' as StageStatus, message: 'AI request failed' };
-          if (stage.id === 'ranking') return { ...stage, status: 'error' as StageStatus, message: 'Pipeline failed' };
-          return stage;
-        })
-      );
-      
+    if (catalogQuery.isLoading) {
+      updateStage('catalog', 'active', 'Searching product catalog...');
+    } else if (catalogQuery.isError) {
+      updateStage('catalog', 'error', 'Search failed');
       addToast({
         type: 'error',
-        title: 'Search failed',
-        description: error?.message || 'Unable to fetch recommendations'
+        title: 'Catalog search failed',
+        description: catalogQuery.error?.message || 'Unable to search catalog'
       });
-    } else {
-      // Success - update stages
-      setLoadingStages(prev => {
-        const catalogStage = prev.find(s => s.id === 'catalog');
-        const altStage = prev.find(s => s.id === 'alternatives');
-        
-        // Only update if not already success
-        if (catalogStage?.status !== 'success' || altStage?.status !== 'success') {
-          return prev.map(stage => {
-            if (stage.id === 'catalog') {
-              return { 
-                ...stage, 
-                status: 'success' as StageStatus, 
-                message: catalogMatches.length ? `Found ${catalogMatches.length} catalog matches` : 'No direct catalog matches'
-              };
-            }
-            if (stage.id === 'alternatives') {
-              return {
-                ...stage,
-                status: 'success' as StageStatus,
-                message: alternatives.length ? `AI suggested ${alternatives.length} alternatives` : 'No AI alternatives available'
-              };
-            }
-            return stage;
-          });
-        }
-        return prev;
+    } else if (catalogQuery.isSuccess) {
+      updateStage('catalog', 'success', 
+        catalogMatches.length ? `Found ${catalogMatches.length} catalog matches` : 'No direct catalog matches'
+      );
+    }
+  }, [catalogQuery.isLoading, catalogQuery.isError, catalogQuery.isSuccess, catalogMatches.length, searchSpecs]);
+
+  // Effect to handle alternatives results (only when requested)
+  useEffect(() => {
+    if (!searchSpecs || !shouldFetchAlternatives) return;
+    
+    if (alternativesQuery.isLoading) {
+      updateStage('alternatives', 'active', 'Requesting AI alternatives...');
+    } else if (alternativesQuery.isError) {
+      updateStage('alternatives', 'error', 'AI request failed');
+      addToast({
+        type: 'error',
+        title: 'AI alternatives failed',
+        description: alternativesQuery.error?.message || 'Unable to fetch AI alternatives'
       });
+    } else if (alternativesQuery.isSuccess) {
+      updateStage('alternatives', 'success',
+        alternatives.length ? `AI suggested ${alternatives.length} alternatives` : 'No AI alternatives available'
+      );
+    }
+  }, [alternativesQuery.isLoading, alternativesQuery.isError, alternativesQuery.isSuccess, alternatives.length, shouldFetchAlternatives, searchSpecs]);
+
+  // Effect to handle ranking (runs when we have results to rank)
+  useEffect(() => {
+    if (!searchSpecs) return;
+    
+    // Only rank when we have catalog results (and alternatives if they were requested)
+    const hasCatalogResults = catalogQuery.isSuccess;
+    const hasAlternativesResults = !shouldFetchAlternatives || alternativesQuery.isSuccess;
+    
+    if (hasCatalogResults && hasAlternativesResults && !catalogQuery.isLoading && !alternativesQuery.isLoading) {
+      // Start ranking
+      updateStage('ranking', 'active');
       
       // Rank results
       try {
@@ -389,6 +435,12 @@ const ProductRecommender: React.FC = () => {
             type="text"
             value={requirements.productName}
             onChange={(e) => setRequirements({ ...requirements, productName: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleFindRecommendations();
+              }
+            }}
             placeholder="e.g., Servo Motor, Steel Beam, Hex Bolt, Mounting Bracket..."
             className="glass-input text-base"
           />
@@ -404,24 +456,109 @@ const ProductRecommender: React.FC = () => {
               type="text"
               value={requirements.material}
               onChange={(e) => setRequirements({ ...requirements, material: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleFindRecommendations();
+                }
+              }}
               placeholder="e.g., Steel, Aluminum, Stainless Steel"
               className="glass-input"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-            <select
-              value={requirements.category}
-              onChange={(e) => setRequirements({ ...requirements, category: e.target.value })}
-              className="glass-input"
-            >
-              <option value="all">All Categories</option>
-              <option value="structural">Structural</option>
-              <option value="fasteners">Fasteners</option>
-              <option value="robotic">Robotic</option>
-              <option value="custom">Custom</option>
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+              <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              Category
+            </label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                onBlur={() => setTimeout(() => setCategoryDropdownOpen(false), 200)}
+                className="glass-input w-full text-left flex items-center justify-between cursor-pointer"
+              >
+                <span>
+                  {requirements.category === 'all' && '🔍 All Categories'}
+                  {requirements.category === 'structural' && '🏗️ Structural Steel'}
+                  {requirements.category === 'fasteners' && '🔩 Fasteners & Hardware'}
+                  {requirements.category === 'robotic' && '🤖 Robotic Components'}
+                  {requirements.category === 'custom' && '⚙️ Custom Parts'}
+                </span>
+                <svg className={`w-4 h-4 text-gray-500 transition-transform ${categoryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {/* Dropdown Menu */}
+              {categoryDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-2 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="glass-card py-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequirements({ ...requirements, category: 'all' });
+                        setCategoryDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      🔍 All Categories
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequirements({ ...requirements, category: 'structural' });
+                        setCategoryDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      🏗️ Structural Steel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequirements({ ...requirements, category: 'fasteners' });
+                        setCategoryDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      🔩 Fasteners & Hardware
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequirements({ ...requirements, category: 'robotic' });
+                        setCategoryDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      🤖 Robotic Components
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequirements({ ...requirements, category: 'custom' });
+                        setCategoryDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      ⚙️ Custom Parts
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            {requirements.category !== 'all' && (
+              <p className="mt-1.5 text-xs text-blue-600 flex items-center">
+                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                Filtering by {requirements.category} category
+              </p>
+            )}
           </div>
           
           <div>
@@ -430,6 +567,12 @@ const ProductRecommender: React.FC = () => {
               type="text"
               value={requirements.dimensions}
               onChange={(e) => setRequirements({ ...requirements, dimensions: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleFindRecommendations();
+                }
+              }}
               placeholder="e.g., 200mm x 100mm x 10mm"
               className="glass-input"
             />
@@ -441,6 +584,12 @@ const ProductRecommender: React.FC = () => {
               type="text"
               value={requirements.loadCapacity}
               onChange={(e) => setRequirements({ ...requirements, loadCapacity: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleFindRecommendations();
+                }
+              }}
               placeholder="e.g., 500kg, 10kN"
               className="glass-input"
             />
@@ -530,15 +679,50 @@ const ProductRecommender: React.FC = () => {
             {activeTab === 'ranked' && (
               <div className="mb-6 flex items-center space-x-4">
                 <label className="text-sm font-medium text-gray-700">Sort by:</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as 'score' | 'price')}
-                  className="glass-input"
-                  style={{ width: 'auto', minWidth: '200px' }}
-                >
-                  <option value="score">Match Score (High to Low)</option>
-                  <option value="price">Price (Low to High)</option>
-                </select>
+                <div className="relative" style={{ minWidth: '200px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                    onBlur={() => setTimeout(() => setSortDropdownOpen(false), 200)}
+                    className="glass-input w-full text-left flex items-center justify-between cursor-pointer"
+                  >
+                    <span>
+                      {sortBy === 'score' && 'Match Score (High to Low)'}
+                      {sortBy === 'price' && 'Price (Low to High)'}
+                    </span>
+                    <svg className={`w-4 h-4 text-gray-500 transition-transform ${sortDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {/* Dropdown Menu */}
+                  {sortDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="glass-card py-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSortBy('score');
+                            setSortDropdownOpen(false);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          Match Score (High to Low)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSortBy('price');
+                            setSortDropdownOpen(false);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          Price (Low to High)
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -623,11 +807,25 @@ const ProductRecommender: React.FC = () => {
 
                             {/* Actions */}
                             <div className="mt-auto flex space-x-3">
-                              <Link href="/rfq" className="flex-1">
-                                <Button size="sm" className="w-full">
-                                  Add to Quote
-                                </Button>
-                              </Link>
+                              <Button 
+                                size="sm" 
+                                className="flex-1"
+                                onClick={() => {
+                                  // Store product data in sessionStorage for RFQ auto-fill
+                                  sessionStorage.setItem('productForRFQ', JSON.stringify({
+                                    productName: product.name,
+                                    productId: product.id,
+                                    material: product.material,
+                                    specifications: product.specifications,
+                                    price: product.price,
+                                    category: product.category,
+                                    description: product.description
+                                  }));
+                                  window.location.href = '/rfq?fromProduct=true';
+                                }}
+                              >
+                                Add to Quote
+                              </Button>
                               <Link href={`/catalog/${product.id}`}>
                                 <Button size="sm" variant="outline">
                                   View Details
@@ -654,7 +852,34 @@ const ProductRecommender: React.FC = () => {
             {/* AI Alternatives Tab */}
             {activeTab === 'alternatives' && (
               <div>
-                {alternatives.length > 0 ? (
+                {!shouldFetchAlternatives && alternatives.length === 0 ? (
+                  <div className="glass-container glass-container-with-liquid p-12 text-center">
+                    <svg className="w-16 h-16 mx-auto text-blue-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">AI Alternative Recommendations</h3>
+                    <p className="text-gray-600 mb-6">
+                      Get AI-powered alternative product suggestions based on your requirements
+                    </p>
+                    <Button 
+                      onClick={() => setShouldFetchAlternatives(true)}
+                      disabled={!searchSpecs}
+                      className="mx-auto"
+                    >
+                      🤖 Get AI Alternatives
+                    </Button>
+                    {!searchSpecs && (
+                      <p className="text-sm text-gray-500 mt-3">
+                        Enter requirements first to get AI recommendations
+                      </p>
+                    )}
+                  </div>
+                ) : alternativesQuery.isLoading ? (
+                  <div className="glass-container glass-container-with-liquid p-12 text-center">
+                    <LoadingSpinner />
+                    <p className="text-gray-600 mt-4">Requesting AI alternatives...</p>
+                  </div>
+                ) : alternatives.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {alternatives.map((alt, index) => (
                       <div key={index} className="glass-card p-5 flex flex-col gap-4">
@@ -731,7 +956,26 @@ const ProductRecommender: React.FC = () => {
                         </div>
 
                         <div className="mt-auto flex gap-2">
-                          <Button size="sm" variant="outline" className="flex-1">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={() => {
+                              // Store AI alternative data in sessionStorage for RFQ auto-fill
+                              sessionStorage.setItem('productForRFQ', JSON.stringify({
+                                productName: alt.name,
+                                material: alt.material,
+                                specifications: alt.specifications,
+                                category: alt.category,
+                                description: alt.description,
+                                supplierInfo: alt.supplierInfo,
+                                standards: alt.standards,
+                                reasoning: alt.reasoning,
+                                isAIAlternative: true
+                              }));
+                              window.location.href = '/rfq?fromProduct=true';
+                            }}
+                          >
                             Request Quote
                           </Button>
                           <Button size="sm" variant="ghost">
@@ -878,14 +1122,43 @@ const ProductRecommender: React.FC = () => {
                                   <Button size="sm" className="flex-1" onClick={() => window.location.href = `/catalog/${item.product?.id}`}>
                                     View Details
                                   </Button>
-                                  <Button size="sm" variant="outline">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => {
+                                      sessionStorage.setItem('productForRFQ', JSON.stringify({
+                                        productName: item.product?.name,
+                                        productId: item.product?.id,
+                                        material: item.product?.material,
+                                        specifications: item.product?.specifications,
+                                        price: item.product?.price,
+                                        category: item.product?.category,
+                                        description: item.product?.description
+                                      }));
+                                      window.location.href = '/rfq?fromProduct=true';
+                                    }}
+                                  >
                                     Add to RFQ
                                   </Button>
                                 </>
                               )}
                               {item.type === 'alternative' && (
                                 <>
-                                  <Button size="sm" variant="outline" className="flex-1">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="flex-1"
+                                    onClick={() => {
+                                      sessionStorage.setItem('productForRFQ', JSON.stringify({
+                                        productName: item.alternative?.name,
+                                        material: item.alternative?.material,
+                                        specifications: item.alternative?.specifications,
+                                        category: item.alternative?.category,
+                                        description: item.alternative?.description
+                                      }));
+                                      window.location.href = '/rfq?fromProduct=true';
+                                    }}
+                                  >
                                     Request Custom Quote
                                   </Button>
                                   <Button size="sm" variant="outline">

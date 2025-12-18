@@ -13,11 +13,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Clean up material field - remove "(from CAD data)" and similar annotations
+    const cleanMaterial = (material: string | undefined): string => {
+      if (!material) return '';
+      return material
+        .replace(/\s*\(from CAD [Dd]ata\)/gi, '')
+        .replace(/\s*\(from CAD\)/gi, '')
+        .trim();
+    };
+
+    // Clean up dimensions - handle [object Object] and other invalid formats
+    const cleanDimensions = (dimensions: any): string => {
+      if (!dimensions) return '';
+      if (typeof dimensions === 'string') {
+        // Remove [object Object] and similar
+        if (dimensions.includes('[object') || dimensions === '[object Object]') {
+          return '';
+        }
+        return dimensions.trim();
+      }
+      // If it's an object, try to extract meaningful data
+      if (typeof dimensions === 'object') {
+        return ''; // Can't use object dimensions
+      }
+      return String(dimensions);
+    };
+
     // Create a mock analysis object for the alternative suggester
     const mockAnalysis = {
       extractedSpecs: {
-        dimensions: specifications.dimensions || '',
-        material: specifications.material || '',
+        productName: specifications.productName || specifications.name || '',
+        dimensions: cleanDimensions(specifications.dimensions),
+        material: cleanMaterial(specifications.material),
         loadRequirements: specifications.loadCapacity || '',
         componentType: specifications.category || 'custom',
         tolerance: specifications.tolerance || ''

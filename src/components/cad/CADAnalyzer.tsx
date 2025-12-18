@@ -136,7 +136,8 @@ const CADAnalyzer: React.FC = () => {
   }, []);
 
   const isAnalysisRunning = uploadState.status === 'uploading';
-  const show2DExtractor = Boolean(uploadState.file && is3DFile && isModelPreviewReady && cadModelData);
+  const show2DExtractor = Boolean(uploadState.file && is3DFile);
+  const is2DExtractorReady = Boolean(isModelPreviewReady && cadModelData);
   const showSampleDrawings = !analysis;
   const isParserReady = !is3DFile || Boolean(cadModelData);
   const isWaitingForParserBeforeAnalysis =
@@ -316,6 +317,8 @@ const CADAnalyzer: React.FC = () => {
 
   const resetAnalysis = () => {
     clearPreviewCache();
+    // Clear saved results when resetting
+    localStorage.removeItem('cadAnalyzerResults');
     setUploadState({
       file: null,
       progress: 0,
@@ -571,6 +574,98 @@ const CADAnalyzer: React.FC = () => {
   }, [analysisRequested, modelParseError, addToast]);
 
   // Check for stored analysis results on mount
+  // Save analysis results to localStorage (5 min retention)
+  useEffect(() => {
+    if (analysis && uploadState.file) {
+      // Convert file to data URL for storage
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const fileData = {
+            dataUrl: reader.result as string,
+            name: uploadState.file!.name,
+            type: uploadState.file!.type,
+            size: uploadState.file!.size
+          };
+
+          localStorage.setItem('cadAnalyzerResults', JSON.stringify({
+            analysis,
+            fileData,
+            timestamp: Date.now()
+          }));
+        } catch (error) {
+          // If file is too large for localStorage, save without file
+          console.warn('File too large for localStorage, saving analysis only:', error);
+          localStorage.setItem('cadAnalyzerResults', JSON.stringify({
+            analysis,
+            fileName: uploadState.file!.name,
+            timestamp: Date.now()
+          }));
+        }
+      };
+      reader.readAsDataURL(uploadState.file);
+    }
+  }, [analysis, uploadState.file]);
+
+  // Restore analysis results from localStorage on mount
+  useEffect(() => {
+    const savedResults = localStorage.getItem('cadAnalyzerResults');
+    if (savedResults && !analysis) {
+      try {
+        const parsed = JSON.parse(savedResults);
+        const { analysis: savedAnalysis, fileData, fileName, timestamp } = parsed;
+        const fiveMinutes = 5 * 60 * 1000;
+
+        if (Date.now() - timestamp < fiveMinutes) {
+          setAnalysis(savedAnalysis);
+
+          // Restore file if available
+          if (fileData) {
+            // Convert data URL back to File
+            fetch(fileData.dataUrl)
+              .then(res => res.blob())
+              .then(blob => {
+                const file = new File([blob], fileData.name, { type: fileData.type });
+                setUploadState({
+                  file,
+                  status: 'success',
+                  progress: 100,
+                  error: undefined
+                });
+                setSampleLoadSuccess(`Previous analysis restored: ${fileData.name}`);
+                addToast({
+                  type: 'info',
+                  title: 'Analysis and file restored',
+                  description: `${fileData.name} is ready to view`
+                });
+              })
+              .catch(err => {
+                console.error('Error restoring file:', err);
+                setSampleLoadSuccess(`Previous analysis restored: ${fileName || 'Unknown file'} (file not available)`);
+                addToast({
+                  type: 'info',
+                  title: 'Analysis restored',
+                  description: 'Your previous CAD analysis is available (file not restored)'
+                });
+              });
+          } else {
+            setSampleLoadSuccess(`Previous analysis restored: ${fileName || 'Unknown file'} (file not available)`);
+            addToast({
+              type: 'info',
+              title: 'Analysis restored',
+              description: 'Your previous CAD analysis is available'
+            });
+          }
+        } else {
+          localStorage.removeItem('cadAnalyzerResults');
+        }
+      } catch (error) {
+        console.error('Error restoring analysis:', error);
+        localStorage.removeItem('cadAnalyzerResults');
+      }
+    }
+  }, [addToast]);
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
 
@@ -583,6 +678,9 @@ const CADAnalyzer: React.FC = () => {
           sessionStorage.removeItem('cadAnalysisResult');
           window.history.replaceState({}, '', '/cad-analyzer');
           setSampleLoadSuccess('Analysis results loaded successfully!');
+
+          // Clear localStorage when new analysis is loaded
+          localStorage.removeItem('cadAnalyzerResults');
         } catch (error) {
           console.error('Error parsing stored analysis result:', error);
         }
@@ -1334,6 +1432,16 @@ const CADAnalyzer: React.FC = () => {
               fileName={uploadState.file ? uploadState.file.name.split('.')[0] : 'model'}
               initialOrthographicViews={autoGeneratedViews.orthographic}
               initialPerspectiveViews={autoGeneratedViews.perspective}
+              disabled={!is2DExtractorReady}
+              loadingMessage={
+                isParsingModel
+                  ? 'Parsing CAD geometry...'
+                  : !cadModelData
+                    ? 'Loading CAD model...'
+                    : !isModelPreviewReady
+                      ? 'Rendering 3D preview...'
+                      : undefined
+              }
             />
           </div>
         )}
@@ -1350,8 +1458,8 @@ const CADAnalyzer: React.FC = () => {
                   <button
                     onClick={() => setActiveTab('analysis')}
                     className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'analysis'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                   >
                     Analysis Results
@@ -1359,8 +1467,8 @@ const CADAnalyzer: React.FC = () => {
                   <button
                     onClick={() => setActiveTab('validation')}
                     className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'validation'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                   >
                     Manufacturability
@@ -1373,8 +1481,8 @@ const CADAnalyzer: React.FC = () => {
                   <button
                     onClick={() => setActiveTab('verification')}
                     className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'verification'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                   >
                     Specifications
@@ -1387,8 +1495,8 @@ const CADAnalyzer: React.FC = () => {
                   <button
                     onClick={() => setActiveTab('report')}
                     className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'report'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
                   >
                     Report
@@ -1575,11 +1683,11 @@ const CADAnalyzer: React.FC = () => {
                                 <div
                                   key={idx}
                                   className={`flex items-start gap-3 p-3 rounded-lg ${finding.status === 'Valid' ? 'bg-emerald-50' :
-                                      finding.status === 'Warning' ? 'bg-amber-50' : 'bg-red-50'
+                                    finding.status === 'Warning' ? 'bg-amber-50' : 'bg-red-50'
                                     }`}
                                 >
                                   <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${finding.status === 'Valid' ? 'bg-emerald-500 text-white' :
-                                      finding.status === 'Warning' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
+                                    finding.status === 'Warning' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
                                     }`}>
                                     {finding.status === 'Valid' ? '✓' : finding.status === 'Warning' ? '!' : '✗'}
                                   </span>

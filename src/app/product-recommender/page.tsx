@@ -1,14 +1,13 @@
-import React from 'react';
+'use client';
+
+import React, { lazy, Suspense } from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import ProductRecommender from '@/components/products/ProductRecommender';
 import PageHero from '@/components/layout/PageHero';
 import ProductRecommenderBlueprintLayer from '@/components/cad/ProductRecommenderBlueprintLayer';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
-export const metadata = {
-  title: 'Product Recommender - SteelSmart AI Marketplace',
-  description: 'Get AI-powered product recommendations based on your CAD drawings and component requirements.',
-};
+const ProductRecommender = lazy(() => import('@/components/products/ProductRecommender'));
 
 export default function ProductRecommenderPage() {
   return (
@@ -35,7 +34,14 @@ export default function ProductRecommenderPage() {
             />
           </div>
           
-          <ProductRecommender />
+          <Suspense fallback={
+            <div className="glass-container glass-container-with-liquid p-12 text-center">
+              <LoadingSpinner />
+              <p className="text-gray-600 mt-4">Loading Product Recommender...</p>
+            </div>
+          }>
+            <ProductRecommender />
+          </Suspense>
         </div>
       </main>
       <Footer />

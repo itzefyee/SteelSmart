@@ -65,6 +65,7 @@ const RFQForm: React.FC = () => {
   const [analysisSource, setAnalysisSource] = useState<any>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [productSource, setProductSource] = useState<any>(null);
 
   const totalSteps = 4;
 
@@ -91,9 +92,76 @@ const RFQForm: React.FC = () => {
         setAnalysisSource(data);
         autoFillFromAnalysis(data);
         sessionStorage.removeItem('analysisForRFQ');
+        
+        // Clear existing draft when new analysis is loaded
+        localStorage.removeItem('rfqFormDraft');
       }
     }
   }, []);
+
+  // Check for auto-fill from product
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('fromProduct') === 'true') {
+      const productData = sessionStorage.getItem('productForRFQ');
+      if (productData) {
+        const product = JSON.parse(productData);
+        setProductSource(product);
+        autoFillFromProduct(product);
+        sessionStorage.removeItem('productForRFQ');
+        
+        // Clear existing draft when new product is loaded
+        localStorage.removeItem('rfqFormDraft');
+        
+        addToast({
+          type: 'info',
+          title: 'Product details loaded',
+          description: `Auto-filled from ${product.productName}`
+        });
+      }
+    }
+  }, [addToast]);
+
+  // Save form data to localStorage every 30 seconds (auto-save)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (currentStep < 4 && (formData.contactInfo.email || formData.requirements.projectDescription)) {
+        localStorage.setItem('rfqFormDraft', JSON.stringify({
+          formData,
+          timestamp: Date.now(),
+          currentStep
+        }));
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [formData, currentStep]);
+
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    const draft = localStorage.getItem('rfqFormDraft');
+    if (draft) {
+      try {
+        const { formData: savedData, timestamp, currentStep: savedStep } = JSON.parse(draft);
+        const fiveMinutes = 5 * 60 * 1000;
+        
+        if (Date.now() - timestamp < fiveMinutes) {
+          setFormData(savedData);
+          setCurrentStep(savedStep);
+          addToast({
+            type: 'info',
+            title: 'Draft restored',
+            description: 'Your previous RFQ draft has been restored'
+          });
+        } else {
+          localStorage.removeItem('rfqFormDraft');
+        }
+      } catch (error) {
+        console.error('Error loading draft:', error);
+        localStorage.removeItem('rfqFormDraft');
+      }
+    }
+  }, [addToast]);
 
   const updateContactInfo = (field: string, value: string) => {
     setFormData(prev => ({
@@ -170,6 +238,17 @@ const RFQForm: React.FC = () => {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (currentStep === 3) {
+        submitRFQ();
+      } else {
+        nextStep();
+      }
+    }
+  };
+
   const prevStep = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
@@ -227,6 +306,79 @@ const RFQForm: React.FC = () => {
       }
     }));
     setShowAutoFill(false);
+  };
+
+  const autoFillFromProduct = (productData: any) => {
+    // Check if this is an AI alternative
+    const isAIAlternative = productData.isAIAlternative === true;
+
+    // Format specifications from product data
+    let specifications = '';
+    if (typeof productData.specifications === 'object' && productData.specifications !== null) {
+      specifications = Object.entries(productData.specifications)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(', ');
+    } else if (typeof productData.specifications === 'string') {
+      specifications = productData.specifications;
+    }
+
+    // Add description if available
+    if (productData.description && !specifications.includes(productData.description)) {
+      specifications = specifications 
+        ? `${specifications}. ${productData.description}` 
+        : productData.description;
+    }
+
+    // For AI alternatives, add reasoning, standards, and supplier info
+    if (isAIAlternative) {
+      // Add AI reasoning
+      if (productData.reasoning) {
+        specifications = specifications 
+          ? `${specifications}\n\nAI Recommendation Reasoning: ${productData.reasoning}` 
+          : `AI Recommendation Reasoning: ${productData.reasoning}`;
+      }
+
+      // Add standards compliance
+      if (productData.standards && productData.standards.length > 0) {
+        const standardsList = productData.standards.join(', ');
+        specifications = `${specifications}\n\nStandards Compliance: ${standardsList}`;
+      }
+
+      // Add supplier suggestions
+      if (productData.supplierInfo) {
+        const supplierText = typeof productData.supplierInfo === 'string' 
+          ? productData.supplierInfo 
+          : `Suggested suppliers: ${productData.supplierInfo.suggestedSuppliers?.join(', ') || 'Contact for details'}`;
+        specifications = `${specifications}\n\nSupplier Information: ${supplierText}`;
+      }
+    }
+
+    // Determine project description prefix
+    const descriptionPrefix = isAIAlternative 
+      ? 'AI-recommended alternative:' 
+      : 'Quote request for';
+
+    // Extract estimated price for AI alternatives
+    let budgetValue = '';
+    if (isAIAlternative && productData.supplierInfo) {
+      if (typeof productData.supplierInfo === 'object' && productData.supplierInfo.estimatedPrice) {
+        budgetValue = `Estimated: ${productData.supplierInfo.estimatedPrice}`;
+      }
+    } else if (productData.price) {
+      budgetValue = `Approx. ${productData.price} per unit`;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      requirements: {
+        ...prev.requirements,
+        projectDescription: `${descriptionPrefix} ${productData.productName}${productData.category ? ` (${productData.category})` : ''}`,
+        material: productData.material || '',
+        specifications: specifications || `Product ID: ${productData.productId || 'N/A'}`,
+        quantity: prev.requirements.quantity || 1,
+        budget: budgetValue || prev.requirements.budget || ''
+      }
+    }));
   };
 
   const autoFillFromTemplate = (template: any) => {
@@ -347,6 +499,31 @@ const RFQForm: React.FC = () => {
                 </div>
                 <p className="text-xs text-blue-700 mt-2">
                   Form fields have been pre-filled based on the CAD analysis results. You can modify them as needed.
+                </p>
+              </div>
+            )}
+
+            {productSource && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <svg className="w-5 h-5 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-green-900">Product Details Loaded</h4>
+                    <p className="text-xs text-green-700 mt-1">
+                      Product: <span className="font-medium">{productSource.productName}</span>
+                      {productSource.category && <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-[10px] font-medium uppercase">{productSource.category}</span>}
+                    </p>
+                    {productSource.price && (
+                      <p className="text-xs text-green-700 mt-1">
+                        Price: <span className="font-medium">${productSource.price}</span> per unit
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-green-700 mt-2">
+                  Form fields have been pre-filled with product specifications. You can modify them as needed.
                 </p>
               </div>
             )}

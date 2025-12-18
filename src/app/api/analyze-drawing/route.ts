@@ -4,11 +4,19 @@ import { CADAnalysisService } from '@/services/cad-analysis.service';
 import { getSupabaseServer } from '@/lib/supabase-server';
 
 export async function POST(request: NextRequest) {
+  console.log('========================================');
+  console.log('📥 API Route: /api/analyze-drawing called');
+  console.log('========================================');
+  
   try {
     // Controller responsibility: Parse request
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const cadDataJson = formData.get('cadModelData') as string;
+    
+    console.log(`File received: ${file?.name || 'NO FILE'}`);
+    console.log(`File size: ${file?.size || 0} bytes`);
+    console.log(`CAD data provided: ${!!cadDataJson}`);
 
     if (!file) {
       return NextResponse.json<APIResponse<null>>(
