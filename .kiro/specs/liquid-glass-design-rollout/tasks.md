@@ -94,7 +94,7 @@
 - [ ] 5. Update Product Recommender components
 
 
-- [x] 5.1 Refine glass design in ProductRecommenderNew.tsx
+- [x] 5.1 Refine glass design in ProductRecommender.tsx
 
 
 

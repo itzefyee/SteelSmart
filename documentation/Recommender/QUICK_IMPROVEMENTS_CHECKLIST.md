@@ -318,7 +318,7 @@ function ConfidenceBadge({ confidence }: { confidence: number }) {
 
 ### UI Components
 - `src/components/products/RecommendationCard.tsx` - Show confidence
-- `src/components/products/ProductRecommenderNew.tsx` - Add guidance
+- `src/components/products/ProductRecommender.tsx` - Add guidance
 - `src/app/product-recommender/page.tsx` - Update interface
 
 ### New Files

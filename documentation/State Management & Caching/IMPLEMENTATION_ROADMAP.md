@@ -600,8 +600,8 @@ export class RecommendationService {
 }
 ```
 
-#### Task 2.4: Update ProductRecommenderNew Component
-**File**: `src/components/products/ProductRecommenderNew.tsx`
+#### Task 2.4: Update ProductRecommender Component
+**File**: `src/components/products/ProductRecommender.tsx`
 
 **Changes**:
 1. Replace manual `searchCatalog` with `useCatalogMatches` hook

@@ -170,3 +170,115 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 - WASM files handled as assets for OpenCascade.js
 - Server-side externalization of `opencascade.js` to prevent build errors
 - Browser fallbacks for Node.js modules (fs, path, crypto)
+
+
+## Fast Refresh & Hot Module Replacement
+
+**Fast Refresh** enables instant component updates without full page reloads. Follow these rules to avoid breaking it:
+
+### ✅ Component Export Patterns (GOOD)
+
+```typescript
+// Pattern 1: Default export with named function
+const MyComponent: React.FC = () => { ... };
+export default MyComponent;
+
+// Pattern 2: Named export only
+export const MyComponent: React.FC = () => { ... };
+
+// Pattern 3: Default export + types/interfaces
+export type MyProps = { ... };
+const MyComponent: React.FC<MyProps> = () => { ... };
+export default MyComponent;
+```
+
+### ❌ Patterns That Break Fast Refresh (BAD)
+
+```typescript
+// ❌ BAD: Mixing component and utility exports
+export const MyComponent = () => { ... };
+export const calculateScore = (n: number) => n * 100; // Utility function
+
+// ❌ BAD: Both named AND default export of same component
+export const MyComponent = () => { ... };
+export default MyComponent;
+
+// ❌ BAD: Anonymous function components
+export default () => { ... };
+
+// ❌ BAD: camelCase component names (must be PascalCase)
+const myComponent = () => { ... };
+export default myComponent;
+
+// ❌ BAD: Exporting lazy-loaded components from index files
+// In index.ts:
+export { ValidationTab } from './ValidationTab';
+// In parent component:
+const ValidationTab = lazy(() => import('./ValidationTab'));
+```
+
+### Component Naming Rules
+
+- **Components**: PascalCase (e.g., `ProductCard`, `CADAnalyzer`)
+- **Utility functions**: camelCase (e.g., `calculatePrice`, `formatDate`)
+- **Hooks**: camelCase with `use` prefix (e.g., `useProducts`, `useAuth`)
+
+### File Organization
+
+**Component files** (`src/components/**/*.tsx`):
+- One primary component per file
+- Export types/interfaces alongside component
+- Keep utility functions internal (not exported) OR move to separate utility file
+
+**Utility files** (`src/lib/**/*.ts`):
+- Pure functions, no React components
+- Multiple named exports allowed
+- No JSX/TSX
+
+**Example - Component with utilities:**
+```typescript
+// ✅ GOOD: Utilities internal to component
+const MyComponent = () => {
+  const formatPrice = (n: number) => `$${n.toFixed(2)}`; // Internal
+  return <div>{formatPrice(100)}</div>;
+};
+export default MyComponent;
+
+// ✅ BETTER: Utilities in separate file
+// src/lib/price-utils.ts
+export const formatPrice = (n: number) => `$${n.toFixed(2)}`;
+
+// src/components/MyComponent.tsx
+import { formatPrice } from '@/lib/price-utils';
+const MyComponent = () => <div>{formatPrice(100)}</div>;
+export default MyComponent;
+```
+
+### Lazy Loading Components
+
+When using `React.lazy()`, do NOT export the component from index files:
+
+```typescript
+// ❌ BAD
+// src/components/tabs/index.ts
+export { ValidationTab } from './ValidationTab'; // Don't do this
+
+// src/components/Parent.tsx
+const ValidationTab = lazy(() => import('./tabs/ValidationTab')); // Conflict!
+
+// ✅ GOOD
+// src/components/tabs/index.ts
+// Don't export lazy-loaded components
+
+// src/components/Parent.tsx
+const ValidationTab = lazy(() => import('./tabs/ValidationTab')); // Works!
+```
+
+### Debugging Fast Refresh Issues
+
+If you see "Fast Refresh had to perform full reload":
+1. Check for mixed component + utility exports
+2. Verify component names are PascalCase
+3. Ensure no anonymous function components
+4. Check for duplicate exports (named + default of same component)
+5. Verify lazy-loaded components aren't exported from index files

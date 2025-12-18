@@ -40,7 +40,7 @@
 #### Priority 1: Critical (Week 1)
 1. **RFQTracking.tsx** - Direct fetch, no caching
 2. **RFQForm.tsx** - Direct fetch, no optimistic updates
-3. **ProductRecommenderNew.tsx** - Expensive AI calls, no caching
+3. **ProductRecommender.tsx** - Expensive AI calls, no caching
 4. **ProductRecommendations.tsx** - Duplicate API calls
 
 #### Priority 2: High (Week 2)
@@ -360,7 +360,7 @@ Many components can be migrated quickly:
 
 ### 4. Complex Migrations
 Some components require more work:
-- ProductRecommenderNew: 2-3 hours (complex state)
+- ProductRecommender: 2-3 hours (complex state)
 - CADAnalyzer: 2 hours (file handling)
 - Admin products with optimistic updates: 3-4 hours
 

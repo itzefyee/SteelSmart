@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { StagedProgress, StagedProgressItem } from '@/components/ui/StagedProgress';
+import StagedProgress, { StagedProgressItem } from '@/components/ui/StagedProgress';
 
 interface Requirements {
   material: string;

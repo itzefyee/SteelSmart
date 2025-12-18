@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { cadTemplates } from '@/data/sample-data';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/ToastProvider';
-import { StagedProgress, StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
+import StagedProgress, { StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
 import { useCADGeneration } from '@/hooks/useCADGeneration';
 import { CADGenerationRequest } from '@/services/cad-generation.service';
 import { useCADStore } from '@/stores/cad.store';

@@ -395,5 +395,3 @@ export const RankedCard: React.FC<RankedCardProps> = React.memo(({ item, index }
 });
 
 RankedCard.displayName = 'RankedCard';
-
-export { getScoreColor, getScoreLabel };

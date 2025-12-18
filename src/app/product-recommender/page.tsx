@@ -1,7 +1,7 @@
 import React from 'react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import ProductRecommenderNew from '@/components/products/ProductRecommenderNew';
+import ProductRecommender from '@/components/products/ProductRecommender';
 import PageHero from '@/components/layout/PageHero';
 import ProductRecommenderBlueprintLayer from '@/components/cad/ProductRecommenderBlueprintLayer';
 
@@ -35,7 +35,7 @@ export default function ProductRecommenderPage() {
             />
           </div>
           
-          <ProductRecommenderNew />
+          <ProductRecommender />
         </div>
       </main>
       <Footer />

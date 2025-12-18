@@ -13,10 +13,16 @@
         "operatingTemp": "-20°C to +80°C"
       },
       "price": 245.99,
-      "images": ["/images/products/servo-motor-sample.svg"],
+      "images": [
+        "/images/products/servo-motor-001.png"
+      ],
       "description": "Precision servo motor ideal for robotic applications requiring high torque and accuracy.",
       "technicalDetails": "Integrated encoder, 24V DC operation, IP65 rating, CAN bus communication",
-      "compatibleWith": ["mounting-bracket-001", "coupling-002", "encoder-001"],
+      "compatibleWith": [
+        "mounting-bracket-001",
+        "coupling-002",
+        "encoder-001"
+      ],
       "inStock": true,
       "leadTime": "2-3 business days"
     },
@@ -32,11 +38,16 @@
         "tolerance": "±0.1mm",
         "operatingTemp": "-40°C to +85°C"
       },
-      "price": 189.50,
-      "images": ["/images/products/servo-motor-sample.svg"],
+      "price": 189.5,
+      "images": [
+        "/images/products/linear-actuator-001.png"
+      ],
       "description": "High-force electric linear actuator with precise position control.",
       "technicalDetails": "12V/24V operation, built-in position feedback, IP67 protection",
-      "compatibleWith": ["mounting-bracket-002", "position-sensor-001"],
+      "compatibleWith": [
+        "mounting-bracket-002",
+        "position-sensor-001"
+      ],
       "inStock": true,
       "leadTime": "1-2 business days"
     },
@@ -54,13 +65,15 @@
       },
       "price": 156.75,
       "images": [
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/steel-beam-001/preview.png",
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/steel-beam-001/iso-front-top-left.png",
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/steel-beam-001/iso-back-top-right.png"
+        "/images/products/steel-beam-001.png"
       ],
       "description": "Standard S355 structural I-beam with 12\" length and tuned flange thickness for medium span frames.",
       "technicalDetails": "Hot rolled, stress relieved, 0.29\" flange thickness, 0.19\" web thickness, 0.46\" root radius, shot blasted & primed finish.",
-      "compatibleWith": ["steel-plate-001", "connection-bracket-001", "hex-bolt-m12"],
+      "compatibleWith": [
+        "steel-plate-001",
+        "connection-bracket-001",
+        "hex-bolt-m12"
+      ],
       "inStock": true,
       "leadTime": "5-7 business days"
     },
@@ -76,11 +89,16 @@
         "tolerance": "±0.5mm thickness",
         "operatingTemp": "-20°C to +150°C"
       },
-      "price": 298.40,
-      "images": ["/images/products/steel-beam-sample.svg"],
+      "price": 298.4,
+      "images": [
+        "/images/products/steel-plate-001.png"
+      ],
       "description": "High-quality steel plate suitable for fabrication and structural work.",
       "technicalDetails": "Hot-rolled, pickled and oiled surface, cut to size available",
-      "compatibleWith": ["steel-beam-001", "welding-rod-001"],
+      "compatibleWith": [
+        "steel-beam-001",
+        "welding-rod-001"
+      ],
       "inStock": false,
       "leadTime": "10-14 business days"
     },
@@ -98,13 +116,15 @@
       },
       "price": 1420,
       "images": [
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/gallows_frame/gallows_frame_iso-front-top-right_view.png",
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/gallows_frame/gallows_frame_iso-front-bottom-left_view.png",
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/gallows_frame/gallows_frame_front_view.png"
+        "/images/products/gallows-frame-001.png"
       ],
       "description": "Heavy-duty gallows frame built from angle iron with six integrated brackets for modular lifting systems.",
       "technicalDetails": "Angle iron construction, 6 removable brackets, pre-drilled for M12 hardware, supplied with leveling feet.",
-      "compatibleWith": ["steel-beam-001", "steel-angle-001", "connection-bracket-001"],
+      "compatibleWith": [
+        "steel-beam-001",
+        "steel-angle-001",
+        "connection-bracket-001"
+      ],
       "inStock": false,
       "leadTime": "10-12 business days"
     },
@@ -122,13 +142,15 @@
       },
       "price": 215,
       "images": [
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake_rotor/brake_rotor_wit_iso-front-top-right_view.png",
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake_rotor/brake_rotor_wit_iso-back-top-right_view.png",
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake_rotor/brake_rotor_wit_front_view.png"
+        "/images/products/brake-rotor-001.png"
       ],
       "description": "320 mm vented brake rotor with 5x114.3 bolt pattern and machined M12 stud bores for motorsport-grade stopping power.",
       "technicalDetails": "Vented twin-disc construction, dynamically balanced, heat-treated and machined M12 bolt holes on 114.3 mm PCD.",
-      "compatibleWith": ["hex-bolt-m12", "hex-nut-m12", "washer-m12"],
+      "compatibleWith": [
+        "hex-bolt-m12",
+        "hex-nut-m12",
+        "washer-m12"
+      ],
       "inStock": true,
       "leadTime": "4-6 business days"
     },
@@ -145,10 +167,16 @@
         "operatingTemp": "-40°C to +150°C"
       },
       "price": 2.45,
-      "images": ["/images/products/fastener-sample.svg"],
+      "images": [
+        "/images/products/hex-bolt-m12.png"
+      ],
       "description": "High-strength hex bolt for critical structural connections.",
       "technicalDetails": "Zinc plated, ISO 4017 standard, torque specification included",
-      "compatibleWith": ["hex-nut-m12", "washer-m12", "steel-beam-001"],
+      "compatibleWith": [
+        "hex-nut-m12",
+        "washer-m12",
+        "steel-beam-001"
+      ],
       "inStock": true,
       "leadTime": "Same day"
     },
@@ -165,10 +193,15 @@
         "operatingTemp": "-40°C to +150°C"
       },
       "price": 0.85,
-      "images": ["/images/products/fastener-sample.svg"],
+      "images": [
+        "/images/products/hex-nut-m12.png"
+      ],
       "description": "Matching hex nut for M12 bolts with high strength rating.",
       "technicalDetails": "Zinc plated, ISO 4032 standard, compatible with grade 8.8 bolts",
-      "compatibleWith": ["hex-bolt-m12", "washer-m12"],
+      "compatibleWith": [
+        "hex-bolt-m12",
+        "washer-m12"
+      ],
       "inStock": true,
       "leadTime": "Same day"
     },
@@ -184,11 +217,16 @@
         "tolerance": "±0.1mm",
         "operatingTemp": "-50°C to +120°C"
       },
-      "price": 45.00,
-      "images": ["/images/products/custom-bracket-sample.svg"],
+      "price": 45,
+      "images": [
+        "/images/products/custom-bracket-001.png"
+      ],
       "description": "Precision machined aluminum bracket customized to your specifications.",
       "technicalDetails": "CNC machined, anodized finish, custom drilling patterns available",
-      "compatibleWith": ["servo-motor-001", "linear-actuator-001"],
+      "compatibleWith": [
+        "servo-motor-001",
+        "linear-actuator-001"
+      ],
       "inStock": false,
       "leadTime": "7-10 business days"
     },
@@ -206,13 +244,14 @@
       },
       "price": 495,
       "images": [
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical_drill_guide/surgical_drill_guide_iso-front-top-right_view.png",
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical_drill_guide/surgical_drill_guide_iso-front-bottom-left_view.png",
-        "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical_drill_guide/surgical_drill_guide_front_view.png"
+        "/images/products/surgical-drill-guide-001.png"
       ],
       "description": "Precision surgical drill guide featuring twin rotating bit mounts for Ø2 mm and Ø3.2 mm instrumentation.",
       "technicalDetails": "Ergonomic rotating grip, autoclavable stainless construction, locking sleeves with laser depth markings.",
-      "compatibleWith": ["custom-bracket-001", "mounting-bracket-001"],
+      "compatibleWith": [
+        "custom-bracket-001",
+        "mounting-bracket-001"
+      ],
       "inStock": true,
       "leadTime": "7-9 business days"
     },
@@ -229,10 +268,15 @@
         "operatingTemp": "-40°C to +125°C"
       },
       "price": 89.95,
-      "images": ["/images/products/servo-motor-sample.svg"],
+      "images": [
+        "/images/products/pressure-sensor-001.png"
+      ],
       "description": "High-accuracy pressure sensor for industrial automation and control systems.",
       "technicalDetails": "4-20mA output, M12 connector, IP67 rated, CE certified",
-      "compatibleWith": ["linear-actuator-001", "control-module-001"],
+      "compatibleWith": [
+        "linear-actuator-001",
+        "control-module-001"
+      ],
       "inStock": true,
       "leadTime": "3-5 business days"
     },
@@ -249,10 +293,16 @@
         "operatingTemp": "-10°C to +70°C"
       },
       "price": 189.99,
-      "images": ["/images/products/servo-motor-sample.svg"],
+      "images": [
+        "/images/products/servo-motor-002.png"
+      ],
       "description": "Compact servo motor perfect for smaller robotic applications and automation systems.",
       "technicalDetails": "Integrated encoder, 12V DC operation, IP54 rating, RS485 communication",
-      "compatibleWith": ["mounting-bracket-001", "coupling-001", "encoder-002"],
+      "compatibleWith": [
+        "mounting-bracket-001",
+        "coupling-001",
+        "encoder-002"
+      ],
       "inStock": true,
       "leadTime": "1-2 business days"
     },
@@ -268,11 +318,17 @@
         "tolerance": "±0.03mm",
         "operatingTemp": "-30°C to +90°C"
       },
-      "price": 425.00,
-      "images": ["/images/products/servo-motor-sample.svg"],
+      "price": 425,
+      "images": [
+        "/images/products/servo-motor-003.png"
+      ],
       "description": "Industrial-grade servo motor for heavy-duty applications requiring high torque output.",
       "technicalDetails": "Integrated encoder, 48V DC operation, IP65 rating, EtherCAT communication",
-      "compatibleWith": ["mounting-bracket-003", "coupling-003", "gearbox-001"],
+      "compatibleWith": [
+        "mounting-bracket-003",
+        "coupling-003",
+        "gearbox-001"
+      ],
       "inStock": true,
       "leadTime": "3-4 business days"
     },
@@ -288,11 +344,17 @@
         "tolerance": "±0.1mm",
         "operatingTemp": "-40°C to +100°C"
       },
-      "price": 35.50,
-      "images": ["/images/products/custom-bracket-sample.svg"],
+      "price": 35.5,
+      "images": [
+        "/images/products/mounting-bracket-001.png"
+      ],
       "description": "Universal mounting bracket compatible with most servo motors up to 100Nm.",
       "technicalDetails": "Powder coated steel, multiple mounting holes, vibration dampening pads included",
-      "compatibleWith": ["servo-motor-001", "servo-motor-002", "servo-motor-003"],
+      "compatibleWith": [
+        "servo-motor-001",
+        "servo-motor-002",
+        "servo-motor-003"
+      ],
       "inStock": true,
       "leadTime": "Same day"
     },
@@ -309,10 +371,16 @@
         "operatingTemp": "-20°C to +80°C"
       },
       "price": 28.75,
-      "images": ["/images/products/servo-motor-sample.svg"],
+      "images": [
+        "/images/products/coupling-002.png"
+      ],
       "description": "Flexible coupling for connecting servo motors to driven shafts with misalignment compensation.",
       "technicalDetails": "Zero backlash design, keyway available, corrosion resistant anodized finish",
-      "compatibleWith": ["servo-motor-001", "servo-motor-002", "linear-actuator-001"],
+      "compatibleWith": [
+        "servo-motor-001",
+        "servo-motor-002",
+        "linear-actuator-001"
+      ],
       "inStock": true,
       "leadTime": "1-2 business days"
     },
@@ -328,11 +396,17 @@
         "tolerance": "±1mm",
         "operatingTemp": "-40°C to +200°C"
       },
-      "price": 24.80,
-      "images": ["/images/products/steel-beam-sample.svg"],
+      "price": 24.8,
+      "images": [
+        "/images/products/steel-angle-001.png"
+      ],
       "description": "Equal angle steel for structural framing and support applications.",
       "technicalDetails": "Hot-rolled steel, mill finish, can be galvanized or painted to specification",
-      "compatibleWith": ["steel-beam-001", "connection-bracket-002", "hex-bolt-m12"],
+      "compatibleWith": [
+        "steel-beam-001",
+        "connection-bracket-002",
+        "hex-bolt-m12"
+      ],
       "inStock": true,
       "leadTime": "2-3 business days"
     },
@@ -348,11 +422,17 @@
         "tolerance": "±1.5mm",
         "operatingTemp": "-40°C to +200°C"
       },
-      "price": 45.20,
-      "images": ["/images/products/steel-beam-sample.svg"],
+      "price": 45.2,
+      "images": [
+        "/images/products/steel-channel-001.png"
+      ],
       "description": "U-channel steel beam for structural support and framework construction.",
       "technicalDetails": "Hot-rolled steel, EN 10025-2 compliant, custom lengths available",
-      "compatibleWith": ["steel-beam-001", "steel-angle-001", "connection-bracket-001"],
+      "compatibleWith": [
+        "steel-beam-001",
+        "steel-angle-001",
+        "connection-bracket-001"
+      ],
       "inStock": true,
       "leadTime": "3-5 business days"
     },
@@ -369,10 +449,16 @@
         "operatingTemp": "-40°C to +200°C"
       },
       "price": 18.95,
-      "images": ["/images/products/custom-bracket-sample.svg"],
+      "images": [
+        "/images/products/connection-bracket-001.png"
+      ],
       "description": "Heavy-duty bracket for connecting steel beams and structural members.",
       "technicalDetails": "Laser cut, formed steel, galvanized finish, pre-drilled holes for M12 bolts",
-      "compatibleWith": ["steel-beam-001", "steel-angle-001", "hex-bolt-m12"],
+      "compatibleWith": [
+        "steel-beam-001",
+        "steel-angle-001",
+        "hex-bolt-m12"
+      ],
       "inStock": true,
       "leadTime": "1-2 business days"
     },
@@ -389,10 +475,15 @@
         "operatingTemp": "-200°C to +400°C"
       },
       "price": 0.45,
-      "images": ["/images/products/fastener-sample.svg"],
+      "images": [
+        "/images/products/washer-m12.png"
+      ],
       "description": "Stainless steel flat washer for M12 bolt applications.",
       "technicalDetails": "DIN 125 standard, corrosion resistant, suitable for outdoor use",
-      "compatibleWith": ["hex-bolt-m12", "hex-nut-m12"],
+      "compatibleWith": [
+        "hex-bolt-m12",
+        "hex-nut-m12"
+      ],
       "inStock": true,
       "leadTime": "Same day"
     },
@@ -409,10 +500,15 @@
         "operatingTemp": "-40°C to +150°C"
       },
       "price": 1.25,
-      "images": ["/images/products/fastener-sample.svg"],
+      "images": [
+        "/images/products/socket-head-m8.png"
+      ],
       "description": "High-strength socket head cap screw for precision applications.",
       "technicalDetails": "Black oxide finish, ISO 4762 standard, allen key drive",
-      "compatibleWith": ["mounting-bracket-001", "connection-bracket-001"],
+      "compatibleWith": [
+        "mounting-bracket-001",
+        "connection-bracket-001"
+      ],
       "inStock": true,
       "leadTime": "Same day"
     },
@@ -428,11 +524,17 @@
         "tolerance": "±0.1° accuracy",
         "operatingTemp": "-10°C to +70°C"
       },
-      "price": 145.00,
-      "images": ["/images/products/servo-motor-sample.svg"],
+      "price": 145,
+      "images": [
+        "/images/products/encoder-001.png"
+      ],
       "description": "High-resolution incremental rotary encoder for precise position feedback.",
       "technicalDetails": "TTL/HTL output, IP54 protection, 6mm shaft, differential line driver",
-      "compatibleWith": ["servo-motor-001", "servo-motor-002", "coupling-002"],
+      "compatibleWith": [
+        "servo-motor-001",
+        "servo-motor-002",
+        "coupling-002"
+      ],
       "inStock": true,
       "leadTime": "2-3 business days"
     }

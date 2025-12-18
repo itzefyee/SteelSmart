@@ -116,7 +116,7 @@ Created modular sub-components in `src/components/cad/generator/`:
 - `DrawingEditorModal.tsx` - Parameter editing modal
 - `index.ts` - Barrel export for clean imports
 
-### 3.4 Split ProductRecommenderNew Component
+### 3.4 Split ProductRecommender Component
 **Status:** ✅ **COMPLETED**
 
 **Implementation:**
@@ -174,7 +174,7 @@ Created modular sub-components in `src/components/cad/analyzer/`:
   - `VerificationPanel.tsx`
   - `ReportPanel.tsx`
   - `index.ts`
-- `src/components/products/recommender/` - 3 sub-components for ProductRecommenderNew
+- `src/components/products/recommender/` - 3 sub-components for ProductRecommender
   - `RequirementsForm.tsx`
   - `RecommendationCard.tsx`
   - `RecommendationsList.tsx`

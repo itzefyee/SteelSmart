@@ -6,7 +6,7 @@ Added a **Product Name Search** field to the Product Recommender to simplify pro
 
 ## What Was Added
 
-### 1. UI Enhancement (ProductRecommenderNew.tsx)
+### 1. UI Enhancement (ProductRecommender.tsx)
 
 **New Search Field**:
 - Featured at the top of the search form

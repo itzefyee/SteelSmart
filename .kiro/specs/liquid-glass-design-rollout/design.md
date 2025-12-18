@@ -230,7 +230,7 @@ Components are categorized by their current design state and priority for glass 
 
 ### 5. Product Recommender Components
 
-#### 5.1 ProductRecommenderNew (`/src/components/products/ProductRecommenderNew.tsx`)
+#### 5.1 ProductRecommender (`/src/components/products/ProductRecommender.tsx`)
 
 **Current State:** Partially implemented with white cards
 **Target State:** Full glass design implementation

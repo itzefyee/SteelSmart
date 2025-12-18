@@ -253,13 +253,13 @@ const { data: product, isLoading } = useProduct(id);
 
 ---
 
-### 9. 🟠 **Additional Large Components - CADAnalyzer & ProductRecommenderNew**
+### 9. 🟠 **Additional Large Components - CADAnalyzer & ProductRecommender**
 
 **Root Cause:** Multiple monolithic components similar to CADGenerator
 
 **Issues:**
 - `CADAnalyzer.tsx` - **2655 lines** (even larger than CADGenerator)
-- `ProductRecommenderNew.tsx` - **992 lines**
+- `ProductRecommender.tsx` - **992 lines**
 - Both suffer from same issues: no splitting, missing memoization, inline functions
 
 **Performance Impact:**
@@ -275,7 +275,7 @@ const { data: product, isLoading } = useProduct(id);
 // - No component splitting
 // - Heavy computations in render
 
-// ProductRecommenderNew.tsx: 992 lines
+// ProductRecommender.tsx: 992 lines
 // - Similar patterns to CADGenerator
 // - Manual state management
 // - Inline event handlers
@@ -804,7 +804,7 @@ const BrakeRotorBadges = React.memo(() => (
 
 #### 3.5 Split Additional Large Components
 
-**Action:** Break down CADAnalyzer and ProductRecommenderNew
+**Action:** Break down CADAnalyzer and ProductRecommender
 
 ```typescript
 // CADAnalyzer.tsx structure:
@@ -815,7 +815,7 @@ const BrakeRotorBadges = React.memo(() => (
 // - VerificationPanel.tsx
 // - ReportGenerator.tsx
 
-// ProductRecommenderNew.tsx structure:
+// ProductRecommender.tsx structure:
 // - ProductRecommenderContainer.tsx
 // - RequirementsForm.tsx
 // - RecommendationsList.tsx
@@ -849,7 +849,7 @@ const BrakeRotorBadges = React.memo(() => (
 10. ✅ Optimize Three.js rendering
 11. ✅ Add code splitting
 12. ✅ Memoize inline JSX elements
-13. ✅ Split CADAnalyzer and ProductRecommenderNew
+13. ✅ Split CADAnalyzer and ProductRecommender
 
 ---
 
@@ -920,7 +920,7 @@ Implementing the Priority 1 and 2 improvements will provide **significant perfor
 ✅ **Confirmed:** All line numbers and code references are accurate  
 ✅ **Confirmed:** CADGenerator.tsx is 1337 lines (verified)  
 ✅ **Confirmed:** CADAnalyzer.tsx is 2655 lines (larger than CADGenerator)  
-✅ **Confirmed:** ProductRecommenderNew.tsx is 992 lines  
+✅ **Confirmed:** ProductRecommender.tsx is 992 lines  
 ✅ **Confirmed:** CADHistory uses manual fetch (line 58)  
 ✅ **Confirmed:** ProductDetailPage uses manual fetch (line 41)  
 ✅ **Confirmed:** Inline JSX elements created on every render (lines 147-167)  
@@ -934,7 +934,7 @@ Implementing the Priority 1 and 2 improvements will provide **significant perfor
 |-----------|-------|--------|----------|
 | CADAnalyzer.tsx | 2655 | 🔴 Critical | P1 |
 | CADGenerator.tsx | 1337 | 🔴 Critical | P1 |
-| ProductRecommenderNew.tsx | 992 | 🟠 High | P2 |
+| ProductRecommender.tsx | 992 | 🟠 High | P2 |
 | CADHistory.tsx | 661 | 🟡 Medium | P2 |
 | CADPreview3D.tsx | 848 | 🟡 Medium | P3 |
 
@@ -950,7 +950,7 @@ Implementing the Priority 1 and 2 improvements will provide **significant perfor
 **Manual Fetch (❌ Needs Migration):**
 - `CADHistory.tsx` - Manual fetch in useEffect
 - `ProductDetailPage` - Manual fetch in useEffect
-- `ProductRecommenderNew.tsx` - Some manual fetches (partially uses React Query)
+- `ProductRecommender.tsx` - Some manual fetches (partially uses React Query)
 
 ---
 
