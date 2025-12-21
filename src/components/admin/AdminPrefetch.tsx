@@ -29,22 +29,44 @@ export function AdminPrefetch() {
     queryClient.prefetchQuery({
       queryKey: dashboardKeys.stats(),
       queryFn: async () => {
-        const [productsRes, reportsRes] = await Promise.all([
+        const [productsRes, reportsRes, activityRes] = await Promise.all([
           fetch('/api/admin/products'),
           fetch('/api/admin/reports/statistics'),
+          fetch('/api/admin/recent-activity'),
         ]);
 
-        if (!productsRes.ok || !reportsRes.ok) {
-          throw new Error('Failed to fetch dashboard data');
+        if (!productsRes.ok) {
+          throw new Error('Failed to fetch products data');
         }
 
-        const [productsData, reportsData] = await Promise.all([
-          productsRes.json(),
-          reportsRes.json(),
-        ]);
-
+        const productsData = await productsRes.json();
         const products = productsData.data || [];
-        const reportStats = reportsData.data || {};
+
+        // Handle reports statistics gracefully - don't fail if reports table doesn't exist
+        let reportStats = { total: 0, completed: 0, processing: 0 };
+        if (reportsRes.ok) {
+          try {
+            const reportsData = await reportsRes.json();
+            reportStats = reportsData.data || reportStats;
+          } catch (error) {
+            console.warn('Reports statistics not available:', error);
+          }
+        } else {
+          console.warn('Reports statistics endpoint not available, using defaults');
+        }
+
+        // Handle recent activity gracefully
+        let recentActivity = [];
+        if (activityRes.ok) {
+          try {
+            const activityData = await activityRes.json();
+            recentActivity = activityData.data || [];
+          } catch (error) {
+            console.warn('Recent activity not available:', error);
+          }
+        } else {
+          console.warn('Recent activity endpoint not available, using empty array');
+        }
 
         return {
           totalProducts: products.length,
@@ -52,6 +74,7 @@ export function AdminPrefetch() {
           totalReports: reportStats.total || 0,
           completedReports: reportStats.completed || 0,
           processingReports: reportStats.processing || 0,
+          recentActivity,
         };
       },
       staleTime: 1 * 60 * 1000, // 1 minute

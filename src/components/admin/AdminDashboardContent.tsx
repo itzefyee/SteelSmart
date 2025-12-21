@@ -1,10 +1,47 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, FileText, TrendingUp, RefreshCw } from 'lucide-react';
+import { Package, FileText, TrendingUp, RefreshCw, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { useAdminDashboard } from '@/hooks/admin/useAdminDashboard';
+
+// Utility function to format relative time (concise format)
+function formatRelativeTime(dateString: string): string {
+  const now = new Date();
+  const activityDate = new Date(dateString);
+  const diffInSeconds = Math.floor((now.getTime() - activityDate.getTime()) / 1000);
+
+  if (diffInSeconds < 60) {
+    return 'Just now';
+  }
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes}m ago`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours}h ago`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays}d ago`;
+  }
+
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks}w ago`;
+  }
+
+  // For older activities, show the actual date in short format
+  return activityDate.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric' 
+  });
+}
 
 export function AdminDashboardContent() {
   const { data: stats, isLoading: loading, refetch } = useAdminDashboard();
@@ -95,24 +132,44 @@ export function AdminDashboardContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest system updates</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Recent Activity
+            </CardTitle>
+            <CardDescription>Latest product and report activities</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Product updated</span>
-                <span className="text-muted-foreground">2 hours ago</span>
+            {loading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex justify-between items-center animate-pulse">
+                    <div className="h-4 bg-muted rounded w-3/5"></div>
+                    <div className="h-3 bg-muted rounded w-16"></div>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between">
-                <span>New report generated</span>
-                <span className="text-muted-foreground">4 hours ago</span>
+            ) : stats?.recentActivity && stats.recentActivity.length > 0 ? (
+              <div className="space-y-2 text-sm">
+                {stats.recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex justify-between items-center gap-3">
+                    <span className="text-foreground flex-1 truncate">
+                      {activity.description}
+                    </span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">
+                      {formatRelativeTime(activity.created_at)}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between">
-                <span>Product added</span>
-                <span className="text-muted-foreground">1 day ago</span>
+            ) : (
+              <div className="text-sm text-muted-foreground text-center py-4">
+                <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No recent activity found</p>
+                <p className="text-xs mt-1">
+                  Activity will appear here when you create, update, or delete products and reports
+                </p>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

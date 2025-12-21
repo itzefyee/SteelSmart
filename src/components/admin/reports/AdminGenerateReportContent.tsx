@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, Calendar, TrendingUp, Users } from 'lucide-react';
+import { FileText, Calendar, TrendingUp, Shield, BarChart } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 
 export function AdminGenerateReportContent() {
@@ -24,22 +24,19 @@ export function AdminGenerateReportContent() {
 
   const reportTypes = [
     {
-      value: 'MONTHLY_MOST_QUOTED',
-      label: 'Monthly Most Quoted Products',
-      description: 'Generate a report of the most quoted products for a specific month',
-      icon: TrendingUp,
+      value: 'MONTHLY_AUDIT_LOG',
+      label: 'Monthly Audit Log Report',
+      description: 'Generate a comprehensive report of all admin activities for a specific month',
+      icon: Shield,
+      category: 'audit'
     },
     {
-      value: 'MONTHLY_MOST_FAV',
-      label: 'Monthly Most Favorited',
-      description: 'Generate a report of the most favorited products for a specific month',
-      icon: Users,
-    },
-    {
-      value: 'USER_TOP_QUOTATION',
-      label: 'User Top Quotations',
-      description: 'Generate a report of top quotations by users',
-      icon: FileText,
+      value: 'MONTHLY_PRODUCT_PERFORMANCE',
+      label: 'Monthly Product Performance Report',
+      description: 'Generate a report of product performance metrics for a specific month (Coming Soon)',
+      icon: BarChart,
+      category: 'product',
+      disabled: true
     },
   ];
 
@@ -75,12 +72,10 @@ export function AdminGenerateReportContent() {
 
     setLoading(true);
 
-    const parameters: Record<string, any> = {};
-
-    if (reportType === 'MONTHLY_MOST_QUOTED' || reportType === 'MONTHLY_MOST_FAV') {
-      parameters.month = month;
-      parameters.year = year;
-    }
+    const parameters: Record<string, any> = {
+      month,
+      year
+    };
 
     try {
       const response = await fetch('/api/admin/reports', {
@@ -143,10 +138,16 @@ export function AdminGenerateReportContent() {
                     </SelectTrigger>
                     <SelectContent>
                       {reportTypes.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
+                        <SelectItem 
+                          key={type.value} 
+                          value={type.value}
+                          disabled={type.disabled}
+                        >
                           <div className="flex items-center gap-2">
                             <type.icon className="h-4 w-4" />
-                            {type.label}
+                            <span className={type.disabled ? 'text-muted-foreground' : ''}>
+                              {type.label}
+                            </span>
                           </div>
                         </SelectItem>
                       ))}
@@ -175,10 +176,10 @@ export function AdminGenerateReportContent() {
                   />
                 </div>
 
-                {(reportType === 'MONTHLY_MOST_QUOTED' || reportType === 'MONTHLY_MOST_FAV') && (
+                {reportType && (
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="month">Month</Label>
+                      <Label htmlFor="month">Month *</Label>
                       <Select value={month.toString()} onValueChange={(value) => setMonth(parseInt(value))}>
                         <SelectTrigger>
                           <SelectValue />
@@ -194,7 +195,7 @@ export function AdminGenerateReportContent() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="year">Year</Label>
+                      <Label htmlFor="year">Year *</Label>
                       <Select value={year.toString()} onValueChange={(value) => setYear(parseInt(value))}>
                         <SelectTrigger>
                           <SelectValue />

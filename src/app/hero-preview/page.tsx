@@ -137,15 +137,3 @@ export default function HeroPreview() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-

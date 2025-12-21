@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import TechnicalPattern from '@/components/TechnicalPattern';
 import BlueprintSketchLayer from '@/components/BlueprintSketchLayer';
+import { useLoginAudit } from '@/hooks/useLoginAudit';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const { signIn } = useAuth();
   const router = useRouter();
+  const { logLoginSuccess } = useLoginAudit();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +65,9 @@ export default function LoginPage() {
             .single();
           
           if (!profileError && profile) {
+            // Audit log: Login success
+            await logLoginSuccess();
+            
             // Successfully got profile, redirect based on role
             if (profile.Role?.toLowerCase() === 'admin') {
               router.push('/admin');

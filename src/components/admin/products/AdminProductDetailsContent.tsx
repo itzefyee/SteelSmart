@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Edit, Trash2, Package, Tag, Warehouse, FileText, Wrench, Mail, Phone } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import type { Product } from '@/types';
 
@@ -69,13 +68,13 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
 
-  const handlePreviousImage = () => {
+  const handlePreviousImage = useCallback(() => {
     setSelectedImage((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-  };
+  }, [images.length]);
 
-  const handleNextImage = () => {
+  const handleNextImage = useCallback(() => {
     setSelectedImage((prev) => (prev === images.length - 1 ? 0 : prev + 1));
-  };
+  }, [images.length]);
 
   // Keyboard navigation for image slider
   useEffect(() => {
@@ -91,7 +90,7 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [product, images.length, selectedImage]);
+  }, [product, images.length, handlePreviousImage, handleNextImage]);
 
   const handleDelete = async () => {
     if (!productId) return;
@@ -159,23 +158,6 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
       </div>
     );
   }
-
-  const getStockBadgeVariant = (inStock: boolean) => {
-    return inStock ? 'default' : 'destructive';
-  };
-
-  const getCategoryBadgeVariant = (category: string) => {
-    switch (category) {
-      case 'Robotic':
-        return 'default';
-      case 'Custom':
-        return 'secondary';
-      case 'Fasteners':
-        return 'outline';
-      default:
-        return 'default';
-    }
-  };
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -285,11 +267,16 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
 
           {/* Right Side - Product Information */}
           <div className="space-y-6">
-            {/* Category and Stock Status */}
+            {/* Category, Material and Stock Status */}
             <div className="flex items-center gap-4">
               {product.category && (
                 <Badge className="bg-gray-100 text-gray-700 border-gray-200 rounded-full px-4 py-2 text-sm font-medium">
                   {product.category}
+                </Badge>
+              )}
+              {(product as any).material && (
+                <Badge className="bg-gray-100 text-gray-700 border-gray-200 rounded-full px-4 py-2 text-sm font-medium">
+                  {(product as any).material}
                 </Badge>
               )}
               <div className="flex items-center gap-2">
@@ -310,115 +297,25 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
             {/* Description */}
             <p className="text-gray-600 text-lg leading-relaxed">{product.description}</p>
 
-            {/* Key Specifications */}
-            <div className="bg-white/10 rounded-2xl p-6 backdrop-blur-sm">
-              <h3 className="text-xl font-semibold mb-4">Key Specifications</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {(product as any).dimensions && (
-                  <div>
-                    <div className="text-blue-200 text-sm">Dimensions</div>
-                    <div className="font-semibold">{(product as any).dimensions}</div>
-                  </div>
-                )}
-                {(product as any).material && (
-                  <div>
-                    <div className="text-blue-200 text-sm">Material</div>
-                    <div className="font-semibold">{(product as any).material}</div>
-                  </div>
-                )}
-                {(product as any).weight && (
-                  <div>
-                    <div className="text-blue-200 text-sm">Weight</div>
-                    <div className="font-semibold">{(product as any).weight}</div>
-                  </div>
-                )}
-                {(product as any).tolerance && (
-                  <div>
-                    <div className="text-blue-200 text-sm">Tolerance</div>
-                    <div className="font-semibold">{(product as any).tolerance}</div>
-                  </div>
-                )}
-                {(product as any).load_capacity && (
-                  <div>
-                    <div className="text-blue-200 text-sm">Load Capacity</div>
-                    <div className="font-semibold">{(product as any).load_capacity}</div>
-                  </div>
-                )}
-                {(product as any).operating_temperature && (
-                  <div>
-                    <div className="text-blue-200 text-sm">Operating Temperature</div>
-                    <div className="font-semibold">{(product as any).operating_temperature}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4">
-              <Button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl py-3 text-lg font-semibold">
-                Request Quote
-              </Button>
-              <Button variant="outline" className="bg-white text-blue-700 border-0 rounded-2xl px-6 py-3 font-semibold hover:bg-gray-50">
-                <Wrench className="h-5 w-5 mr-2" />
-                Generate Drawing
-              </Button>
-            </div>
-
-            {/* Help Section */}
-            <div className="bg-white/10 rounded-2xl p-6 backdrop-blur-sm">
-              <h3 className="text-lg font-semibold mb-2">Need Help?</h3>
-              <p className="text-blue-100 text-sm mb-4">Our technical experts are here to help you find the right solution.</p>
-              <div className="flex flex-col gap-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  <span className="text-blue-300">steelsmart.cad@gmail.com</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4" />
-                  <span className="text-blue-300">+1 (555) 012-3456</span>
+            {/* Technical Details Section */}
+            {product.specifications && Object.keys(product.specifications).length > 0 && (
+              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+                <h3 className="text-xl font-semibold mb-4">Technical Details</h3>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {Object.entries(product.specifications).map(
+                    ([key, value]) =>
+                      value && (
+                        <div key={key} className="space-y-2">
+                          <div className="text-blue-600 text-sm font-medium capitalize">
+                            {key.replace(/([A-Z])/g, ' $1').trim()}
+                          </div>
+                          <div className="font-semibold">{String(value)}</div>
+                        </div>
+                      )
+                  )}
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Technical Details Section */}
-        {product.specifications && Object.keys(product.specifications).length > 0 && (
-          <div className="bg-white/10 rounded-3xl p-8 backdrop-blur-sm">
-            <h2 className="text-2xl font-bold mb-6">Technical Details</h2>
-            <p className="text-blue-100 mb-6">
-              {product.description || 'Detailed technical specifications and manufacturing information for this product.'}
-            </p>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {Object.entries(product.specifications).map(
-                ([key, value]) =>
-                  value && (
-                    <div key={key} className="space-y-2">
-                      <div className="text-blue-200 text-sm font-medium capitalize">
-                        {key.replace(/([A-Z])/g, ' $1').trim()}
-                      </div>
-                      <div className="font-semibold">{String(value)}</div>
-                    </div>
-                  )
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Compatible Products Section */}
-        <div className="bg-white/10 rounded-3xl p-8 backdrop-blur-sm">
-          <h2 className="text-2xl font-bold mb-6">Compatible Products</h2>
-          <div className="flex gap-3 flex-wrap">
-            {/* Mock compatible products - replace with actual data */}
-            <Badge className="bg-white/20 text-white border-white/30 rounded-full px-4 py-2">
-              hex-bolt-m12
-            </Badge>
-            <Badge className="bg-white/20 text-white border-white/30 rounded-full px-4 py-2">
-              hex-nut-m12
-            </Badge>
-            <Badge className="bg-white/20 text-white border-white/30 rounded-full px-4 py-2">
-              washer-m12
-            </Badge>
+            )}
           </div>
         </div>
       </div>

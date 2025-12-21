@@ -1,6 +1,8 @@
 import { ProductRepository, type ProductFilters, type CreateProductInput, type UpdateProductInput } from '@/repositories/admin/product.repository';
 import type { Product } from '@/types';
 import { NotFoundError, ValidationError } from '@/lib/errors/app-errors';
+import { AuditLogService } from '@/services/admin/audit/audit-log.service';
+import { getSupabaseServer } from '@/lib/supabase-server';
 
 // Singleton pattern for repository to reuse connections
 let repositoryInstance: ProductRepository | null = null;
@@ -47,11 +49,30 @@ export class ProductService {
     // Generate a unique ID for the product
     const productId = crypto.randomUUID();
     
-    // Handover to Repository Layer
-    return this.repository.create({
-      ...input,
-      id: productId,
-    });
+    try {
+      // Handover to Repository Layer
+      const product = await this.repository.create({
+        ...input,
+        id: productId,
+      });
+
+      // Get current user for audit logging
+      const supabase = await getSupabaseServer();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Audit log: Product creation success
+        await AuditLogService.logProduct(
+          user.id,
+          'CREATE',
+          { id: product.id, name: product.name }
+        );
+      }
+
+      return product;
+    } catch (error) {
+      throw error;
+    }
   }
 
   async update(id: string, input: UpdateProductInput): Promise<Product> {
@@ -66,7 +87,26 @@ export class ProductService {
       throw new ValidationError('Price must be positive', { price: 'Price must be positive' });
     }
     
-    return this.repository.update(id, input);
+    try {
+      const product = await this.repository.update(id, input);
+
+      // Get current user for audit logging
+      const supabase = await getSupabaseServer();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Audit log: Product update success
+        await AuditLogService.logProduct(
+          user.id,
+          'UPDATE',
+          { id: product.id, name: product.name }
+        );
+      }
+
+      return product;
+    } catch (error) {
+      throw error;
+    }
   }
 
   async delete(id: string): Promise<void> {
@@ -76,6 +116,27 @@ export class ProductService {
       throw new NotFoundError('Product');
     }
     
-    await this.repository.delete(id);
+    try {
+      await this.repository.delete(id);
+
+      // Get current user for audit logging
+      const supabase = await getSupabaseServer();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Audit log: Product deletion success
+        await AuditLogService.logProduct(
+          user.id,
+          'DELETE',
+          { id: existing.id, name: existing.name }
+        );
+      }
+    } catch (error) {
+      // Get current user for audit logging
+      const supabase = await getSupabaseServer();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      throw error;
+    }
   }
 }

@@ -11,7 +11,18 @@ export async function GET(
     const service = new ReportService();
     const report = await service.getById(id);
 
-    return NextResponse.json({ data: report });
+    // Generate public URL if file exists
+    let publicFileUrl = null;
+    if (report.file_url) {
+      publicFileUrl = await service.getReportFileUrl(report);
+    }
+
+    return NextResponse.json({ 
+      data: {
+        ...report,
+        public_file_url: publicFileUrl
+      }
+    });
   } catch (error) {
     return handleApiError(error);
   }

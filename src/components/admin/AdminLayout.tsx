@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { AdminPrefetch } from '@/components/admin/AdminPrefetch';
+import { AuditClient } from '@/lib/audit-client';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -89,6 +90,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             onClick={async () => {
               setIsLoggingOut(true);
               try {
+                // Audit log: Logout success
+                await AuditClient.logAuth('LOGOUT');
+                
                 await signOut();
                 router.push('/login');
               } catch (error) {

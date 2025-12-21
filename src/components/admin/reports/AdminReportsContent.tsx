@@ -1,18 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Download, Trash2, Search, FileText, Calendar } from 'lucide-react';
-import { useToast } from '@/components/ui/ToastProvider';
+import { Eye, Download, Trash2, Search, FileText, Calendar, FilePlus } from 'lucide-react';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
 import type { Report } from '@/types';
 
 export default function AdminReportsContent() {
   const [reports, setReports] = useState<Report[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -25,32 +25,22 @@ export default function AdminReportsContent() {
     failed: 0,
   });
 
-  // Safe toast hook with error handling
+  // Safe toast hook usage
   let addToast: ((toast: any) => void) | null = null;
   try {
-    const toastHook = useToast();
-    addToast = toastHook?.addToast || null;
+    const { useToast } = require('@/components/ui/ToastProvider');
+    const toastContext = useToast();
+    addToast = toastContext.addToast;
   } catch (error) {
-    console.error('Toast context not available:', error);
+    console.warn('Toast context not available:', error);
+    addToast = (toast: any) => {
+      console.log('Toast (fallback):', toast.title, '-', toast.description);
+    };
   }
 
-  // Ensure component is mounted before running effects
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Safe toast function
-  const safeAddToast = (toast: any) => {
-    if (addToast && mounted) {
-      try {
-        addToast(toast);
-      } catch (error) {
-        console.error('Toast error:', error);
-      }
-    } else {
-      console.log('Toast:', toast.title, '-', toast.description);
-    }
-  };
 
   useEffect(() => {
     if (mounted) {
@@ -58,6 +48,18 @@ export default function AdminReportsContent() {
       loadStatistics();
     }
   }, [currentPage, mounted]);
+
+  // Filter reports based on search query
+  const filteredReports = useMemo(() => {
+    if (!searchQuery.trim()) return reports;
+    const query = searchQuery.toLowerCase();
+    return reports.filter(
+      (report) =>
+        report.title.toLowerCase().includes(query) ||
+        report.report_type.toLowerCase().includes(query) ||
+        report.status.toLowerCase().includes(query)
+    );
+  }, [reports, searchQuery]);
 
   const loadReports = async () => {
     setLoading(true);
@@ -74,11 +76,13 @@ export default function AdminReportsContent() {
       }
     } catch (error) {
       console.error('Failed to load reports:', error);
-      safeAddToast({
-        title: 'Error',
-        description: 'Failed to load reports',
-        type: 'error',
-      });
+      if (addToast) {
+        addToast({
+          title: 'Error',
+          description: 'Failed to load reports',
+          type: 'error',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -101,12 +105,6 @@ export default function AdminReportsContent() {
     }
   };
 
-  const filteredReports = reports.filter(
-    (report) =>
-      report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.report_type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const handleDelete = async (reportId: string) => {
     if (!confirm('Are you sure you want to delete this report?')) return;
 
@@ -117,52 +115,47 @@ export default function AdminReportsContent() {
 
       if (response.ok) {
         setReports(reports.filter((r) => r.id !== reportId));
-        safeAddToast({
-          title: 'Report Deleted',
-          description: 'Report has been successfully deleted',
-          type: 'success',
-        });
+        if (addToast) {
+          addToast({
+            title: 'Report Deleted',
+            description: 'Report has been successfully deleted',
+            type: 'success',
+          });
+        }
         loadStatistics();
       } else {
         throw new Error('Failed to delete');
       }
     } catch (error) {
-      safeAddToast({
-        title: 'Error',
-        description: 'Failed to delete report',
-        type: 'error',
-      });
+      if (addToast) {
+        addToast({
+          title: 'Error',
+          description: 'Failed to delete report',
+          type: 'error',
+        });
+      }
     }
   };
 
   const handleDownload = (report: Report) => {
     if (report.status !== 'COMPLETED' || !report.file_url) {
-      safeAddToast({
-        title: 'Error',
-        description: 'Report is not ready for download',
-        type: 'error',
-      });
+      if (addToast) {
+        addToast({
+          title: 'Error',
+          description: 'Report is not ready for download',
+          type: 'error',
+        });
+      }
       return;
     }
 
     window.open(report.file_url, '_blank');
-    safeAddToast({
-      title: 'Download Started',
-      description: `Downloading ${report.title}...`,
-      type: 'info',
-    });
-  };
-
-  const getTypeBadgeVariant = (type: string) => {
-    switch (type) {
-      case 'MONTHLY_MOST_QUOTED':
-        return 'default';
-      case 'MONTHLY_MOST_FAV':
-        return 'secondary';
-      case 'USER_TOP_QUOTATION':
-        return 'outline';
-      default:
-        return 'default';
+    if (addToast) {
+      addToast({
+        title: 'Download Started',
+        description: `Downloading ${report.title}...`,
+        type: 'info',
+      });
     }
   };
 
@@ -185,6 +178,17 @@ export default function AdminReportsContent() {
     }
   };
 
+  const getTypeBadgeVariant = (type: string) => {
+    switch (type) {
+      case 'MONTHLY_AUDIT_LOG':
+        return 'default';
+      case 'MONTHLY_PRODUCT_PERFORMANCE':
+        return 'secondary';
+      default:
+        return 'outline';
+    }
+  };
+
   // Don't render until component is mounted to avoid hydration issues
   if (!mounted) {
     return (
@@ -197,140 +201,180 @@ export default function AdminReportsContent() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Report Management</h1>
-          <p className="text-muted-foreground">View, download, and manage your generated reports</p>
+          <p className="text-muted-foreground mt-1">View, download, and manage your generated reports</p>
         </div>
         <Link href="/admin/reports/generate">
-          <Button>
-            <FileText className="h-4 w-4 mr-2" />
+          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
+            <FilePlus className="w-4 h-4" />
             Generate Report
           </Button>
         </Link>
-      </div>
+      </motion.div>
 
-      <div className="flex items-center space-x-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+      {/* Search Bar */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.05 }}
+        className="flex items-center gap-4"
+      >
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search reports..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-card border-border"
           />
         </div>
-        <div className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           Showing {filteredReports.length} of {reports.length} reports
-        </div>
-      </div>
+        </span>
+      </motion.div>
 
       {/* Statistics Section */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Report Statistics</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-5 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <div className="text-sm text-muted-foreground">Total</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-              <div className="text-sm text-muted-foreground">Pending</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{stats.processing}</div>
-              <div className="text-sm text-muted-foreground">Processing</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-              <div className="text-sm text-muted-foreground">Completed</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">{stats.failed}</div>
-              <div className="text-sm text-muted-foreground">Failed</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {loading ? (
-        <div className="text-center py-8 text-muted-foreground">Loading reports...</div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredReports.map((report) => (
-            <Card key={report.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg line-clamp-2">{report.title}</CardTitle>
-                  </div>
-                </div>
-                <CardDescription className="line-clamp-2">
-                  {`${report.report_type.replace(/_/g, ' ')} report generated on ${new Date(
-                    report.created_at || ''
-                  ).toLocaleDateString()}`}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex gap-2 flex-wrap">
-                  <Badge variant={getTypeBadgeVariant(report.report_type)}>
-                    {report.report_type.replace(/_/g, ' ')}
-                  </Badge>
-                  {getStatusBadge(report.status)}
-                  <Badge variant="outline">PDF</Badge>
-                </div>
-
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    <span>{new Date(report.created_at || '').toLocaleDateString()}</span>
-                  </div>
-                  {report.file_url && (
-                    <div className="flex justify-between">
-                      <span>Status:</span>
-                      <span className="font-medium text-green-600">Ready for download</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter className="flex gap-2 pt-3">
-                <Link href={`/admin/reports/${report.id}`} className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full">
-                    <Eye className="h-4 w-4 mr-2" />
-                    View
-                  </Button>
-                </Link>
-                {report.status === 'COMPLETED' && report.file_url && (
-                  <Button variant="outline" size="sm" onClick={() => handleDownload(report)} className="flex-1">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                )}
-                <Button variant="outline" size="sm" onClick={() => handleDelete(report.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {!loading && filteredReports.length === 0 && (
-        <Card className="p-8 text-center">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>Report Statistics</CardTitle>
+          </CardHeader>
           <CardContent>
-            <div className="text-muted-foreground">No reports found matching your search criteria.</div>
+            <div className="grid grid-cols-5 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold">{stats.total}</div>
+                <div className="text-sm text-muted-foreground">Total</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+                <div className="text-sm text-muted-foreground">Pending</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{stats.processing}</div>
+                <div className="text-sm text-muted-foreground">Processing</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+                <div className="text-sm text-muted-foreground">Completed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{stats.failed}</div>
+                <div className="text-sm text-muted-foreground">Failed</div>
+              </div>
+            </div>
           </CardContent>
         </Card>
-      )}
+      </motion.div>
+
+      {/* Reports Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.15 }}
+      >
+        {loading ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <div className="text-muted-foreground">Loading reports...</div>
+            </CardContent>
+          </Card>
+        ) : filteredReports.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No reports found matching your search criteria.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredReports.map((report) => (
+              <motion.div
+                key={report.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        <CardTitle className="text-lg line-clamp-2">{report.title}</CardTitle>
+                      </div>
+                    </div>
+                    <CardDescription className="line-clamp-2">
+                      {`${report.report_type.replace(/_/g, ' ')} report generated on ${new Date(
+                        report.created_at || ''
+                      ).toLocaleDateString()}`}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex gap-2 flex-wrap">
+                      <Badge variant={getTypeBadgeVariant(report.report_type)}>
+                        {report.report_type.replace(/_/g, ' ')}
+                      </Badge>
+                      {getStatusBadge(report.status)}
+                      <Badge variant="outline">PDF</Badge>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>{new Date(report.created_at || '').toLocaleDateString()}</span>
+                      </div>
+                      {report.file_url && (
+                        <div className="flex justify-between">
+                          <span>Status:</span>
+                          <span className="font-medium text-green-600">Ready for download</span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex gap-2 pt-3">
+                    <Link href={`/admin/reports/${report.id}`} className="flex-1">
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </Button>
+                    </Link>
+                    {report.status === 'COMPLETED' && report.file_url && (
+                      <Button variant="outline" size="sm" onClick={() => handleDownload(report)} className="flex-1">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => handleDelete(report.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </motion.div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-6">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="flex justify-center items-center space-x-2"
+        >
           <Button
             variant="outline"
             size="sm"
@@ -350,7 +394,7 @@ export default function AdminReportsContent() {
           >
             Next
           </Button>
-        </div>
+        </motion.div>
       )}
     </div>
   );

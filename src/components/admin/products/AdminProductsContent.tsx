@@ -28,7 +28,23 @@ import { AdminErrorBoundary } from '@/components/admin/AdminErrorBoundary';
 export default function AdminProductsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const { addToast } = useToast();
+  const [mounted, setMounted] = useState(false);
+  
+  // Safe toast hook usage
+  let addToast: ((toast: any) => void) | null = null;
+  try {
+    const toastContext = useToast();
+    addToast = toastContext.addToast;
+  } catch (error) {
+    console.warn('Toast context not available:', error);
+    addToast = (toast: any) => {
+      console.log('Toast (fallback):', toast.title, '-', toast.description);
+    };
+  }
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   // Debounce search term to avoid excessive API calls
   useEffect(() => {
@@ -64,23 +80,35 @@ export default function AdminProductsContent() {
   const handleDelete = async (productId: string) => {
     try {
       await deleteProductMutation.mutateAsync(productId);
-      addToast({
-        title: 'Success',
-        description: 'Product deleted successfully',
-        type: 'success',
-      });
+      if (addToast) {
+        addToast({
+          title: 'Success',
+          description: 'Product deleted successfully',
+          type: 'success',
+        });
+      }
     } catch (error) {
-      addToast({
-        title: 'Error',
-        description: 'Failed to delete product',
-        type: 'error',
-      });
+      if (addToast) {
+        addToast({
+          title: 'Error',
+          description: 'Failed to delete product',
+          type: 'error',
+        });
+      }
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {!mounted ? (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-lg text-muted-foreground">Loading...</div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Product Management</h1>
           <p className="text-muted-foreground">Manage your product catalog and inventory</p>
@@ -121,7 +149,7 @@ export default function AdminProductsContent() {
           {filteredProducts.map((product) => (
             <Card key={product.id} className="overflow-hidden flex flex-col">
               {/* Product Image */}
-              <div className="relative h-64 bg-muted rounded-lg overflow-hidden">
+              <div className="relative h-80 bg-muted rounded-lg overflow-hidden">
                 {product.images && product.images.length > 0 ? (
                   <Image
                     src={product.images[0]}
@@ -175,7 +203,7 @@ export default function AdminProductsContent() {
                 </Link>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm">
+                    <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white hover:text-white border-0">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </AlertDialogTrigger>
@@ -211,6 +239,8 @@ export default function AdminProductsContent() {
             </div>
           </CardContent>
         </Card>
+      )}
+        </>
       )}
     </div>
   );

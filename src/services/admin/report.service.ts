@@ -2,6 +2,8 @@ import { ReportRepository, type ReportFilters, type CreateReportInput } from '@/
 import type { Report } from '@/types';
 import { NotFoundError, ValidationError } from '@/lib/errors/app-errors';
 import { reportGeneratorService } from './ReportGeneratorService';
+import { AuditLogService } from '@/services/admin/audit/audit-log.service';
+import { getSupabaseServer } from '@/lib/supabase-server';
 
 export class ReportService {
   private repository: ReportRepository;
@@ -29,7 +31,26 @@ export class ReportService {
       throw new NotFoundError('Report');
     }
     
+    // If report has a file_url (storage path), we can generate public URL when needed
+    // The file_url will be stored as "audit/uuid.pdf" or "performance/uuid.pdf"
+    
     return report;
+  }
+
+  async getReportFileUrl(report: Report): Promise<string | null> {
+    if (!report.file_url) {
+      return null;
+    }
+
+    // Generate public URL from storage path
+    const { getSupabaseAdmin } = require('@/lib/supabase-server');
+    const supabase = getSupabaseAdmin();
+    
+    const { data: { publicUrl } } = supabase.storage
+      .from('admin-reports')
+      .getPublicUrl(report.file_url);
+
+    return publicUrl;
   }
 
   async createAndGenerate(input: CreateReportInput): Promise<string> {
@@ -42,18 +63,43 @@ export class ReportService {
       throw new ValidationError('Report type is required', { report_type: 'Report type is required' });
     }
     
-    // Create report
-    const report = await this.repository.create({
-      ...input,
-      status: 'PENDING',
-    });
-    
-    // Trigger generation asynchronously
-    reportGeneratorService.processReport(report.id).catch(error => {
-      console.error(`Report generation failed for ID ${report.id}:`, error);
-    });
-    
-    return report.id;
+    try {
+      // Create report
+      const report = await this.repository.create({
+        ...input,
+        status: 'PENDING',
+      });
+      
+      // Get current user for audit logging
+      const supabase = await getSupabaseServer();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Audit log: Report creation success
+        await AuditLogService.logReport(
+          user.id,
+          'CREATE',
+          { 
+            id: report.id, 
+            title: report.title, 
+            report_type: report.report_type 
+          }
+        );
+      }
+      
+      // Trigger generation asynchronously
+      reportGeneratorService.processReport(report.id).catch(error => {
+        console.error(`Report generation failed for ID ${report.id}:`, error);
+      });
+      
+      return report.id;
+    } catch (error) {
+      // Get current user for audit logging
+      const supabase = await getSupabaseServer();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      throw error;
+    }
   }
 
   async update(id: string, input: Partial<CreateReportInput>): Promise<Report> {
@@ -71,17 +117,38 @@ export class ReportService {
       throw new NotFoundError('Report');
     }
     
-    // Delete file from storage if exists
-    if (report.file_url) {
-      const { getSupabaseAdmin } = require('@/lib/supabase-server');
-      const supabase = getSupabaseAdmin();
-      const fileName = report.file_url.split('/').pop();
-      if (fileName) {
-        await supabase.storage.from('admin-reports').remove([fileName]);
+    try {
+      // Delete file from storage if exists
+      if (report.file_url) {
+        const { getSupabaseAdmin } = require('@/lib/supabase-server');
+        const supabase = getSupabaseAdmin();
+        const fileName = report.file_url.split('/').pop();
+        if (fileName) {
+          await supabase.storage.from('admin-reports').remove([fileName]);
+        }
       }
+      
+      await this.repository.delete(id);
+
+      // Get current user for audit logging
+      const supabase = await getSupabaseServer();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Audit log: Report deletion success
+        await AuditLogService.logReport(
+          user.id,
+          'DELETE',
+          { id: report.id, title: report.title }
+        );
+      }
+    } catch (error) {
+      // Get current user for audit logging
+      const supabase = await getSupabaseServer();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      throw error;
     }
-    
-    await this.repository.delete(id);
   }
 
   async retry(id: string): Promise<void> {

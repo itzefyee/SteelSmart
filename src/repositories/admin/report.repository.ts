@@ -19,33 +19,41 @@ export class ReportRepository {
   ): Promise<{ reports: Report[]; total: number }> {
     const supabase = await getSupabaseServer();
     
-    let query = supabase.from('reports').select('*', { count: 'exact' });
-    
-    if (filters?.status) {
-      query = query.eq('status', filters.status);
+    try {
+      let query = supabase.from('reports').select('*', { count: 'exact' });
+      
+      if (filters?.status) {
+        query = query.eq('status', filters.status);
+      }
+      
+      if (filters?.report_type) {
+        query = query.eq('report_type', filters.report_type);
+      }
+      
+      if (filters?.search) {
+        query = query.ilike('title', `%${filters.search}%`);
+      }
+      
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      
+      const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      
+      if (error) {
+        console.warn('Reports table not found, returning empty results:', error.message);
+        return { reports: [], total: 0 };
+      }
+      
+      return {
+        reports: (data || []) as Report[],
+        total: count || 0,
+      };
+    } catch (error) {
+      console.warn('Error fetching reports, returning empty results:', error);
+      return { reports: [], total: 0 };
     }
-    
-    if (filters?.report_type) {
-      query = query.eq('report_type', filters.report_type);
-    }
-    
-    if (filters?.search) {
-      query = query.ilike('title', `%${filters.search}%`);
-    }
-    
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    
-    const { data, error, count } = await query
-      .order('created_at', { ascending: false })
-      .range(from, to);
-    
-    if (error) throw new Error(`Failed to fetch reports: ${error.message}`);
-    
-    return {
-      reports: (data || []) as Report[],
-      total: count || 0,
-    };
   }
 
   async findById(id: string): Promise<Report | null> {
@@ -102,37 +110,59 @@ export class ReportRepository {
   async getStatistics(): Promise<ReportStatistics> {
     const supabase = await getSupabaseServer();
     
-    const { data, error } = await supabase
-      .from('reports')
-      .select('status');
-    
-    if (error) throw new Error(`Failed to fetch statistics: ${error.message}`);
-    
-    const stats: ReportStatistics = {
-      total: data?.length || 0,
-      pending: 0,
-      processing: 0,
-      completed: 0,
-      failed: 0,
-    };
-    
-    data?.forEach((report) => {
-      switch (report.status) {
-        case 'PENDING':
-          stats.pending++;
-          break;
-        case 'PROCESSING':
-          stats.processing++;
-          break;
-        case 'COMPLETED':
-          stats.completed++;
-          break;
-        case 'FAILED':
-          stats.failed++;
-          break;
+    try {
+      const { data, error } = await supabase
+        .from('reports')
+        .select('status');
+      
+      if (error) {
+        console.warn('Reports table not found, returning empty statistics:', error.message);
+        // Return empty statistics if table doesn't exist
+        return {
+          total: 0,
+          pending: 0,
+          processing: 0,
+          completed: 0,
+          failed: 0,
+        };
       }
-    });
-    
-    return stats;
+      
+      const stats: ReportStatistics = {
+        total: data?.length || 0,
+        pending: 0,
+        processing: 0,
+        completed: 0,
+        failed: 0,
+      };
+      
+      data?.forEach((report) => {
+        switch (report.status) {
+          case 'PENDING':
+            stats.pending++;
+            break;
+          case 'PROCESSING':
+            stats.processing++;
+            break;
+          case 'COMPLETED':
+            stats.completed++;
+            break;
+          case 'FAILED':
+            stats.failed++;
+            break;
+        }
+      });
+      
+      return stats;
+    } catch (error) {
+      console.warn('Error fetching report statistics, returning empty statistics:', error);
+      // Return empty statistics on any error
+      return {
+        total: 0,
+        pending: 0,
+        processing: 0,
+        completed: 0,
+        failed: 0,
+      };
+    }
   }
 }

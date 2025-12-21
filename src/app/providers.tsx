@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, lazy, Suspense } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ToastProvider } from '@/components/ui/ToastProvider';
 import SteelbotAssistant from '@/components/chatbot/SteelbotAssistant';
 
 // Lazy load React Query DevTools to avoid SSR issues
@@ -37,14 +38,16 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        {children}
-        <SteelbotAssistant />
-        {/* React Query DevTools - only visible in development */}
-        {process.env.NODE_ENV === 'development' && (
-          <Suspense fallback={null}>
-            <ReactQueryDevtools initialIsOpen={false} />
-          </Suspense>
-        )}
+        <ToastProvider>
+          {children}
+          <SteelbotAssistant />
+          {/* React Query DevTools - only visible in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <Suspense fallback={null}>
+              <ReactQueryDevtools initialIsOpen={false} />
+            </Suspense>
+          )}
+        </ToastProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

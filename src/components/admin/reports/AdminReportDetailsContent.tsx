@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,9 +17,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Download, Trash2, FileText, Calendar, FileType } from 'lucide-react';
-import { useToast } from '@/components/ui/ToastProvider';
-import type { Report } from '@/types';
+import { ArrowLeft, Download, Trash2, FileText, Calendar, HardDrive, Clock, User } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { format } from 'date-fns';
+
+interface Report {
+  id: string;
+  title: string;
+  report_type: string;
+  status: string;
+  file_url?: string;
+  file_size?: string;
+  created_at?: string;
+  updated_at?: string;
+  description?: string;
+}
 
 interface AdminReportDetailsContentProps {
   reportId: string;
@@ -28,110 +39,150 @@ interface AdminReportDetailsContentProps {
 
 export function AdminReportDetailsContent({ reportId }: AdminReportDetailsContentProps) {
   const router = useRouter();
-  const { addToast } = useToast();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  // Safe toast hook usage
+  let addToast: ((toast: any) => void) | null = null;
+  try {
+    const { useToast } = require('@/components/ui/ToastProvider');
+    const toastContext = useToast();
+    addToast = toastContext.addToast;
+  } catch (error) {
+    console.warn('Toast context not available:', error);
+    addToast = (toast: any) => {
+      console.log('Toast (fallback):', toast.title, '-', toast.description);
+    };
+  }
 
   useEffect(() => {
-    loadReport();
-    // Auto-refresh if processing
-    const interval = setInterval(() => {
-      if (report?.status === 'PROCESSING' || report?.status === 'PENDING') {
-        loadReport();
-      }
-    }, 2000);
+    setMounted(true);
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [reportId, report?.status]);
+  useEffect(() => {
+    if (mounted && reportId) {
+      loadReport(reportId);
+    }
+  }, [reportId, mounted]);
 
-  const loadReport = async () => {
+  const loadReport = async (id: string) => {
+    setLoading(true);
     try {
-      const response = await fetch(`/api/admin/reports/${reportId}`);
+      const response = await fetch(`/api/admin/reports/${id}`);
       const data = await response.json();
-
+      
       if (data.data) {
         setReport(data.data);
+      } else {
+        if (addToast) {
+          addToast({
+            title: 'Error',
+            description: 'Failed to load report',
+            type: 'error',
+          });
+        }
       }
     } catch (error) {
-      addToast({
-        title: 'Error',
-        description: 'Failed to load report',
-        type: 'error',
-      });
+      if (addToast) {
+        addToast({
+          title: 'Error',
+          description: 'Failed to load report',
+          type: 'error',
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleDownload = () => {
+    if (!report || report.status !== 'COMPLETED' || !report.file_url) {
+      if (addToast) {
+        addToast({
+          title: 'Download unavailable',
+          description: 'This report is not yet ready for download.',
+          type: 'error',
+        });
+      }
+      return;
+    }
+
+    window.open(report.file_url, '_blank');
+    if (addToast) {
+      addToast({
+        title: 'Download started',
+        description: `Downloading ${report.title}...`,
+        type: 'info',
+      });
+    }
+  };
+
   const handleDelete = async () => {
+    if (!reportId) return;
+
     try {
       const response = await fetch(`/api/admin/reports/${reportId}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        addToast({
-          title: 'Report Deleted',
-          description: 'Report has been successfully deleted',
-          type: 'success',
-        });
+        if (addToast) {
+          addToast({
+            title: 'Report Deleted',
+            description: 'Report has been deleted successfully',
+            type: 'success',
+          });
+        }
         router.push('/admin/reports');
       } else {
         throw new Error('Failed to delete');
       }
     } catch (error) {
-      addToast({
-        title: 'Error',
-        description: 'Failed to delete report',
-        type: 'error',
-      });
-    }
-  };
-
-  const handleDownload = () => {
-    if (!report?.file_url) return;
-
-    window.open(report.file_url, '_blank');
-    addToast({
-      title: 'Download Started',
-      description: `Downloading ${report.title}...`,
-      type: 'info',
-    });
-  };
-
-  const handleRetry = async () => {
-    try {
-      const response = await fetch(`/api/admin/reports/${reportId}/retry`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
+      if (addToast) {
         addToast({
-          title: 'Report Retry Initiated',
-          description: 'The report generation has been restarted',
-          type: 'success',
+          title: 'Error',
+          description: 'Failed to delete report',
+          type: 'error',
         });
-        loadReport();
-      } else {
-        throw new Error('Failed to retry');
       }
-    } catch (error) {
-      addToast({
-        title: 'Error',
-        description: 'Failed to retry report generation',
-        type: 'error',
-      });
     }
   };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return <Badge variant="secondary">Pending</Badge>;
+      case 'PROCESSING':
+        return <Badge variant="default">Processing</Badge>;
+      case 'COMPLETED':
+        return <Badge variant="default" className="bg-green-500">Completed</Badge>;
+      case 'FAILED':
+        return <Badge variant="destructive">Failed</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  // Don't render until component is mounted to avoid hydration issues
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-lg text-muted-foreground">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
+      <div className="p-8 max-w-4xl">
+        <div className="flex items-center gap-4 mb-6">
           <Link href="/admin/reports">
             <Button variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Reports
+              Back
             </Button>
           </Link>
         </div>
@@ -146,253 +197,198 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
 
   if (!report) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
+      <div className="p-8 max-w-4xl">
+        <div className="flex items-center gap-4 mb-6">
           <Link href="/admin/reports">
             <Button variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </Link>
+        </div>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <FileText className="w-16 h-16 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">Report Not Found</h2>
+          <p className="text-muted-foreground mb-6">The report you're looking for doesn't exist.</p>
+          <Link href="/admin/reports">
+            <Button variant="outline">
+              <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Reports
             </Button>
           </Link>
         </div>
-        <Card>
-          <CardContent className="p-8 text-center">
-            <div className="text-muted-foreground">Report not found</div>
-          </CardContent>
-        </Card>
       </div>
     );
   }
 
-  const getTypeBadgeVariant = (type: string) => {
-    switch (type) {
-      case 'MONTHLY_MOST_QUOTED':
-        return 'default';
-      case 'MONTHLY_MOST_FAV':
-        return 'secondary';
-      case 'USER_TOP_QUOTATION':
-        return 'outline';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'COMPLETED':
-        return 'default';
-      case 'PROCESSING':
-        return 'secondary';
-      case 'PENDING':
-        return 'outline';
-      case 'FAILED':
-        return 'destructive';
-      default:
-        return 'secondary';
-    }
-  };
+  const detailItems = [
+    { icon: User, label: 'Author', value: 'Admin User' },
+    { icon: FileText, label: 'Report Type', value: report.report_type.replace(/_/g, ' ') },
+    { icon: HardDrive, label: 'File Size', value: report.file_size || 'N/A' },
+    { 
+      icon: Calendar, 
+      label: 'Created', 
+      value: report.created_at ? format(new Date(report.created_at), 'MMMM d, yyyy \'at\' h:mm a') : 'N/A'
+    },
+    { 
+      icon: Clock, 
+      label: 'Last Updated', 
+      value: report.updated_at ? format(new Date(report.updated_at), 'MMMM d, yyyy \'at\' h:mm a') : 'N/A'
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/admin/reports">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Reports
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{report.title}</h1>
-            <p className="text-muted-foreground">
-              Generated on {new Date(report.created_at || '').toLocaleDateString()}
-            </p>
+    <div className="p-8 max-w-4xl">
+      {/* Back Button */}
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Link href="/admin/reports">
+          <Button
+            variant="ghost"
+            className="mb-6 text-muted-foreground hover:text-foreground -ml-2"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Reports
+          </Button>
+        </Link>
+      </motion.div>
+
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="bg-card rounded-lg border border-border p-6 shadow-sm mb-6"
+      >
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <FileText className="w-7 h-7 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h1 className="text-xl font-bold text-foreground mb-2">{report.title}</h1>
+                {getStatusBadge(report.status)}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleDownload}
+                  disabled={report.status !== 'COMPLETED'}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Report
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Report</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete "{report.title}"? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDelete}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            disabled={report.status !== 'COMPLETED' || !report.file_url}
-            onClick={handleDownload}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Download Report
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Report</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete "{report.title}"? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
+      </motion.div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Report Overview
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2 flex-wrap">
-                <Badge variant={getTypeBadgeVariant(report.report_type)}>
-                  {report.report_type.replace(/_/g, ' ')}
-                </Badge>
-                <Badge variant={getStatusBadgeVariant(report.status)}>{report.status}</Badge>
-                <Badge variant="outline">PDF</Badge>
+      {/* Description */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="bg-card rounded-lg border border-border p-6 shadow-sm mb-6"
+      >
+        <h2 className="text-lg font-semibold text-foreground mb-3">Description</h2>
+        <p className="text-muted-foreground leading-relaxed">
+          {report.description || `This is a ${report.report_type.replace(/_/g, ' ').toLowerCase()} report containing detailed analytics and insights.`}
+        </p>
+      </motion.div>
+
+      {/* Details Grid */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+        className="bg-card rounded-lg border border-border p-6 shadow-sm"
+      >
+        <h2 className="text-lg font-semibold text-foreground mb-4">Report Details</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {detailItems.map((item, index) => (
+            <motion.div
+              key={item.label}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.25 + index * 0.05 }}
+              className="flex items-start gap-3"
+            >
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                <item.icon className="w-5 h-5 text-muted-foreground" />
               </div>
-              <p className="text-muted-foreground leading-relaxed">
-                {`${report.report_type.replace(/_/g, ' ')} report generated automatically`}
-              </p>
+              <div>
+                <p className="text-sm text-muted-foreground">{item.label}</p>
+                <p className="font-medium text-foreground">{item.value}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
 
-              {(report.status === 'PROCESSING' || report.status === 'PENDING') && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                    <span className="text-sm text-blue-800">
-                      {report.status === 'PENDING'
-                        ? 'Report is queued for generation...'
-                        : 'Report is being generated...'}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {report.status === 'FAILED' && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <span className="text-sm text-red-800">
-                    Report generation failed. You can retry the generation using the button below.
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {report.parameters && typeof report.parameters === 'object' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Report Parameters</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {Object.entries(report.parameters as Record<string, any>).map(([key, value]) => (
-                    <div key={key} className="space-y-1">
-                      <div className="text-sm font-medium capitalize">
-                        {key.replace(/([A-Z])/g, ' $1').trim()}:
-                      </div>
-                      <div className="text-lg font-semibold text-primary">{String(value)}</div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+      {/* Preview Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+        className="bg-card rounded-lg border border-border p-6 shadow-sm mt-6"
+      >
+        <h2 className="text-lg font-semibold text-foreground mb-4">Report Preview</h2>
+        <div className="bg-muted/50 rounded-lg border border-border p-8 min-h-[300px] flex items-center justify-center">
+          {report.status === 'COMPLETED' ? (
+            <div className="text-center">
+              <FileText className="w-16 h-16 text-primary/40 mx-auto mb-4" />
+              <p className="text-muted-foreground mb-2">PDF Preview</p>
+              <p className="text-sm text-muted-foreground">The full report is available for download</p>
+            </div>
+          ) : report.status === 'PROCESSING' ? (
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Report is being generated...</p>
+            </div>
+          ) : report.status === 'PENDING' ? (
+            <div className="text-center">
+              <Clock className="w-16 h-16 text-yellow-500/40 mx-auto mb-4" />
+              <p className="text-muted-foreground">Report is queued for processing</p>
+            </div>
+          ) : (
+            <div className="text-center">
+              <FileText className="w-16 h-16 text-destructive/40 mx-auto mb-4" />
+              <p className="text-muted-foreground">Report generation failed</p>
+              <p className="text-sm text-muted-foreground mt-1">Please try generating the report again</p>
+            </div>
           )}
         </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileType className="h-5 w-5" />
-                File Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm">Format:</span>
-                <span className="text-sm font-medium">PDF</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Status:</span>
-                <span className="text-sm font-medium">{report.status}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Type:</span>
-                <span className="text-sm font-medium">{report.report_type.replace(/_/g, ' ')}</span>
-              </div>
-              {report.file_url && (
-                <div className="flex justify-between">
-                  <span className="text-sm">File Available:</span>
-                  <span className="text-sm font-medium text-green-600">Yes</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Generation Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm">Generated Date:</span>
-                <span className="text-sm font-medium">{new Date(report.created_at || '').toLocaleDateString()}</span>
-              </div>
-              {report.updated_at && (
-                <div className="flex justify-between">
-                  <span className="text-sm">Last Updated:</span>
-                  <span className="text-sm font-medium">{new Date(report.updated_at).toLocaleDateString()}</span>
-                </div>
-              )}
-              <Separator />
-              <div className="text-xs text-muted-foreground">Report ID: {report.id}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                className="w-full"
-                disabled={report.status !== 'COMPLETED' || !report.file_url}
-                onClick={handleDownload}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download Report
-              </Button>
-              {report.status === 'FAILED' && (
-                <Button variant="outline" className="w-full" onClick={handleRetry}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Retry Generation
-                </Button>
-              )}
-              <Link href="/admin/reports/generate" className="w-full">
-                <Button variant="outline" className="w-full">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Generate Similar
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
