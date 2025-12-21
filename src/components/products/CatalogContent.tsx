@@ -12,6 +12,7 @@ import type { Product } from '@/lib/supabase';
 export default function CatalogContent() {
   const searchParams = useSearchParams();
   const [sortBy, setSortBy] = useState('name-asc');
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   
   const [filters, setFilters] = useState<FilterOptions>({
     categories: searchParams?.get('category') ? [searchParams.get('category')!] : [],
@@ -296,20 +297,75 @@ export default function CatalogContent() {
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <label htmlFor="sort" className="text-sm font-medium text-white">
+                    <label className="text-sm font-medium text-white">
                       Sort by:
                     </label>
-                    <select
-                      id="sort"
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="border border-white/20 bg-white/5 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm font-medium"
-                    >
-                      <option value="name-asc" className="bg-slate-800">Name (A-Z)</option>
-                      <option value="name-desc" className="bg-slate-800">Name (Z-A)</option>
-                      <option value="price-asc" className="bg-slate-800">Price (Low to High)</option>
-                      <option value="price-desc" className="bg-slate-800">Price (High to Low)</option>
-                    </select>
+                    <div className="relative" style={{ minWidth: '200px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                        onBlur={() => setTimeout(() => setSortDropdownOpen(false), 200)}
+                        className="border border-white/20 bg-white/5 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm font-medium w-full text-left flex items-center justify-between cursor-pointer"
+                      >
+                        <span>
+                          {sortBy === 'name-asc' && 'Name (A-Z)'}
+                          {sortBy === 'name-desc' && 'Name (Z-A)'}
+                          {sortBy === 'price-asc' && 'Price (Low to High)'}
+                          {sortBy === 'price-desc' && 'Price (High to Low)'}
+                        </span>
+                        <svg className={`w-4 h-4 text-white/70 transition-transform ${sortDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      
+                      {/* Dropdown Menu */}
+                      {sortDropdownOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-2 z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="bg-slate-800 border border-white/20 rounded-lg shadow-xl py-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSortBy('name-asc');
+                                setSortDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-blue-500/20 transition-colors"
+                            >
+                              Name (A-Z)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSortBy('name-desc');
+                                setSortDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-blue-500/20 transition-colors"
+                            >
+                              Name (Z-A)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSortBy('price-asc');
+                                setSortDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-blue-500/20 transition-colors"
+                            >
+                              Price (Low to High)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSortBy('price-desc');
+                                setSortDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-blue-500/20 transition-colors"
+                            >
+                              Price (High to Low)
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

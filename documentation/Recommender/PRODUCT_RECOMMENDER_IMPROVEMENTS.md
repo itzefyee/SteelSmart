@@ -11,7 +11,7 @@ Enhanced Product Recommender to use real catalog data and AI-powered alternative
    - Calls alternative-product-suggester
    - Returns AI-generated alternatives
 
-2. **Component Foundation** - `ProductRecommenderNew.tsx` (partial)
+2. **Component Foundation** - `ProductRecommender.tsx` (partial)
    - State management for catalog and alternatives
    - Integration with CAD Analyzer
    - Search and ranking logic
@@ -297,7 +297,7 @@ interface UserPreference {
 src/
 ├── components/
 │   └── products/
-│       ├── ProductRecommenderNew.tsx (main component)
+│       ├── ProductRecommender.tsx (main component)
 │       ├── RecommendationCard.tsx (unified card)
 │       ├── MatchBreakdown.tsx (score visualization)
 │       ├── ComparisonTable.tsx (side-by-side)

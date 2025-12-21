@@ -58,7 +58,7 @@ const statusConfig: Record<StageStatus, { badge: string; text: string; icon: Rea
   }
 };
 
-export const StagedProgress: React.FC<StagedProgressProps> = ({
+const StagedProgress: React.FC<StagedProgressProps> = ({
   title,
   subtitle,
   stages,

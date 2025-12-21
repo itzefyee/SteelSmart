@@ -14,6 +14,7 @@ export type SampleCacheKey = 'iBeam' | 'drillGuide' | 'brakeRotor';
 export const SAMPLE_ANALYSIS_CACHE: Record<SampleCacheKey, DrawingAnalysis> = {
   iBeam: {
     extractedSpecs: {
+      productName: 'I-Beam Steel',
       dimensions: '12" length x 4" height x 2.66" flange width',
       material: 'Grade S355 structural steel',
       loadRequirements: '≥120 kN/m² service load',
@@ -31,9 +32,11 @@ export const SAMPLE_ANALYSIS_CACHE: Record<SampleCacheKey, DrawingAnalysis> = {
     reasoning:
       'Cached AI analysis from the I-Beam STEP sample (May 2024 run). Geometry validated against S355 span tables and matched to compatible plates, brackets, and M12 hardware.',
     analysisId: 'sample_analysis_ibeam_v1',
+    isSampleDrawing: true,
   },
   drillGuide: {
     extractedSpecs: {
+      productName: 'Surgical Drill Guide',
       dimensions: '150 mm handle with twin Ø2 / Ø3.2 mm sleeves',
       material: 'Surgical stainless steel',
       componentType: 'Surgical drill guide',
@@ -51,9 +54,11 @@ export const SAMPLE_ANALYSIS_CACHE: Record<SampleCacheKey, DrawingAnalysis> = {
     reasoning:
       'Cached AI analysis from the Drill Guide STEP sample. Identified stainless tooling requirements plus compatible brackets and hardware for fixture integration.',
     analysisId: 'sample_analysis_drillguide_v1',
+    isSampleDrawing: true,
   },
   brakeRotor: {
     extractedSpecs: {
+      productName: 'Brake Rotor',
       dimensions: 'Ø320 mm x 32 mm vented rotor, 5 x 114.3 mm pattern',
       material: 'High-carbon cast iron',
       componentType: 'Automotive brake rotor',
@@ -71,6 +76,7 @@ export const SAMPLE_ANALYSIS_CACHE: Record<SampleCacheKey, DrawingAnalysis> = {
     reasoning:
       'Cached AI analysis for the Brake Rotor STEP sample. Matched to heat-treated rotors plus supporting Grade 8 hardware for hub assemblies.',
     analysisId: 'sample_analysis_brakerotor_v1',
+    isSampleDrawing: true,
   },
 };
 

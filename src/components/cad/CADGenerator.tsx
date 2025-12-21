@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { cadTemplates } from '@/data/sample-data';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/ToastProvider';
-import { StagedProgress, StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
+import StagedProgress, { StagedProgressItem, StageStatus } from '@/components/ui/StagedProgress';
 import { useCADGeneration } from '@/hooks/useCADGeneration';
 import { CADGenerationRequest } from '@/services/cad-generation.service';
 import { useCADStore } from '@/stores/cad.store';
@@ -154,6 +154,87 @@ const CADGenerator: React.FC = () => {
     }
   }, []);
 
+  // Restore generation from history
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const restored = params.get('restored');
+    
+    if (restored === 'true') {
+      const restoredData = sessionStorage.getItem('restoredGeneration');
+      if (restoredData) {
+        try {
+          const data = JSON.parse(restoredData);
+          
+          // Set the prompt
+          setTextInput(data.prompt || '');
+          
+          // Set format and units if available
+          if (data.format) {
+            setSelectedFormat(data.format);
+          }
+          if (data.units) {
+            updateExportSettings({ unit: data.units });
+          }
+          
+          // If completed, show the generated drawing
+          if (data.status === 'completed' && data.model_data_url) {
+            // Fetch the file and convert to base64 for preview
+            fetch(data.model_data_url)
+              .then(response => response.blob())
+              .then(blob => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const base64data = reader.result as string;
+                  
+                  setGeneratedDrawing({
+                    id: Date.now(),
+                    name: 'Restored CAD Model',
+                    description: `Restored from history: "${data.prompt}"`,
+                    preview: '/images/sample-cad-preview.svg',
+                    dxf: base64data,
+                    parameters: {
+                      format: data.format,
+                      units: data.units,
+                      category: data.category || 'custom',
+                      generated_at: new Date().toISOString(),
+                      prompt: data.prompt
+                    }
+                  });
+                  
+                  // Trigger scroll after a short delay to ensure DOM is ready
+                  setTimeout(() => {
+                    setShouldScrollToResult(true);
+                  }, 100);
+                  
+                  addToast({
+                    type: 'success',
+                    title: 'Generation restored',
+                    description: 'Your previous CAD generation has been loaded'
+                  });
+                };
+                reader.readAsDataURL(blob);
+              })
+              .catch(error => {
+                console.error('Error fetching model file:', error);
+                addToast({
+                  type: 'error',
+                  title: 'Failed to restore model',
+                  description: 'Could not load the 3D model file'
+                });
+              });
+          }
+          
+          // Clean up
+          sessionStorage.removeItem('restoredGeneration');
+          window.history.replaceState({}, '', '/cad-generator');
+        } catch (error) {
+          console.error('Error restoring generation:', error);
+          sessionStorage.removeItem('restoredGeneration');
+        }
+      }
+    }
+  }, [addToast, setSelectedFormat, updateExportSettings]);
+
   // Debug step management
   const addDebugStep = useCallback((id: string, title: string, status: 'pending' | 'in_progress' | 'completed' | 'failed', details?: string, error?: string) => {
     const timestamp = new Date().toISOString();
@@ -188,6 +269,20 @@ const CADGenerator: React.FC = () => {
         });
         if (result.file) {
           setCadFileForPreview(result.file);
+          
+          // Additional scroll trigger when preview file is ready
+          if (shouldScrollToResult) {
+            setTimeout(() => {
+              const drawingElement = document.querySelector('[data-generated-drawing]');
+              if (drawingElement) {
+                console.log('Scrolling to preview after file conversion...');
+                drawingElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => {
+                  window.scrollBy({ top: -80, behavior: 'smooth' });
+                }, 500);
+              }
+            }, 500);
+          }
         }
       }, 50);
       return () => clearTimeout(timer);
@@ -197,14 +292,25 @@ const CADGenerator: React.FC = () => {
   // Auto-scroll to result
   useEffect(() => {
     if (!shouldScrollToResult || !generatedDrawing) return;
+    
+    // Use a longer delay for restored generations to ensure file loads
+    const delay = 3000;
+    
     const timer = setTimeout(() => {
       const drawingElement = document.querySelector('[data-generated-drawing]');
       if (drawingElement) {
-        drawingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        window.scrollBy({ top: -80, behavior: 'smooth' });
+        console.log('Scrolling to generated drawing...');
+        drawingElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Small adjustment to account for header
+        setTimeout(() => {
+          window.scrollBy({ top: -80, behavior: 'smooth' });
+        }, 500);
+      } else {
+        console.warn('Drawing element not found for auto-scroll');
       }
       setShouldScrollToResult(false);
-    }, 2000);
+    }, delay);
+    
     return () => clearTimeout(timer);
   }, [shouldScrollToResult, generatedDrawing]);
 

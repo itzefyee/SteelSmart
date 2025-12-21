@@ -15,6 +15,7 @@ const RFQTracking: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedRFQ, setSelectedRFQ] = useState<RFQ | null>(null);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -90,18 +91,94 @@ const RFQTracking: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Filter by Status
             </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option value="all">All Statuses</option>
-              <option value="Submitted">Submitted</option>
-              <option value="In Review">In Review</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-              <option value="Completed">Completed</option>
-            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+                onBlur={() => setTimeout(() => setStatusDropdownOpen(false), 200)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent text-left flex items-center justify-between cursor-pointer bg-white"
+              >
+                <span>
+                  {statusFilter === 'all' && 'All Statuses'}
+                  {statusFilter === 'Submitted' && '📤 Submitted'}
+                  {statusFilter === 'In Review' && '🔍 In Review'}
+                  {statusFilter === 'Approved' && '✅ Approved'}
+                  {statusFilter === 'Rejected' && '❌ Rejected'}
+                  {statusFilter === 'Completed' && '✔️ Completed'}
+                </span>
+                <svg className={`w-4 h-4 text-gray-500 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {/* Dropdown Menu */}
+              {statusDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-lg py-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter('all');
+                        setStatusDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      All Statuses
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter('Submitted');
+                        setStatusDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
+                    >
+                      📤 Submitted
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter('In Review');
+                        setStatusDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-50 transition-colors"
+                    >
+                      🔍 In Review
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter('Approved');
+                        setStatusDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 transition-colors"
+                    >
+                      ✅ Approved
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter('Rejected');
+                        setStatusDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 transition-colors"
+                    >
+                      ❌ Rejected
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter('Completed');
+                        setStatusDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      ✔️ Completed
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-end">
             <Button

@@ -28,6 +28,7 @@ export interface LegacyProduct {
 
 export interface DrawingAnalysis {
   extractedSpecs: {
+    productName?: string;
     dimensions?: string;
     material?: string;
     loadRequirements?: string;
@@ -39,6 +40,7 @@ export interface DrawingAnalysis {
   confidence: number;
   reasoning: string;
   analysisId: string;
+  isSampleDrawing?: boolean; // Flag to identify if analysis is from a sample drawing
   alternativeSuggestions?: {
     alternatives: Array<{
       name: string;
@@ -139,6 +141,14 @@ export interface RecommendationScore {
   score: number;
   reasoning: string;
   matchedSpecs: string[];
+  confidence?: number; // 0-1, based on data completeness
+  dataQuality?: {
+    hasDimensions: boolean;
+    hasLoadCapacity: boolean;
+    hasMaterialFamily: boolean;
+    hasComponentType: boolean;
+    completeness: number; // 0-1
+  };
 }
 
 // Form validation types

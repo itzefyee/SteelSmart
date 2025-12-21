@@ -54,11 +54,45 @@ export class RecommendationService {
    * 
    * @param productId - Product ID to get recommendations for
    * @param limit - Maximum number of recommendations
+   * @param includeCollaborative - Include collaborative filtering recommendations
    * @returns List of full product objects
    */
-  static async getRecommendationsWithProducts(productId: string, limit: number = 4): Promise<any[]> {
-    // Get recommendation scores
-    const recommendations = await this.getRecommendations(productId);
+  static async getRecommendationsWithProducts(
+    productId: string, 
+    limit: number = 4,
+    includeCollaborative: boolean = true
+  ): Promise<any[]> {
+    // Get rule-based recommendation scores
+    const ruleBasedRecs = await this.getRecommendations(productId);
+    
+    let allRecommendations = ruleBasedRecs;
+    
+    // Add collaborative filtering recommendations if enabled
+    if (includeCollaborative) {
+      try {
+        const { InteractionTrackingService } = await import('./interaction-tracking.service');
+        const collaborativeRecs = await InteractionTrackingService.getFrequentlyBoughtTogether(
+          productId,
+          limit
+        );
+        
+        // Merge collaborative recommendations with rule-based ones
+        collaborativeRecs.forEach(collab => {
+          // Only add if not already in rule-based recommendations
+          if (!allRecommendations.some(r => r.productId === collab.productId)) {
+            allRecommendations.push({
+              productId: collab.productId,
+              score: 0.85, // High score for frequently bought together
+              reasoning: `Frequently ${collab.interactionTypes.join('/')} together by other users`,
+              matchedSpecs: ['user_behavior'],
+            });
+          }
+        });
+      } catch (error) {
+        console.error('Failed to get collaborative recommendations:', error);
+        // Continue with rule-based only
+      }
+    }
     
     // Get full product data
     const { ProductRepository } = await import('@/repositories/product.repository');
@@ -68,7 +102,7 @@ export class RecommendationService {
     const repository = new ProductRepository(supabase);
     
     // Fetch products for the recommended IDs
-    const productIds = recommendations.slice(0, limit).map(r => r.productId);
+    const productIds = allRecommendations.slice(0, limit).map(r => r.productId);
     const products = await repository.findByIds(productIds);
     
     return products;

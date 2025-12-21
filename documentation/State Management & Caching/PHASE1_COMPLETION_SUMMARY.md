@@ -204,7 +204,7 @@
 5. 🚀 Deploy to staging
 
 ### Phase 2 (Week 2)
-1. 🔄 **Update ProductRecommenderNew.tsx** to use new hooks
+1. 🔄 **Update ProductRecommender.tsx** to use new hooks
 2. 🔄 **Update ProductRecommendations.tsx** to use new hooks
 3. 🔄 **CAD Analysis Enhancement** - Add caching
 4. 🔄 **Admin Product Management** - Add optimistic updates
@@ -264,7 +264,7 @@
 4. **Add Metrics Dashboard**: Visualize cache performance
 
 ### For Future Phases
-1. **Component Migration**: Update ProductRecommenderNew next (highest impact)
+1. **Component Migration**: Update ProductRecommender next (highest impact)
 2. **Store Creation**: Create UI store for theme/preferences
 3. **Testing**: Add unit tests for hooks
 4. **Documentation**: Keep updating as we learn
@@ -290,7 +290,7 @@ We've successfully migrated the RFQ and Recommendation systems to use React Quer
 ---
 
 **Status**: ✅ COMPLETE  
-**Next**: Update ProductRecommenderNew and ProductRecommendations components  
+**Next**: Update ProductRecommender and ProductRecommendations components  
 **Estimated Time for Phase 2**: 6-8 hours
 
 ---

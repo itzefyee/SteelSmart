@@ -194,7 +194,7 @@ interface CADPreview3DProps {
 }
 ```
 
-#### B. `src/components/CADAnalyzerFull.tsx`
+#### B. `src/components/CADAnalyzer.tsx`
 
 **Changes:**
 - Added import for CADPreview3D
@@ -278,7 +278,7 @@ steal_smart/
 │   │       └── page.tsx                    # NEW: Demo page
 │   ├── components/
 │   │   ├── CADAnalyzer.tsx                 # Updated file types
-│   │   ├── CADAnalyzerFull.tsx            # Updated with 3D preview
+│   │   ├── CADAnalyzer.tsx            # Updated with 3D preview
 │   │   └── CADPreview3D.tsx               # NEW: Advanced 3D viewer
 │   └── lib/
 │       ├── cad-parser.ts                   # NEW: CAD parsing engine

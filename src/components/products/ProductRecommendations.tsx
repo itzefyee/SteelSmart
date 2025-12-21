@@ -26,7 +26,7 @@ const ProductRecommendations: React.FC<ProductRecommendationsProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow border p-8 mb-12">
+      <div className="bg-white rounded-3xl shadow border p-8 mb-12">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">{title}</h2>
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
@@ -40,7 +40,7 @@ const ProductRecommendations: React.FC<ProductRecommendationsProps> = ({
 
   if (error || recommendations.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow border p-8 mb-12">
+      <div className="bg-white rounded-3xl shadow border p-8 mb-12">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">{title}</h2>
         <div className="text-center py-8">
           <div className="w-16 h-16 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
@@ -58,7 +58,7 @@ const ProductRecommendations: React.FC<ProductRecommendationsProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow border p-8 mb-12">
+    <div className="bg-white rounded-3xl shadow border p-8 mb-12">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
         <div className="flex items-center text-sm text-gray-500">

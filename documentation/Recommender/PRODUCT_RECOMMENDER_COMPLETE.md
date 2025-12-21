@@ -5,7 +5,7 @@ The Product Recommender has been completely rebuilt to use real catalog data and
 
 ## ✅ What's Been Implemented
 
-### 1. New Component (`ProductRecommenderNew.tsx`)
+### 1. New Component (`ProductRecommender.tsx`)
 A complete rewrite with three distinct tabs:
 
 #### **🏪 Direct Matches Tab**
@@ -141,7 +141,7 @@ Display Results
 
 ### Component Structure
 ```
-ProductRecommenderNew
+ProductRecommender
 ├── Analysis Banner (conditional)
 ├── Search Form
 │   ├── Material Input
@@ -350,7 +350,7 @@ Shows:
 ## Files Modified/Created
 
 ### Created
-- `src/components/products/ProductRecommenderNew.tsx` - Main component
+- `src/components/products/ProductRecommender.tsx` - Main component
 - `src/app/api/recommendations/alternatives/route.ts` - API endpoint
 - `documentation/PRODUCT_RECOMMENDER_COMPLETE.md` - This file
 - `documentation/PRODUCT_RECOMMENDER_IMPROVEMENTS.md` - Suggestions doc
@@ -368,7 +368,7 @@ The old `ProductRecommender.tsx` has been preserved for reference. To revert:
 // In src/app/product-recommender/page.tsx
 import ProductRecommender from '@/components/products/ProductRecommender';
 // Change back to:
-// import ProductRecommenderNew from '@/components/products/ProductRecommenderNew';
+// import ProductRecommender from '@/components/products/ProductRecommender';
 ```
 
 ## Conclusion

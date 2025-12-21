@@ -204,11 +204,23 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
 
                             {/* Action Buttons */}
                             <div className="flex flex-col sm:flex-row gap-4">
-                                <Link href="/rfq" className="flex-1">
-                                    <button className="w-full py-4 px-6 bg-gradient-to-r from-blue-400 to-blue-500 text-white font-semibold rounded-xl hover:from-blue-500 hover:to-blue-600 transition-all shadow-lg shadow-blue-400/30">
-                                        Request Quote
-                                    </button>
-                                </Link>
+                                <button 
+                                    onClick={() => {
+                                        sessionStorage.setItem('productForRFQ', JSON.stringify({
+                                            productName: product.name,
+                                            productId: product.id,
+                                            material: product.material,
+                                            specifications: product.specifications,
+                                            price: product.price,
+                                            category: product.category,
+                                            description: product.description
+                                        }));
+                                        window.location.href = '/rfq?fromProduct=true';
+                                    }}
+                                    className="flex-1 py-4 px-6 bg-gradient-to-r from-blue-400 to-blue-500 text-white font-semibold rounded-xl hover:from-blue-500 hover:to-blue-600 transition-all shadow-lg shadow-blue-400/30"
+                                >
+                                    Request Quote
+                                </button>
                                 <Link
                                     href={`/cad-generator?prompt=${encodeURIComponent(`Generate a technical drawing for ${product.name}. Material: ${product.material || 'steel'}. ${typeof product.specifications === 'object' && product.specifications !== null && 'dimensions' in product.specifications ? `Dimensions: ${(product.specifications as any).dimensions}` : ''}`)}`}
                                     className="flex-1"
@@ -244,7 +256,7 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
 
                 {/* Technical Details */}
                 <div className="catalog-glass-container p-8 mb-12 bg-white/95 text-slate-900">
-                    <h2 className="mb-6 text-3xl font-bold text-white">Technical Details</h2>
+                    <h2 className="mb-3 text-3xl font-bold text-white">Technical Details</h2>
                     <div className="prose max-w-none">
                         <p className="text-lg leading-relaxed text-slate-200">
                             {product.technical_details}
@@ -253,7 +265,7 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
 
                     {/* Compatibility */}
                     {product.compatible_with && product.compatible_with.length > 0 && (
-                        <div className="mt-8 border-t border-slate-200 pt-8">
+                        <div className="mt-6 border-t border-slate-200 pt-6">
                             <h3 className="mb-4 text-xl font-semibold text-white">Compatible Products</h3>
                             <div className="flex flex-wrap gap-2">
                                 {product.compatible_with.map((compatibleId) => (
@@ -273,136 +285,6 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
                 <div className="mb-12">
                     <ProductRecommendations productId={product.id} />
                 </div>
-
-                {/* Related Products - "You Might Also Need" */}
-                {relatedProducts.length > 0 && (
-                    <div>
-                        <h2 className="text-3xl font-bold text-white mb-8">You Might Also Need</h2>
-                        <div className="catalog-glass-container p-8 bg-white/95">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {relatedProducts.map((relatedProduct) => {
-                                    const relatedImages = relatedProduct.images && relatedProduct.images.length > 0 ? relatedProduct.images : [null];
-                                    const relatedSelectedImage = relatedSelectedImages[relatedProduct.id] || 0;
-                                    
-                                    const setRelatedSelectedImage = (value: number | ((prev: number) => number)) => {
-                                        setRelatedSelectedImages(prev => ({
-                                            ...prev,
-                                            [relatedProduct.id]: typeof value === 'function' ? value(prev[relatedProduct.id] || 0) : value
-                                        }));
-                                    };
-                                    
-                                    return (
-                                        <div key={relatedProduct.id} className="product-glass-card group">
-                                            {/* Product Image Gallery */}
-                                            <div className="relative">
-                                                <div className="relative rounded-t-2xl overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100">
-                                                    <div className="w-full h-48 relative group/img">
-                                                        {relatedImages[relatedSelectedImage] ? (
-                                                            <img 
-                                                                src={relatedImages[relatedSelectedImage]} 
-                                                                alt={relatedProduct.name}
-                                                                className="w-full h-full object-contain"
-                                                            />
-                                                        ) : (
-                                                            <ProductImagePlaceholder product={relatedProduct} className="w-full h-full" />
-                                                        )}
-                                                        
-                                                        {/* Navigation Arrows */}
-                                                        {relatedImages.length > 1 && (
-                                                            <>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        setRelatedSelectedImage((prev) => (prev === 0 ? relatedImages.length - 1 : prev - 1));
-                                                                    }}
-                                                                    className="absolute left-1 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-slate-800 p-1.5 rounded-full shadow-md transition-all opacity-0 group-hover/img:opacity-100"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                                                    </svg>
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        setRelatedSelectedImage((prev) => (prev === relatedImages.length - 1 ? 0 : prev + 1));
-                                                                    }}
-                                                                    className="absolute right-1 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-slate-800 p-1.5 rounded-full shadow-md transition-all opacity-0 group-hover/img:opacity-100"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                                                    </svg>
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                
-                                                {/* Thumbnails */}
-                                                {relatedImages.length > 1 && (
-                                                    <div className="flex gap-1 p-2 overflow-x-auto">
-                                                        {relatedImages.slice(0, 4).map((image, idx) => (
-                                                            <button
-                                                                key={idx}
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    setRelatedSelectedImage(idx);
-                                                                }}
-                                                                className={`flex-shrink-0 w-12 h-12 rounded border transition-all overflow-hidden ${
-                                                                    relatedSelectedImage === idx ? 'border-blue-500 ring-1 ring-blue-200' : 'border-slate-200'
-                                                                }`}
-                                                            >
-                                                                <div className="w-full h-full bg-gradient-to-br from-slate-50 to-slate-100">
-                                                                    {image ? (
-                                                                        <img src={image} alt="" className="w-full h-full object-contain" />
-                                                                    ) : (
-                                                                        <ProductImagePlaceholder product={relatedProduct} className="w-full h-full" />
-                                                                    )}
-                                                                </div>
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="p-5 space-y-3 relative z-10 text-slate-900">
-                                                {/* Category Badge & Stock */}
-                                                <div className="flex items-center justify-between">
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-blue-50 border-blue-200 text-blue-700">
-                                                        {relatedProduct.category.charAt(0).toUpperCase() + relatedProduct.category.slice(1)}
-                                                    </span>
-                                                    <div className="flex items-center">
-                                                        <div className={`w-2 h-2 rounded-full mr-1 ${relatedProduct.in_stock ? 'bg-emerald-400' : 'bg-rose-400'}`}></div>
-                                                        <span className="text-xs text-slate-500">
-                                                            {relatedProduct.in_stock ? 'In Stock' : 'Out of Stock'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Product Name */}
-                                                <h3 className="font-semibold text-slate-900 line-clamp-2 text-base">
-                                                    {relatedProduct.name}
-                                                </h3>
-
-                                                {/* Price */}
-                                                <div className="text-lg font-bold text-blue-600">
-                                                    {formatPrice(relatedProduct.price)}
-                                                </div>
-
-                                                {/* Action Button */}
-                                                <Link
-                                                    href={`/catalog/${relatedProduct.id}`}
-                                                    className="block w-full bg-blue-600 text-white text-center py-2 px-3 rounded-lg text-sm font-medium hover:bg-blue-700 transition-all"
-                                                >
-                                                    View Details
-                                                </Link>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </main>
     );

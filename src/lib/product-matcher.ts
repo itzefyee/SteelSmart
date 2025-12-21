@@ -17,13 +17,32 @@ interface ProductWithStructuredSpecs extends ProductRow {
 interface NormalizedSpecs {
   raw: DrawingAnalysis['extractedSpecs'];
   componentTokens: string[];
-  componentTypeId?: string;
-  categoryHint?: string;
+  componentTypeId?: string; // Specific component taxonomy ID (e.g., "servo-motor-high-torque")
+  categoryHint?: string; // Inferred broad category (structural, robotic, fasteners, custom)
+  explicitCategory?: string; // User-selected category from dropdown (not inferred)
   materialFamily?: string;
   materialToken?: string;
   dimensionValues: number[];
   loadValues: number[];
+  isSampleDrawing?: boolean; // Flag to identify if from sample drawing (for scoring bonus)
 }
+
+/**
+ * IMPORTANT: Component Type vs Category
+ * 
+ * - Component Type: Specific product type from taxonomy (e.g., "High-Torque Servo Motor", "I-Beam", "Hex Bolt M8")
+ *   - Stored in: component_type_id (references component_taxonomy table)
+ *   - Used for: Precise matching within a category
+ *   - Example: "servo-motor-high-torque" is a component type within "robotic" category
+ * 
+ * - Category: Broad product classification (structural, robotic, fasteners, custom)
+ *   - Stored in: category (enum field on products table)
+ *   - Used for: High-level filtering and user navigation
+ *   - Example: All servo motors, actuators, sensors belong to "robotic" category
+ * 
+ * Hierarchy: Category > Component Type > Individual Product
+ * Example: Robotic > Servo Motor > "Dynamixel AX-12A Servo Motor"
+ */
 
 export class ProductMatcher {
   private taxonomyCache: { data: ComponentTaxonomyRow[]; expires: number } | null = null;
@@ -36,7 +55,7 @@ export class ProductMatcher {
     analysis: DrawingAnalysis,
     client?: SupabaseClient
   ): Promise<RecommendationScore[]> {
-    return this.findMatchesFromSpecs(analysis.extractedSpecs, client);
+    return this.findMatchesFromSpecs(analysis.extractedSpecs, client, undefined, analysis.isSampleDrawing);
   }
 
   /**
@@ -44,6 +63,7 @@ export class ProductMatcher {
    */
   async matchFromSpecs(
     specs: Partial<{
+      productName: string;
       material: string;
       dimensions: string;
       loadCapacity: string;
@@ -52,9 +72,60 @@ export class ProductMatcher {
     }>,
     client?: SupabaseClient
   ): Promise<RecommendationScore[]> {
+    const supabase = client ?? await getSupabaseServer();
+
+    // Check if user explicitly selected a category
+    const hasExplicitCategory = specs.category && specs.category !== 'all';
+    const hasOtherSpecs = !!(specs.productName || specs.material || specs.dimensions || specs.loadCapacity);
+
+    // If only category is selected (no other specs), do category-only search
+    if (hasExplicitCategory && !hasOtherSpecs) {
+      return this.searchByCategory(specs.category!, supabase);
+    }
+
+    // If product name is provided, do a direct name/keyword search first
+    if (specs.productName && specs.productName.trim()) {
+      const nameResults = await this.searchByProductName(
+        specs.productName, 
+        supabase,
+        hasExplicitCategory ? specs.category : undefined
+      );
+      
+      // If we have good name matches, return them
+      if (nameResults.length > 0) {
+        // If other specs are provided, filter name results by those specs
+        if (specs.material || specs.dimensions || specs.loadCapacity || hasExplicitCategory) {
+          const componentType =
+            specs.componentType ||
+            (hasExplicitCategory ? specs.category : undefined);
+
+          const extractedSpecs: DrawingAnalysis['extractedSpecs'] = {
+            material: specs.material,
+            dimensions: specs.dimensions,
+            loadRequirements: specs.loadCapacity,
+            componentType,
+          };
+          
+          // Re-score name results with additional specs
+          const normalized = await this.normalizeSpecs(extractedSpecs, supabase, hasExplicitCategory ? specs.category : undefined);
+          const candidates = await this.fetchProductsByIds(nameResults.map(r => r.productId), supabase);
+          
+          const rescored = candidates
+            .map(product => this.scoreProduct(product, normalized))
+            .filter((score): score is RecommendationScore => Boolean(score))
+            .sort((a, b) => b.score - a.score);
+          
+          return rescored.length > 0 ? rescored : nameResults;
+        }
+        
+        return nameResults;
+      }
+    }
+
+    // Fall back to spec-based matching
     const componentType =
       specs.componentType ||
-      (specs.category && specs.category !== 'all' ? specs.category : undefined);
+      (hasExplicitCategory ? specs.category : undefined);
 
     const extractedSpecs: DrawingAnalysis['extractedSpecs'] = {
       material: specs.material,
@@ -62,7 +133,192 @@ export class ProductMatcher {
       loadRequirements: specs.loadCapacity,
       componentType,
     };
-    return this.findMatchesFromSpecs(extractedSpecs, client);
+    return this.findMatchesFromSpecs(extractedSpecs, client, hasExplicitCategory ? specs.category : undefined);
+  }
+
+  /**
+   * Search products by category only
+   * Used when user selects category without other specs
+   */
+  private async searchByCategory(
+    category: string,
+    client: SupabaseClient
+  ): Promise<RecommendationScore[]> {
+    const { data: products, error } = await client
+      .from('products')
+      .select('*')
+      .eq('category', category)
+      .order('in_stock', { ascending: false }) // In-stock first
+      .order('name', { ascending: true })
+      .limit(50);
+
+    if (error || !products || products.length === 0) {
+      return [];
+    }
+
+    // Score based on availability and data completeness
+    return products.map((product, index) => {
+      let score = 0.75; // Base score for category match
+      
+      // Boost for in-stock
+      if (product.in_stock) {
+        score += 0.15;
+      }
+      
+      // Small penalty for position (to differentiate)
+      score -= index * 0.005;
+      
+      return {
+        productId: product.id,
+        score: Math.min(score, 0.95),
+        reasoning: `${category.charAt(0).toUpperCase() + category.slice(1)} category product${product.in_stock ? ' (in stock)' : ''}`,
+        matchedSpecs: ['category', ...(product.in_stock ? ['availability'] : [])],
+      };
+    });
+  }
+
+  /**
+   * Search products by name or keywords
+   * Uses full-text search on product name and description
+   */
+  private async searchByProductName(
+    searchTerm: string,
+    client: SupabaseClient,
+    filterCategory?: string
+  ): Promise<RecommendationScore[]> {
+    const searchTokens = searchTerm.toLowerCase().trim().split(/\s+/);
+    
+    // Build search query using ilike for fuzzy matching
+    let query = client
+      .from('products')
+      .select('*')
+      .limit(20);
+
+    // Filter by category if provided
+    if (filterCategory && filterCategory !== 'all') {
+      query = query.eq('category', filterCategory);
+    }
+
+    // Search in name and description
+    const searchPattern = `%${searchTerm.toLowerCase()}%`;
+    query = query.or(`name.ilike.${searchPattern},description.ilike.${searchPattern}`);
+
+    const { data: products, error } = await query;
+
+    if (error || !products || products.length === 0) {
+      return [];
+    }
+
+    // Get structured specs for scoring
+    const specsMap = await this.getStructuredSpecsMap(products.map(p => p.id), client);
+
+    // Score products based on name relevance
+    const scored = products.map(product => {
+      const productWithSpecs = {
+        ...product,
+        structuredSpecs: specsMap.get(product.id),
+      };
+
+      const nameTokens = product.name.toLowerCase().split(/\s+/);
+      const descTokens = (product.description || '').toLowerCase().split(/\s+/);
+      
+      // Calculate token overlap
+      const nameMatches = searchTokens.filter(token => 
+        nameTokens.some(nameToken => nameToken.includes(token) || token.includes(nameToken))
+      ).length;
+      
+      const descMatches = searchTokens.filter(token =>
+        descTokens.some(descToken => descToken.includes(token) || token.includes(descToken))
+      ).length;
+
+      // Calculate base relevance score
+      let relevanceScore = 0;
+      const matchedSpecs: string[] = ['productName'];
+      
+      // Exact name match gets highest score
+      if (product.name.toLowerCase() === searchTerm.toLowerCase()) {
+        relevanceScore = 0.95;
+      }
+      // Name contains exact search term
+      else if (product.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+        relevanceScore = 0.85;
+      }
+      // Token-based scoring
+      else {
+        const nameScore = nameMatches / searchTokens.length;
+        const descScore = descMatches / searchTokens.length;
+        relevanceScore = (nameScore * 0.7) + (descScore * 0.3);
+      }
+
+      // Boost for category match (if filtering by category)
+      if (filterCategory && filterCategory !== 'all' && product.category === filterCategory) {
+        relevanceScore += 0.05;
+        matchedSpecs.push('category');
+      }
+
+      // Boost for in-stock items
+      if (product.in_stock) {
+        relevanceScore += 0.05;
+        matchedSpecs.push('availability');
+      }
+
+      // Calculate data quality for confidence
+      const dataQuality = this.calculateDataQuality(productWithSpecs);
+      const confidenceMultiplier = 0.85 + (0.15 * dataQuality.completeness); // 85-100%
+
+      // Apply confidence multiplier
+      const finalScore = relevanceScore * confidenceMultiplier;
+
+      // Build reasoning
+      let reasoning = `Matches search term "${searchTerm}"`;
+      if (filterCategory && filterCategory !== 'all') {
+        reasoning += ` in ${filterCategory} category`;
+      }
+      if (product.in_stock) {
+        reasoning += ' (in stock)';
+      }
+
+      return {
+        productId: product.id,
+        score: Math.min(finalScore, 0.99),
+        confidence: dataQuality.completeness,
+        dataQuality,
+        reasoning,
+        matchedSpecs,
+      };
+    })
+    .filter(score => score.score > 0.3) // Filter out weak matches
+    .sort((a, b) => b.score - a.score);
+
+    return scored;
+  }
+
+  /**
+   * Fetch products by IDs
+   */
+  private async fetchProductsByIds(
+    productIds: string[],
+    client: SupabaseClient
+  ): Promise<ProductWithStructuredSpecs[]> {
+    if (productIds.length === 0) {
+      return [];
+    }
+
+    const { data: products, error } = await client
+      .from('products')
+      .select('*')
+      .in('id', productIds);
+
+    if (error || !products) {
+      return [];
+    }
+
+    const specsMap = await this.getStructuredSpecsMap(productIds, client);
+
+    return products.map(product => ({
+      ...product,
+      structuredSpecs: specsMap.get(product.id),
+    }));
   }
 
   /**
@@ -155,10 +411,12 @@ export class ProductMatcher {
 
   private async findMatchesFromSpecs(
     extractedSpecs: DrawingAnalysis['extractedSpecs'],
-    client?: SupabaseClient
+    client?: SupabaseClient,
+    explicitCategory?: string,
+    isSampleDrawing?: boolean
   ): Promise<RecommendationScore[]> {
     const supabase = client ?? await getSupabaseServer();
-    const normalized = await this.normalizeSpecs(extractedSpecs, supabase);
+    const normalized = await this.normalizeSpecs(extractedSpecs, supabase, explicitCategory, isSampleDrawing);
     const candidates = await this.fetchCandidateProducts(normalized, supabase);
     const scored = candidates
       .map(product => this.scoreProduct(product, normalized))
@@ -174,7 +432,9 @@ export class ProductMatcher {
 
   private async normalizeSpecs(
     specs: DrawingAnalysis['extractedSpecs'],
-    client: SupabaseClient
+    client: SupabaseClient,
+    explicitCategory?: string,
+    isSampleDrawing?: boolean
   ): Promise<NormalizedSpecs> {
     const componentTokens = this.tokenize(specs.componentType);
     const taxonomy = await this.getComponentTaxonomy(client);
@@ -196,8 +456,10 @@ export class ProductMatcher {
       }
     }
 
-    const materialToken = specs.material?.toLowerCase().split(/[\s,/]+/).filter(Boolean)[0];
-    const normalizedMaterial = specs.material?.toLowerCase();
+    // Ensure material is a string before processing
+    const materialString = typeof specs.material === 'string' ? specs.material : String(specs.material || '');
+    const materialToken = materialString ? materialString.toLowerCase().split(/[\s,/]+/).filter(Boolean)[0] : undefined;
+    const normalizedMaterial = materialString ? materialString.toLowerCase() : undefined;
     let materialFamily = undefined as string | undefined;
 
     if (normalizedMaterial) {
@@ -209,10 +471,12 @@ export class ProductMatcher {
       componentTokens,
       componentTypeId,
       categoryHint,
+      explicitCategory,
       materialFamily,
       materialToken,
-      dimensionValues: this.extractNumbers(specs.dimensions ?? ''),
-      loadValues: this.extractNumbers(specs.loadRequirements ?? ''),
+      dimensionValues: this.extractNumbers(String(specs.dimensions || '')),
+      loadValues: this.extractNumbers(String(specs.loadRequirements || '')),
+      isSampleDrawing,
     };
   }
 
@@ -244,9 +508,16 @@ export class ProductMatcher {
       .select('*')
       .limit(100);
 
-    if (specs.componentTypeId) {
+    // Priority 1: Explicit category (user-selected)
+    if (specs.explicitCategory && specs.explicitCategory !== 'all') {
+      query = query.eq('category', specs.explicitCategory);
+    }
+    // Priority 2: Component type ID
+    else if (specs.componentTypeId) {
       query = query.eq('component_type_id', specs.componentTypeId);
-    } else if (specs.categoryHint) {
+    }
+    // Priority 3: Inferred category hint
+    else if (specs.categoryHint) {
       query = query.eq('category', specs.categoryHint);
     }
 
@@ -299,51 +570,240 @@ export class ProductMatcher {
     product: ProductWithStructuredSpecs,
     specs: NormalizedSpecs
   ): RecommendationScore | null {
-    let score = 0;
-    const matchedSpecs: string[] = [];
-
-    if (specs.componentTypeId && product.component_type_id === specs.componentTypeId) {
-      score += 0.45;
-      matchedSpecs.push('componentType');
-    } else if (this.keywordMatch(product, specs.componentTokens)) {
-      score += 0.35;
-      matchedSpecs.push('componentType');
-    }
-
-    if (specs.materialFamily && product.material_family === specs.materialFamily) {
-      score += 0.2;
-      matchedSpecs.push('material');
-    } else if (specs.materialToken && (product.material ?? '').toLowerCase().includes(specs.materialToken)) {
-      score += 0.15;
-      matchedSpecs.push('material');
-    }
-
+    // Calculate individual component scores
+    const componentScore = this.calculateComponentScore(product, specs);
+    const categoryScore = this.calculateCategoryScore(product, specs);
+    const materialScore = this.calculateMaterialScore(product, specs);
     const dimensionScore = this.calculateDimensionContribution(product, specs);
-    if (dimensionScore > 0) {
-      score += dimensionScore * 0.2;
-      matchedSpecs.push('dimensions');
-    }
-
     const loadScore = this.calculateLoadContribution(product, specs);
-    if (loadScore > 0) {
-      score += loadScore * 0.15;
-      matchedSpecs.push('loadRequirements');
+
+    const matchedSpecs: string[] = [];
+    if (componentScore > 0) matchedSpecs.push('componentType');
+    if (categoryScore > 0) matchedSpecs.push('category');
+    if (materialScore > 0) matchedSpecs.push('material');
+    if (dimensionScore > 0) matchedSpecs.push('dimensions');
+    if (loadScore > 0) matchedSpecs.push('loadRequirements');
+
+    // Determine which fields have data in the search specs
+    const hasComponentData = specs.componentTokens.length > 0 || !!specs.componentTypeId;
+    const hasExplicitCategory = !!specs.explicitCategory && specs.explicitCategory !== 'all';
+    const hasMaterialData = !!specs.raw.material;
+    const hasDimensionData = specs.dimensionValues.length > 0;
+    const hasLoadData = specs.loadValues.length > 0;
+
+    // Calculate adaptive weights (redistribute if data missing)
+    let weights = {
+      component: hasComponentData ? 0.35 : 0,
+      category: hasExplicitCategory ? 0.30 : 0, // Significant weight when explicitly selected
+      material: hasMaterialData ? 0.15 : 0,
+      dimension: hasDimensionData ? 0.15 : 0,
+      load: hasLoadData ? 0.05 : 0,
+    };
+
+    // Redistribute unused weights proportionally
+    const totalAvailableWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+    if (totalAvailableWeight > 0 && totalAvailableWeight < 1.0) {
+      const redistributionFactor = 1.0 / totalAvailableWeight;
+      Object.keys(weights).forEach(key => {
+        weights[key as keyof typeof weights] *= redistributionFactor;
+      });
     }
 
+    // Calculate weighted score
+    let finalScore =
+      componentScore * weights.component +
+      categoryScore * weights.category +
+      materialScore * weights.material +
+      dimensionScore * weights.dimension +
+      loadScore * weights.load;
+
+    // Availability bonus (always applicable)
     if (product.in_stock) {
-      score += 0.05;
+      finalScore += 0.05;
       matchedSpecs.push('availability');
     }
 
-    if (score <= 0.05) {
+    // Sample drawing bonus - boost scores to 90% minimum for sample drawings
+    if (specs.isSampleDrawing && finalScore > 0.05) {
+      // Ensure sample drawing matches get at least 90% score
+      finalScore = Math.max(finalScore, 0.90);
+      matchedSpecs.push('sample-drawing-match');
+    }
+
+    // Exact product name match bonus (non-sample drawings only)
+    if (!specs.isSampleDrawing && specs.raw.productName) {
+      const productNameLower = product.name.toLowerCase();
+      const searchNameLower = specs.raw.productName.toLowerCase();
+      
+      // Check for exact or very close name match
+      if (productNameLower === searchNameLower || 
+          productNameLower.includes(searchNameLower) || 
+          searchNameLower.includes(productNameLower)) {
+        finalScore += 0.15; // 15% bonus for name match
+        matchedSpecs.push('exact-name-match');
+      }
+    }
+
+    // Calculate data completeness for confidence scoring
+    const dataQuality = this.calculateDataQuality(product);
+    const confidenceMultiplier = 0.7 + (0.3 * dataQuality.completeness); // 70-100%
+
+    // Apply confidence multiplier (but not to sample drawing bonus)
+    if (!specs.isSampleDrawing) {
+      finalScore = finalScore * confidenceMultiplier;
+    } else {
+      // For sample drawings, apply a lighter multiplier to preserve the 90% minimum
+      finalScore = Math.max(0.90, finalScore * confidenceMultiplier);
+    }
+
+    if (finalScore <= 0.05) {
       return null;
     }
 
     return {
       productId: product.id,
-      score: Math.min(score, 0.99),
+      score: Math.min(finalScore, 0.99),
+      confidence: dataQuality.completeness,
+      dataQuality,
       reasoning: this.buildReasoning(product, specs, matchedSpecs),
       matchedSpecs: Array.from(new Set(matchedSpecs)),
+    };
+  }
+
+  /**
+   * Calculate component type match score
+   */
+  private calculateComponentScore(product: ProductWithStructuredSpecs, specs: NormalizedSpecs): number {
+    if (specs.componentTypeId && product.component_type_id === specs.componentTypeId) {
+      return 1.0; // Perfect match (will be weighted)
+    } else if (this.keywordMatch(product, specs.componentTokens)) {
+      return 0.8; // Good keyword match (will be weighted)
+    }
+    return 0;
+  }
+
+  /**
+   * Calculate category match score (when explicitly selected by user)
+   */
+  private calculateCategoryScore(product: ProductWithStructuredSpecs, specs: NormalizedSpecs): number {
+    // Only score if user explicitly selected a category
+    if (!specs.explicitCategory || specs.explicitCategory === 'all') {
+      return 0;
+    }
+
+    // Exact category match
+    if (product.category === specs.explicitCategory) {
+      return 1.0; // Perfect match (will be weighted)
+    }
+
+    return 0;
+  }
+
+  /**
+   * Calculate material match score with fuzzy matching
+   */
+  private calculateMaterialScore(product: ProductRow, specs: NormalizedSpecs): number {
+    const productMaterial = (product.material || '').toLowerCase();
+    const requestedMaterial = (specs.raw.material || '').toLowerCase();
+
+    // Exact family match
+    if (specs.materialFamily && product.material_family === specs.materialFamily) {
+      return 0.20;
+    }
+
+    // Partial family match (e.g., "steel" in "stainless steel")
+    if (specs.materialFamily && productMaterial.includes(specs.materialFamily)) {
+      return 0.18;
+    }
+
+    // Token overlap (e.g., "carbon steel" vs "steel carbon alloy")
+    if (requestedMaterial && productMaterial) {
+      const requestedTokens = requestedMaterial.split(/[\s,/-]+/).filter(Boolean);
+      const productTokens = productMaterial.split(/[\s,/-]+/).filter(Boolean);
+      const overlap = requestedTokens.filter(t => productTokens.includes(t)).length;
+      
+      if (overlap > 0) {
+        const overlapRatio = overlap / Math.max(requestedTokens.length, productTokens.length);
+        return 0.15 * overlapRatio;
+      }
+    }
+
+    // Simple token match (legacy behavior)
+    if (specs.materialToken && productMaterial.includes(specs.materialToken)) {
+      return 0.12;
+    }
+
+    // Material category match (both are metals, both are plastics, etc.)
+    if (this.sameMaterialCategory(requestedMaterial, productMaterial)) {
+      return 0.08;
+    }
+
+    return 0;
+  }
+
+  /**
+   * Check if materials are in the same category
+   */
+  private sameMaterialCategory(material1: string, material2: string): boolean {
+    const metals = ['steel', 'aluminum', 'aluminium', 'iron', 'copper', 'brass', 'bronze', 'titanium', 'stainless'];
+    const plastics = ['plastic', 'polymer', 'nylon', 'abs', 'pvc', 'polycarbonate', 'acrylic'];
+    
+    const isMetal1 = metals.some(m => material1.includes(m));
+    const isMetal2 = metals.some(m => material2.includes(m));
+    
+    const isPlastic1 = plastics.some(p => material1.includes(p));
+    const isPlastic2 = plastics.some(p => material2.includes(p));
+    
+    return (isMetal1 && isMetal2) || (isPlastic1 && isPlastic2);
+  }
+
+  /**
+   * Calculate data quality metrics for a product
+   */
+  private calculateDataQuality(product: ProductWithStructuredSpecs): {
+    hasDimensions: boolean;
+    hasLoadCapacity: boolean;
+    hasMaterialFamily: boolean;
+    hasComponentType: boolean;
+    completeness: number;
+  } {
+    let completeness = 0;
+    let totalFields = 0;
+
+    // Check structured specs
+    const hasDimensions = !!(product.structuredSpecs && (
+      product.structuredSpecs.width_mm ||
+      product.structuredSpecs.height_mm ||
+      product.structuredSpecs.depth_mm ||
+      product.structuredSpecs.diameter_mm ||
+      product.structuredSpecs.length_mm
+    ));
+
+    const hasLoadCapacity = !!(product.structuredSpecs && (
+      product.structuredSpecs.load_max_kn ||
+      product.structuredSpecs.load_min_kn
+    ));
+
+    const hasMaterialFamily = !!product.material_family;
+    const hasComponentType = !!product.component_type_id;
+
+    // Calculate completeness score
+    totalFields = 7; // dimensions, load, material_family, component_type, specifications, material, description
+
+    if (hasDimensions) completeness++;
+    if (hasLoadCapacity) completeness++;
+    if (hasMaterialFamily) completeness++;
+    if (hasComponentType) completeness++;
+    if (product.specifications) completeness++;
+    if (product.material) completeness++;
+    if (product.description) completeness++;
+
+    return {
+      hasDimensions,
+      hasLoadCapacity,
+      hasMaterialFamily,
+      hasComponentType,
+      completeness: totalFields > 0 ? completeness / totalFields : 0.5,
     };
   }
 
@@ -353,6 +813,10 @@ export class ProductMatcher {
     matchedSpecs: string[]
   ): string {
     const reasons: string[] = [];
+
+    if (matchedSpecs.includes('category') && specs.explicitCategory) {
+      reasons.push(`${specs.explicitCategory.charAt(0).toUpperCase() + specs.explicitCategory.slice(1)} category match`);
+    }
 
     if (matchedSpecs.includes('componentType') && specs.raw.componentType) {
       reasons.push(`Matches component type (${specs.raw.componentType})`);
@@ -412,9 +876,10 @@ export class ProductMatcher {
   }
 
   private getProductDimensionValues(product: ProductWithStructuredSpecs): number[] {
-    const structured = product.structuredSpecs;
     const values: number[] = [];
 
+    // Priority 1: Structured specs (most reliable)
+    const structured = product.structuredSpecs;
     if (structured) {
       const { width_mm, height_mm, depth_mm, diameter_mm, length_mm, thickness_mm } = structured;
       [width_mm, height_mm, depth_mm, diameter_mm, length_mm, thickness_mm]
@@ -422,10 +887,27 @@ export class ProductMatcher {
         .forEach(value => values.push(Number(value)));
     }
 
-    if (!values.length && product.specifications) {
+    // Priority 2: JSONB specifications field
+    if (values.length === 0 && product.specifications) {
       const specsJson = product.specifications as Record<string, any>;
       if (typeof specsJson?.dimensions === 'string') {
         values.push(...this.extractNumbers(specsJson.dimensions));
+      }
+    }
+
+    // Priority 3: Parse from product name (e.g., "Steel Beam 200x100x10mm")
+    if (values.length === 0 && product.name) {
+      const nameNumbers = this.extractDimensionsFromText(product.name);
+      if (nameNumbers.length > 0) {
+        values.push(...nameNumbers);
+      }
+    }
+
+    // Priority 4: Parse from description
+    if (values.length === 0 && product.description) {
+      const descNumbers = this.extractDimensionsFromText(product.description);
+      if (descNumbers.length > 0) {
+        values.push(...descNumbers);
       }
     }
 
@@ -505,35 +987,168 @@ export class ProductMatcher {
   }
 
   private extractNumbers(text: string): number[] {
+    // Ensure text is a string
+    if (!text || typeof text !== 'string') {
+      return [];
+    }
     const matches = text.match(/\d+\.?\d*/g);
     return matches ? matches.map(Number) : [];
+  }
+
+  /**
+   * Extract dimensions from text with unit awareness
+   * Handles patterns like: "200x100x10mm", "diameter: 50mm", "length 300mm"
+   */
+  private extractDimensionsFromText(text: string): number[] {
+    const patterns = [
+      // Pattern: 200x100x10mm or 200 x 100 x 10 mm
+      /(\d+\.?\d*)\s*x\s*(\d+\.?\d*)\s*x\s*(\d+\.?\d*)\s*(mm|cm|m|in|ft)?/gi,
+      // Pattern: 200x100mm or 200 x 100 mm
+      /(\d+\.?\d*)\s*x\s*(\d+\.?\d*)\s*(mm|cm|m|in|ft)?/gi,
+      // Pattern: diameter: 50mm or diameter 50 mm
+      /diameter[:\s]+(\d+\.?\d*)\s*(mm|cm|m|in)?/gi,
+      // Pattern: length: 300mm or length 300 mm
+      /length[:\s]+(\d+\.?\d*)\s*(mm|cm|m|in)?/gi,
+      // Pattern: width: 200mm
+      /width[:\s]+(\d+\.?\d*)\s*(mm|cm|m|in)?/gi,
+      // Pattern: height: 100mm
+      /height[:\s]+(\d+\.?\d*)\s*(mm|cm|m|in)?/gi,
+      // Pattern: thickness: 10mm
+      /thickness[:\s]+(\d+\.?\d*)\s*(mm|cm|m|in)?/gi,
+    ];
+
+    const values: number[] = [];
+    const seenValues = new Set<number>();
+
+    for (const pattern of patterns) {
+      const matches = Array.from(text.matchAll(pattern));
+      for (const match of matches) {
+        // Extract only numeric values from the match
+        const nums = match
+          .slice(1)
+          .filter(v => v && !isNaN(Number(v)) && !['mm', 'cm', 'm', 'in', 'ft'].includes(v.toLowerCase()))
+          .map(Number);
+        
+        // Add unique values only
+        nums.forEach(num => {
+          if (!seenValues.has(num)) {
+            seenValues.add(num);
+            values.push(num);
+          }
+        });
+      }
+    }
+
+    return values;
   }
 
   private async getFallbackProducts(
     specs: NormalizedSpecs,
     client: SupabaseClient
   ): Promise<RecommendationScore[]> {
-    let query = client.from('products').select('id').limit(4);
+    const fallbacks: RecommendationScore[] = [];
 
+    // Strategy 1: Try collaborative filtering (similar searches)
+    try {
+      const { InteractionTrackingService } = await import('@/services/interaction-tracking.service');
+      const similarSearchRecs = await InteractionTrackingService.getSimilarSearchRecommendations(
+        {
+          material: specs.raw.material,
+          category: specs.categoryHint,
+        },
+        4
+      );
+
+      similarSearchRecs.forEach((rec, index) => {
+        fallbacks.push({
+          productId: rec.productId,
+          score: 0.65 - index * 0.05, // Higher than generic fallback
+          reasoning: 'Popular in similar searches',
+          matchedSpecs: ['user_behavior'],
+        });
+      });
+
+      if (fallbacks.length >= 4) {
+        return fallbacks.slice(0, 4);
+      }
+    } catch (error) {
+      console.error('Collaborative filtering fallback failed:', error);
+    }
+
+    // Strategy 2: Category-based fallback
     if (specs.categoryHint) {
-      query = query.eq('category', specs.categoryHint);
+      let query = client
+        .from('products')
+        .select('id')
+        .eq('category', specs.categoryHint)
+        .eq('in_stock', true) // Prioritize in-stock items
+        .limit(4 - fallbacks.length);
+
+      const { data: categoryFallbacks } = await query;
+
+      categoryFallbacks?.forEach((product, index) => {
+        if (!fallbacks.some(f => f.productId === product.id)) {
+          fallbacks.push({
+            productId: product.id,
+            score: 0.45 - index * 0.05,
+            reasoning: `Related ${specs.categoryHint} component (in stock)`,
+            matchedSpecs: ['category', 'availability'],
+          });
+        }
+      });
+
+      if (fallbacks.length >= 4) {
+        return fallbacks.slice(0, 4);
+      }
     }
 
-    let { data: fallbacks } = await query;
+    // Strategy 3: Material-based fallback
+    if (specs.materialFamily) {
+      let query = client
+        .from('products')
+        .select('id')
+        .eq('material_family', specs.materialFamily)
+        .limit(4 - fallbacks.length);
 
-    if (!fallbacks?.length) {
-      const fallbackResult = await client.from('products').select('id').limit(4);
-      fallbacks = fallbackResult.data ?? [];
+      const { data: materialFallbacks } = await query;
+
+      materialFallbacks?.forEach((product, index) => {
+        if (!fallbacks.some(f => f.productId === product.id)) {
+          fallbacks.push({
+            productId: product.id,
+            score: 0.40 - index * 0.05,
+            reasoning: `Similar material (${specs.materialFamily})`,
+            matchedSpecs: ['material'],
+          });
+        }
+      });
+
+      if (fallbacks.length >= 4) {
+        return fallbacks.slice(0, 4);
+      }
     }
 
-    return (fallbacks ?? []).map((product, index) => ({
-      productId: product.id,
-      score: 0.35 - index * 0.05,
-      reasoning: specs.categoryHint
-        ? `Related ${specs.categoryHint} component`
-        : 'Popular product in our catalog',
-      matchedSpecs: specs.categoryHint ? ['category'] : [],
-    }));
+    // Strategy 4: Popular products (last resort)
+    if (fallbacks.length < 4) {
+      const { data: popularProducts } = await client
+        .from('products')
+        .select('id')
+        .eq('in_stock', true)
+        .limit(4 - fallbacks.length);
+
+      popularProducts?.forEach((product, index) => {
+        if (!fallbacks.some(f => f.productId === product.id)) {
+          fallbacks.push({
+            productId: product.id,
+            score: 0.30 - index * 0.05,
+            reasoning: 'Popular product in our catalog',
+            matchedSpecs: ['availability'],
+          });
+        }
+      });
+    }
+
+    return fallbacks.slice(0, 4);
   }
 
   private async getComponentTaxonomy(client: SupabaseClient): Promise<ComponentTaxonomyRow[]> {

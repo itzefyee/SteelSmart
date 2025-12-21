@@ -131,13 +131,15 @@ export class CADAnalysisService {
   ): Promise<DrawingAnalysis> {
     console.log(`Performing CAD analysis for file: ${file.name}`);
 
-    // Check if Gemini API is configured
-    const isGeminiConfigured = await geminiClient.isConfigured();
+    // Check if OpenRouter API is configured
+    const isAIConfigured = await geminiClient.isConfigured();
+    console.log(`OpenRouter API configured: ${isAIConfigured}`);
     let analysis: DrawingAnalysis;
 
-    if (isGeminiConfigured) {
+    if (isAIConfigured) {
       try {
-        // Use real Gemini API for analysis
+        // Use OpenRouter API for analysis
+        console.log(`Using OpenRouter API for analysis of ${file.name} (${file.size} bytes)`);
         const fileBuffer = Buffer.from(await file.arrayBuffer());
         const geminiResponse = await geminiClient.analyzeDrawing(
           fileBuffer,
@@ -145,10 +147,12 @@ export class CADAnalysisService {
           file.name,
           cadModelData
         );
+        console.log(`AI analysis completed. Product name: ${geminiResponse.extractedSpecs.productName}`);
 
         // Convert Gemini response to DrawingAnalysis
         analysis = {
           extractedSpecs: {
+            productName: geminiResponse.extractedSpecs.productName || undefined,
             dimensions: geminiResponse.extractedSpecs.dimensions || undefined,
             material: geminiResponse.extractedSpecs.material || undefined,
             loadRequirements: geminiResponse.extractedSpecs.loadRequirements || undefined,
@@ -161,12 +165,15 @@ export class CADAnalysisService {
           reasoning: geminiResponse.reasoning,
           analysisId: `analysis_${Date.now()}`,
         };
-      } catch (geminiError) {
-        console.error('Gemini API failed, falling back to mock:', geminiError);
+      } catch (aiError) {
+        console.error('OpenRouter API failed, falling back to mock:', aiError);
         analysis = this.getFallbackAnalysis(file.name, cadModelData);
       }
     } else {
       // Use mock analysis if API not configured
+      console.log('OpenRouter API not configured. Using fallback analysis.');
+      console.log('To enable AI analysis: Set OPENROUTER_API_KEY in .env.local');
+      console.log('Get your free API key from: https://openrouter.ai/keys');
       analysis = this.getFallbackAnalysis(file.name, cadModelData);
     }
 
@@ -333,6 +340,7 @@ export class CADAnalysisService {
 
       return {
         extractedSpecs: {
+          productName: componentType, // Use componentType as productName for CAD models
           dimensions,
           material,
           loadRequirements: undefined,
@@ -359,6 +367,7 @@ export class CADAnalysisService {
     if (fileName.includes('bracket')) {
       return {
         extractedSpecs: {
+          productName: 'Mounting Bracket',
           dimensions: '140mm x 90mm x 20mm',
           material: 'Steel',
           loadRequirements: '500N static load',
@@ -375,6 +384,7 @@ export class CADAnalysisService {
     } else if (fileName.includes('steel-beam')) {
       return {
         extractedSpecs: {
+          productName: 'Steel Beam',
           dimensions: '200mm x 100mm x 6m length',
           material: 'Grade S355 Steel',
           loadRequirements: '355 MPa yield strength',
@@ -392,6 +402,7 @@ export class CADAnalysisService {
       // Default servo motor analysis
       return {
         extractedSpecs: {
+          productName: 'Servo Motor',
           dimensions: '120mm x 80mm x 65mm',
           material: 'Aluminum',
           loadRequirements: '50 Nm torque',

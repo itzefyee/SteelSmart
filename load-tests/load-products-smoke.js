@@ -88,7 +88,7 @@ export default function () {
       'detail has product data': (r) => {
         try {
           const body = r.json();
-          return body && body.id && body.name;
+          return body && body.product && body.product.id && body.product.name;
         } catch {
           return false;
         }
@@ -106,6 +106,14 @@ export default function () {
       
       check(recRes, {
         'recs status 200': (r) => r.status === 200,
+        'recs has data': (r) => {
+          try {
+            const body = r.json();
+            return body && body.success === true && body.data;
+          } catch {
+            return false;
+          }
+        },
         'recs response time OK': (r) => r.timings.duration < 1500,
       });
       

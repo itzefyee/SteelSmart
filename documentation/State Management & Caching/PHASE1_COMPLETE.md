@@ -57,7 +57,7 @@ Phase 1 of the State Management & Caching Expansion has been successfully comple
   - `getAlternatives()` - 1 hour TTL (expensive Gemini API calls)
 
 **Files Already Using Hooks (Verified):**
-- ✅ `src/components/products/ProductRecommenderNew.tsx` - Uses `useCombinedRecommendations()`
+- ✅ `src/components/products/ProductRecommender.tsx` - Uses `useCombinedRecommendations()`
 - ✅ `src/components/products/ProductRecommendations.tsx` - Uses `useProductRecommendations()`
 
 **Impact:**
@@ -150,7 +150,7 @@ const { data = [], isLoading } = useRFQList();
 - `src/components/rfq/RFQForm.tsx` - No diagnostics
 - `src/lib/api/recommendation-api.ts` - No diagnostics
 - `src/hooks/useRecommendations.ts` - No diagnostics
-- `src/components/products/ProductRecommenderNew.tsx` - No diagnostics
+- `src/components/products/ProductRecommender.tsx` - No diagnostics
 - `src/components/products/ProductRecommendations.tsx` - No diagnostics
 
 ### Documentation

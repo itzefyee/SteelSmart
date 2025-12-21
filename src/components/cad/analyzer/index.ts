@@ -1,8 +1,11 @@
-// CAD Analyzer sub-components
-// Split from the monolithic CADAnalyzerFull.tsx for better performance and maintainability
+// CAD Analyzer Sub-Components
+// These components are used by CADAnalyzer to break down the UI into manageable pieces
 
-export { default as FileUploadSection } from './FileUploadSection';
-export { default as AnalysisResultsPanel } from './AnalysisResultsPanel';
-export { default as ValidationPanel } from './ValidationPanel';
-export { default as VerificationPanel } from './VerificationPanel';
-export { default as ReportPanel } from './ReportPanel';
+// Eagerly loaded components (always needed)
+export { UploadSection } from './UploadSection';
+export { SampleDrawings } from './SampleDrawings';
+export { ManufacturingSection } from './ManufacturingSection';
+export { AnalysisResults } from './AnalysisResults';
+
+// Note: ValidationTab and VerificationTab are lazy-loaded directly in CADAnalyzer.tsx
+// They are not exported here to encourage code-splitting and avoid Fast Refresh conflicts

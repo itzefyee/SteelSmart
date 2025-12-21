@@ -65,23 +65,23 @@ const Footer: React.FC = () => {
             <h3 className="text-lg font-semibold mb-4">Services</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/rfq" className="text-gray-400 hover:text-white transition-colors">
-                  Request Quote
+                <Link href="/cad-generator" className="text-gray-400 hover:text-white transition-colors">
+                  CAD Drawing Generation
                 </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  CAD Analysis
+                <a href="/cad-analyzer" className="text-gray-400 hover:text-white transition-colors">
+                  CAD Drawing Analysis
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  Custom Fabrication
+                <a href="/product-recommender" className="text-gray-400 hover:text-white transition-colors">
+                  Product Recommendation
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  Technical Support
+                <a href="/rfq" className="text-gray-400 hover:text-white transition-colors">
+                  Request Quote
                 </a>
               </li>
             </ul>

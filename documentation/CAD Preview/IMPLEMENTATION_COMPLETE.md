@@ -55,7 +55,7 @@ Created `cad-analyzer-utils.ts` with:
 
 Updated existing components:
 - ✅ CADAnalyzer - Added 3D file support
-- ✅ CADAnalyzerFull - Integrated 3D preview
+- ✅ CADAnalyzer - Integrated 3D preview
 - ✅ File upload - Extended accept types
 - ✅ API route - Updated validation
 
@@ -201,7 +201,7 @@ src/
 ├── components/
 │   ├── CADPreview3D.tsx         # 3D viewer (400+ lines)
 │   ├── CADAnalyzer.tsx          # Updated with new formats
-│   └── CADAnalyzerFull.tsx      # Integrated 3D preview
+│   └── CADAnalyzer.tsx      # Integrated 3D preview
 └── app/
     ├── cad-preview-demo/
     │   └── page.tsx             # Demo page (380+ lines)
@@ -411,7 +411,7 @@ Use this checklist to verify implementation:
 ### Modified Files (5)
 1. `next.config.js` - WebAssembly configuration
 2. `src/components/CADAnalyzer.tsx` - Added 3D file support
-3. `src/components/CADAnalyzerFull.tsx` - Integrated 3D preview
+3. `src/components/CADAnalyzer.tsx` - Integrated 3D preview
 4. `src/app/api/analyze-drawing/route.ts` - Extended validation
 5. `package.json` - Added dependencies
 

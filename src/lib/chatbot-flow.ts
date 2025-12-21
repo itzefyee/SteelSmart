@@ -14,7 +14,7 @@ const chatbotSections = [
     troubleshootingSection,
     supportSection
 ];
-
+``
 export const chatbotFlow: ChatbotFlow = Object.assign({}, ...chatbotSections);
 
 if (process.env.NODE_ENV !== 'production') {

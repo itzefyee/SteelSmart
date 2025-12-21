@@ -29,7 +29,7 @@
 1. **Background:** Light gray (`bg-gray-50`)
 2. **3D Models:** 18 blue wireframe models floating throughout
 3. **Text:** Dark gray for contrast
-4. **Content:** CADAnalyzerFull component
+4. **Content:** CADAnalyzer component
 
 ### Layout Structure
 ```
@@ -40,7 +40,7 @@
 │   ├─ 18 Floating 3D Models (z-index: 1, opacity: 0.15-0.25)│
 │   └─ Content Container (z-index: 10)                       │
 │       ├─ Page Title & Description (text-gray-900/600)      │
-│       └─ CADAnalyzerFull Component                         │
+│       └─ CADAnalyzer Component                         │
 ├─────────────────────────────────────────────────────────────┤
 │ Footer                                                       │
 └─────────────────────────────────────────────────────────────┘

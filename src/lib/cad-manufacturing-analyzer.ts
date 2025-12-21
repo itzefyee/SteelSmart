@@ -78,55 +78,95 @@ export class ManufacturingAnalyzer {
    */
   detectHoles(shape: any): HoleAnalysis {
     const holes: HoleInfo[] = [];
+    const cylindricalFaces: any[] = [];
+    
     const faceExplorer = new this.oc.TopExp_Explorer_2(
       shape,
       this.oc.TopAbs_ShapeEnum.TopAbs_FACE,
       this.oc.TopAbs_ShapeEnum.TopAbs_SHAPE
     );
 
+    // First pass: collect all cylindrical faces
     while (faceExplorer.More()) {
       const face = this.oc.TopoDS.Face_1(faceExplorer.Current());
       const surface = this.oc.BRep_Tool.Surface_2(face);
 
       // Check if surface is cylindrical by attempting to downcast
       try {
-        // Try to get the surface type name
+        // Try multiple methods to detect cylindrical surfaces
         const typeName = surface.get_type_name ? surface.get_type_name() : null;
-
-        // Check if it's cylindrical (handles both naming conventions)
-        const isCylindrical =
+        
+        // Method 1: Check type name
+        const isCylindricalByName = 
           typeName === 'Geom_CylindricalSurface' ||
-          (typeof surface.Axis === 'function' && typeof surface.Radius === 'function');
+          typeName === 'Handle(Geom_CylindricalSurface)';
+        
+        // Method 2: Check if it has Axis and Radius methods
+        const hasAxisAndRadius = 
+          typeof surface.Axis === 'function' && 
+          typeof surface.Radius === 'function';
+        
+        // Method 3: Try to cast to cylindrical surface
+        let isCylindrical = isCylindricalByName || hasAxisAndRadius;
+        
+        // Additional check: try to access cylinder properties
+        if (!isCylindrical && surface.DynamicType) {
+          const dynType = surface.DynamicType();
+          if (dynType && dynType.Name) {
+            const name = dynType.Name();
+            isCylindrical = name.includes('Cylindrical');
+          }
+        }
 
         if (isCylindrical) {
-          const axis = surface.Axis();
-          const radius = surface.Radius();
-          const location = axis.Location();
-
-          holes.push({
-            center: {
-              x: location.X(),
-              y: location.Y(),
-              z: location.Z(),
-            },
-            diameter: radius * 2,
-            radius: radius,
-            axis: {
-              x: axis.Direction().X(),
-              y: axis.Direction().Y(),
-              z: axis.Direction().Z(),
-            },
-            isStandardSize: this.checkStandardDrillSize(radius * 2),
-          });
+          try {
+            const axis = surface.Axis();
+            const radius = surface.Radius();
+            const location = axis.Location();
+            
+            // Validate that we got valid values
+            if (radius > 0 && radius < 1000) { // Sanity check
+              const holeInfo = {
+                center: {
+                  x: location.X(),
+                  y: location.Y(),
+                  z: location.Z(),
+                },
+                diameter: radius * 2,
+                radius: radius,
+                axis: {
+                  x: axis.Direction().X(),
+                  y: axis.Direction().Y(),
+                  z: axis.Direction().Z(),
+                },
+                isStandardSize: this.checkStandardDrillSize(radius * 2),
+              };
+              
+              // Check if this is likely a hole (not an external cylinder)
+              // Holes typically have their axis perpendicular to the main surface
+              const axisZ = Math.abs(holeInfo.axis.z);
+              const isLikelyHole = axisZ > 0.7 || axisZ < 0.3; // Either vertical or horizontal
+              
+              if (isLikelyHole) {
+                holes.push(holeInfo);
+                cylindricalFaces.push(face);
+              }
+            }
+          } catch (propError) {
+            console.warn('Could not extract cylinder properties:', propError);
+          }
         }
       } catch (error) {
         // Not a cylindrical surface or error accessing properties, skip
+        // This is expected for non-cylindrical faces
       }
 
       faceExplorer.Next();
     }
 
     faceExplorer.delete();
+    
+    console.log(`Detected ${holes.length} potential holes from ${cylindricalFaces.length} cylindrical faces`);
 
     // Analyze hole relationships
     return this.analyzeHoles(holes, shape);
