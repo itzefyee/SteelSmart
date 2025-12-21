@@ -11,9 +11,10 @@ export async function GET(
     const service = new ReportService();
     const report = await service.getById(id);
 
-    // Generate public URL if file exists
-    let publicFileUrl = null;
-    if (report.file_url) {
+    // file_url now contains the full public URL, but we still provide backward compatibility
+    let publicFileUrl = report.file_url;
+    if (report.file_url && !report.file_url.startsWith('http')) {
+      // Legacy support: generate public URL for old storage paths
       publicFileUrl = await service.getReportFileUrl(report);
     }
 

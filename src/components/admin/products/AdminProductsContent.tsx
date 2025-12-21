@@ -17,7 +17,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Edit, Trash2, Eye, Search, Plus } from 'lucide-react';
-import { useToast } from '@/components/ui/ToastProvider';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Product } from '@/types';
@@ -28,22 +27,26 @@ import { AdminErrorBoundary } from '@/components/admin/AdminErrorBoundary';
 export default function AdminProductsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   
-  // Safe toast hook usage
-  let addToast: ((toast: any) => void) | null = null;
-  try {
-    const toastContext = useToast();
-    addToast = toastContext.addToast;
-  } catch (error) {
-    console.warn('Toast context not available:', error);
-    addToast = (toast: any) => {
+  // Safe toast function that only works on client-side
+  const showToast = (toast: { title: string; description: string; type: string }) => {
+    if (!isClient) {
+      console.log('Toast (SSR):', toast.title, '-', toast.description);
+      return;
+    }
+    
+    try {
+      const { useToast } = require('@/components/ui/ToastProvider');
+      const toastContext = useToast();
+      toastContext.addToast(toast);
+    } catch (error) {
       console.log('Toast (fallback):', toast.title, '-', toast.description);
-    };
-  }
+    }
+  };
 
   useEffect(() => {
-    setMounted(true);
+    setIsClient(true);
   }, []);
   
   // Debounce search term to avoid excessive API calls
@@ -80,35 +83,23 @@ export default function AdminProductsContent() {
   const handleDelete = async (productId: string) => {
     try {
       await deleteProductMutation.mutateAsync(productId);
-      if (addToast) {
-        addToast({
-          title: 'Success',
-          description: 'Product deleted successfully',
-          type: 'success',
-        });
-      }
+      showToast({
+        title: 'Success',
+        description: 'Product deleted successfully',
+        type: 'success',
+      });
     } catch (error) {
-      if (addToast) {
-        addToast({
-          title: 'Error',
-          description: 'Failed to delete product',
-          type: 'error',
-        });
-      }
+      showToast({
+        title: 'Error',
+        description: 'Failed to delete product',
+        type: 'error',
+      });
     }
   };
 
   return (
     <div className="space-y-6">
-      {!mounted ? (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-lg text-muted-foreground">Loading...</div>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Product Management</h1>
           <p className="text-muted-foreground">Manage your product catalog and inventory</p>
@@ -239,8 +230,6 @@ export default function AdminProductsContent() {
             </div>
           </CardContent>
         </Card>
-      )}
-        </>
       )}
     </div>
   );

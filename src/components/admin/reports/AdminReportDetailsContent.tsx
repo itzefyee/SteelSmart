@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Download, Trash2, FileText, Calendar, HardDrive, Clock, User } from 'lucide-react';
+import { ArrowLeft, Download, Trash2, FileText, Calendar, Clock, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 
@@ -27,6 +27,7 @@ interface Report {
   report_type: string;
   status: string;
   file_url?: string;
+  public_file_url?: string;
   file_size?: string;
   created_at?: string;
   updated_at?: string;
@@ -41,30 +42,30 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
   const router = useRouter();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
-  // Safe toast hook usage
-  let addToast: ((toast: any) => void) | null = null;
-  try {
-    const { useToast } = require('@/components/ui/ToastProvider');
-    const toastContext = useToast();
-    addToast = toastContext.addToast;
-  } catch (error) {
-    console.warn('Toast context not available:', error);
-    addToast = (toast: any) => {
+  // Safe toast function that only works on client-side
+  const showToast = (toast: { title: string; description: string; type: string }) => {
+    if (!isClient) {
+      console.log('Toast (SSR):', toast.title, '-', toast.description);
+      return;
+    }
+    
+    try {
+      const { useToast } = require('@/components/ui/ToastProvider');
+      const toastContext = useToast();
+      toastContext.addToast(toast);
+    } catch (error) {
       console.log('Toast (fallback):', toast.title, '-', toast.description);
-    };
-  }
+    }
+  };
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted && reportId) {
+    setIsClient(true);
+    if (reportId) {
       loadReport(reportId);
     }
-  }, [reportId, mounted]);
+  }, [reportId]);
 
   const loadReport = async (id: string) => {
     setLoading(true);
@@ -75,47 +76,41 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
       if (data.data) {
         setReport(data.data);
       } else {
-        if (addToast) {
-          addToast({
-            title: 'Error',
-            description: 'Failed to load report',
-            type: 'error',
-          });
-        }
-      }
-    } catch (error) {
-      if (addToast) {
-        addToast({
+        showToast({
           title: 'Error',
           description: 'Failed to load report',
           type: 'error',
         });
       }
+    } catch (error) {
+      showToast({
+        title: 'Error',
+        description: 'Failed to load report',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleDownload = () => {
-    if (!report || report.status !== 'COMPLETED' || !report.file_url) {
-      if (addToast) {
-        addToast({
-          title: 'Download unavailable',
-          description: 'This report is not yet ready for download.',
-          type: 'error',
-        });
-      }
+    if (!report || report.status !== 'COMPLETED' || (!report.public_file_url && !report.file_url)) {
+      showToast({
+        title: 'Download unavailable',
+        description: 'This report is not yet ready for download.',
+        type: 'error',
+      });
       return;
     }
 
-    window.open(report.file_url, '_blank');
-    if (addToast) {
-      addToast({
-        title: 'Download started',
-        description: `Downloading ${report.title}...`,
-        type: 'info',
-      });
-    }
+    // Use public_file_url if available, otherwise fall back to file_url
+    const downloadUrl = report.public_file_url || report.file_url;
+    window.open(downloadUrl, '_blank');
+    showToast({
+      title: 'Download started',
+      description: `Downloading ${report.title}...`,
+      type: 'info',
+    });
   };
 
   const handleDelete = async () => {
@@ -127,25 +122,21 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
       });
 
       if (response.ok) {
-        if (addToast) {
-          addToast({
-            title: 'Report Deleted',
-            description: 'Report has been deleted successfully',
-            type: 'success',
-          });
-        }
+        showToast({
+          title: 'Report Deleted',
+          description: 'Report has been deleted successfully',
+          type: 'success',
+        });
         router.push('/admin/reports');
       } else {
         throw new Error('Failed to delete');
       }
     } catch (error) {
-      if (addToast) {
-        addToast({
-          title: 'Error',
-          description: 'Failed to delete report',
-          type: 'error',
-        });
-      }
+      showToast({
+        title: 'Error',
+        description: 'Failed to delete report',
+        type: 'error',
+      });
     }
   };
 
@@ -164,58 +155,51 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
     }
   };
 
-  // Don't render until component is mounted to avoid hydration issues
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-lg text-muted-foreground">Loading...</div>
-        </div>
-      </div>
-    );
-  }
-
   if (loading) {
     return (
-      <div className="p-8 max-w-4xl">
-        <div className="flex items-center gap-4 mb-6">
-          <Link href="/admin/reports">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          </Link>
+      <div className="min-h-screen bg-background">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="flex items-center gap-4 mb-6">
+            <Link href="/admin/reports">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+            </Link>
+          </div>
+          <Card>
+            <CardContent className="p-8 text-center">
+              <div className="text-muted-foreground">Loading report...</div>
+            </CardContent>
+          </Card>
         </div>
-        <Card>
-          <CardContent className="p-8 text-center">
-            <div className="text-muted-foreground">Loading report...</div>
-          </CardContent>
-        </Card>
       </div>
     );
   }
 
   if (!report) {
     return (
-      <div className="p-8 max-w-4xl">
-        <div className="flex items-center gap-4 mb-6">
-          <Link href="/admin/reports">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          </Link>
-        </div>
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <FileText className="w-16 h-16 text-muted-foreground mb-4" />
-          <h2 className="text-xl font-semibold text-foreground mb-2">Report Not Found</h2>
-          <p className="text-muted-foreground mb-6">The report you're looking for doesn't exist.</p>
-          <Link href="/admin/reports">
-            <Button variant="outline">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Reports
-            </Button>
-          </Link>
+      <div className="min-h-screen bg-background">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="flex items-center gap-4 mb-6">
+            <Link href="/admin/reports">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+            </Link>
+          </div>
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <FileText className="w-16 h-16 text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold text-foreground mb-2">Report Not Found</h2>
+            <p className="text-muted-foreground mb-6">The report you're looking for doesn't exist.</p>
+            <Link href="/admin/reports">
+              <Button variant="outline">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Reports
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -224,7 +208,6 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
   const detailItems = [
     { icon: User, label: 'Author', value: 'Admin User' },
     { icon: FileText, label: 'Report Type', value: report.report_type.replace(/_/g, ' ') },
-    { icon: HardDrive, label: 'File Size', value: report.file_size || 'N/A' },
     { 
       icon: Calendar, 
       label: 'Created', 
@@ -238,157 +221,188 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
   ];
 
   return (
-    <div className="p-8 max-w-4xl">
-      {/* Back Button */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <Link href="/admin/reports">
-          <Button
-            variant="ghost"
-            className="mb-6 text-muted-foreground hover:text-foreground -ml-2"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Reports
-          </Button>
-        </Link>
-      </motion.div>
-
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="bg-card rounded-lg border border-border p-6 shadow-sm mb-6"
-      >
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <FileText className="w-7 h-7 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <h1 className="text-xl font-bold text-foreground mb-2">{report.title}</h1>
-                {getStatusBadge(report.status)}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleDownload}
-                  disabled={report.status !== 'COMPLETED'}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Report
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Report</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete "{report.title}"? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDelete}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Description */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
-        className="bg-card rounded-lg border border-border p-6 shadow-sm mb-6"
-      >
-        <h2 className="text-lg font-semibold text-foreground mb-3">Description</h2>
-        <p className="text-muted-foreground leading-relaxed">
-          {report.description || `This is a ${report.report_type.replace(/_/g, ' ').toLowerCase()} report containing detailed analytics and insights.`}
-        </p>
-      </motion.div>
-
-      {/* Details Grid */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.2 }}
-        className="bg-card rounded-lg border border-border p-6 shadow-sm"
-      >
-        <h2 className="text-lg font-semibold text-foreground mb-4">Report Details</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {detailItems.map((item, index) => (
-            <motion.div
-              key={item.label}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.25 + index * 0.05 }}
-              className="flex items-start gap-3"
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Back Button */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Link href="/admin/reports">
+            <Button
+              variant="outline"
+              className="mb-6 text-muted-foreground hover:text-foreground -ml-2"
             >
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                <item.icon className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{item.label}</p>
-                <p className="font-medium text-foreground">{item.value}</p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Reports
+            </Button>
+          </Link>
+        </motion.div>
 
-      {/* Preview Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.3 }}
-        className="bg-card rounded-lg border border-border p-6 shadow-sm mt-6"
-      >
-        <h2 className="text-lg font-semibold text-foreground mb-4">Report Preview</h2>
-        <div className="bg-muted/50 rounded-lg border border-border p-8 min-h-[300px] flex items-center justify-center">
-          {report.status === 'COMPLETED' ? (
-            <div className="text-center">
-              <FileText className="w-16 h-16 text-primary/40 mx-auto mb-4" />
-              <p className="text-muted-foreground mb-2">PDF Preview</p>
-              <p className="text-sm text-muted-foreground">The full report is available for download</p>
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="bg-card rounded-lg border border-border p-6 shadow-sm mb-6"
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <FileText className="w-7 h-7 text-primary" />
             </div>
-          ) : report.status === 'PROCESSING' ? (
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">Report is being generated...</p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h1 className="text-xl font-bold text-foreground mb-2">{report.title}</h1>
+                  {getStatusBadge(report.status)}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleDownload}
+                    disabled={report.status !== 'COMPLETED' || (!report.public_file_url && !report.file_url)}
+                    className="bg-primary text-white hover:bg-primary/90 gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Report
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button className="bg-red-600 text-white hover:bg-red-700">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Report</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete "{report.title}"? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDelete}
+                          className="bg-red-600 text-white hover:bg-red-700"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
             </div>
-          ) : report.status === 'PENDING' ? (
-            <div className="text-center">
-              <Clock className="w-16 h-16 text-yellow-500/40 mx-auto mb-4" />
-              <p className="text-muted-foreground">Report is queued for processing</p>
-            </div>
-          ) : (
-            <div className="text-center">
-              <FileText className="w-16 h-16 text-destructive/40 mx-auto mb-4" />
-              <p className="text-muted-foreground">Report generation failed</p>
-              <p className="text-sm text-muted-foreground mt-1">Please try generating the report again</p>
-            </div>
-          )}
-        </div>
-      </motion.div>
+          </div>
+        </motion.div>
+
+        {/* Description */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="bg-card rounded-lg border border-border p-6 shadow-sm mb-6"
+        >
+          <h2 className="text-lg font-semibold text-foreground mb-3">Description</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            {report.description || `This is a ${report.report_type.replace(/_/g, ' ').toLowerCase()} report containing detailed analytics and insights.`}
+          </p>
+        </motion.div>
+
+        {/* Details Grid */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="bg-card rounded-lg border border-border p-6 shadow-sm"
+        >
+          <h2 className="text-lg font-semibold text-foreground mb-4">Report Details</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {detailItems.map((item, index) => (
+              <motion.div
+                key={item.label}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.25 + index * 0.05 }}
+                className="flex items-start gap-3"
+              >
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                  <item.icon className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{item.label}</p>
+                  <p className="font-medium text-foreground">{item.value}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Preview Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="bg-card rounded-lg border border-border p-6 shadow-sm mt-6"
+        >
+          <h2 className="text-lg font-semibold text-foreground mb-4">Report Preview</h2>
+          <div className="bg-muted/50 rounded-lg border border-border overflow-hidden min-h-[500px]">
+            {report.status === 'COMPLETED' && (report.public_file_url || report.file_url) ? (
+              <iframe
+                src={report.public_file_url || report.file_url}
+                className="w-full h-[500px] border-0"
+                title="PDF Preview"
+                onError={() => {
+                  showToast({
+                    title: 'Preview Error',
+                    description: 'Unable to preview PDF. You can still download the report.',
+                    type: 'warning',
+                  });
+                }}
+              />
+            ) : report.status === 'COMPLETED' ? (
+              <div className="flex items-center justify-center h-[500px]">
+                <div className="text-center">
+                  <FileText className="w-16 h-16 text-primary/40 mx-auto mb-4" />
+                  <p className="text-muted-foreground mb-2">PDF Preview Unavailable</p>
+                  <p className="text-sm text-muted-foreground">The report is ready for download</p>
+                  <Button 
+                    onClick={handleDownload}
+                    className="mt-4 bg-primary text-white hover:bg-primary/90"
+                    variant="outline"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Report
+                  </Button>
+                </div>
+              </div>
+            ) : report.status === 'PROCESSING' ? (
+              <div className="flex items-center justify-center h-[500px]">
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin mx-auto mb-4" />
+                  <p className="text-muted-foreground">Report is being generated...</p>
+                </div>
+              </div>
+            ) : report.status === 'PENDING' ? (
+              <div className="flex items-center justify-center h-[500px]">
+                <div className="text-center">
+                  <Clock className="w-16 h-16 text-yellow-500/40 mx-auto mb-4" />
+                  <p className="text-muted-foreground">Report is queued for processing</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[500px]">
+                <div className="text-center">
+                  <FileText className="w-16 h-16 text-destructive/40 mx-auto mb-4" />
+                  <p className="text-muted-foreground">Report generation failed</p>
+                  <p className="text-sm text-muted-foreground mt-1">Please try generating the report again</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 }

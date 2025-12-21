@@ -1,4 +1,4 @@
-import { getSupabaseServer } from '@/lib/supabase-server';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import type { Report, ReportStatistics } from '@/types';
 import type { TablesInsert, TablesUpdate } from '@/lib/database.types';
 
@@ -8,8 +8,8 @@ export interface ReportFilters {
   search?: string;
 }
 
-export type CreateReportInput = Omit<TablesInsert<'reports'>, 'id' | 'created_at' | 'updated_at' | 'completed_at' | 'file_url' | 'error_message'>;
-export type UpdateReportInput = Omit<TablesUpdate<'reports'>, 'id' | 'created_at'>;
+export type CreateReportInput = Omit<TablesInsert<'admin_reports'>, 'id' | 'created_at' | 'updated_at' | 'completed_at' | 'file_url' | 'error_message'>;
+export type UpdateReportInput = Omit<TablesUpdate<'admin_reports'>, 'id' | 'created_at'>;
 
 export class ReportRepository {
   async findAll(
@@ -17,10 +17,10 @@ export class ReportRepository {
     page: number = 1,
     limit: number = 10
   ): Promise<{ reports: Report[]; total: number }> {
-    const supabase = await getSupabaseServer();
+    const supabase = getSupabaseAdmin();
     
     try {
-      let query = supabase.from('reports').select('*', { count: 'exact' });
+      let query = supabase.from('admin_reports').select('*', { count: 'exact' });
       
       if (filters?.status) {
         query = query.eq('status', filters.status);
@@ -57,9 +57,9 @@ export class ReportRepository {
   }
 
   async findById(id: string): Promise<Report | null> {
-    const supabase = await getSupabaseServer();
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
-      .from('reports')
+      .from('admin_reports')
       .select('*')
       .eq('id', id)
       .single();
@@ -73,21 +73,26 @@ export class ReportRepository {
   }
 
   async create(input: CreateReportInput): Promise<Report> {
-    const supabase = await getSupabaseServer();
+    const supabase = getSupabaseAdmin();
+    
     const { data, error } = await supabase
-      .from('reports')
+      .from('admin_reports')
       .insert(input)
       .select()
       .single();
     
-    if (error) throw new Error(`Failed to create report: ${error.message}`);
+    if (error) {
+      console.error('Database error creating report:', error);
+      throw new Error(`Failed to create report: ${error.message}`);
+    }
+    
     return data as Report;
   }
 
   async update(id: string, input: UpdateReportInput): Promise<Report> {
-    const supabase = await getSupabaseServer();
+    const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
-      .from('reports')
+      .from('admin_reports')
       .update(input)
       .eq('id', id)
       .select()
@@ -98,9 +103,9 @@ export class ReportRepository {
   }
 
   async delete(id: string): Promise<void> {
-    const supabase = await getSupabaseServer();
+    const supabase = getSupabaseAdmin();
     const { error } = await supabase
-      .from('reports')
+      .from('admin_reports')
       .delete()
       .eq('id', id);
     
@@ -108,11 +113,11 @@ export class ReportRepository {
   }
 
   async getStatistics(): Promise<ReportStatistics> {
-    const supabase = await getSupabaseServer();
+    const supabase = getSupabaseAdmin();
     
     try {
       const { data, error } = await supabase
-        .from('reports')
+        .from('admin_reports')
         .select('status');
       
       if (error) {

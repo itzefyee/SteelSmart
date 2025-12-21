@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    console.error('API Error in POST /api/admin/reports:', error);
     return handleApiError(error);
   }
 }

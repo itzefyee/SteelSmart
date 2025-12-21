@@ -16,7 +16,7 @@ export default function AdminReportsContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -25,29 +25,27 @@ export default function AdminReportsContent() {
     failed: 0,
   });
 
-  // Safe toast hook usage
-  let addToast: ((toast: any) => void) | null = null;
-  try {
-    const { useToast } = require('@/components/ui/ToastProvider');
-    const toastContext = useToast();
-    addToast = toastContext.addToast;
-  } catch (error) {
-    console.warn('Toast context not available:', error);
-    addToast = (toast: any) => {
-      console.log('Toast (fallback):', toast.title, '-', toast.description);
-    };
-  }
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted) {
-      loadReports();
-      loadStatistics();
+  // Safe toast function that only works on client-side
+  const showToast = (toast: { title: string; description: string; type: string }) => {
+    if (!isClient) {
+      console.log('Toast (SSR):', toast.title, '-', toast.description);
+      return;
     }
-  }, [currentPage, mounted]);
+    
+    try {
+      const { useToast } = require('@/components/ui/ToastProvider');
+      const toastContext = useToast();
+      toastContext.addToast(toast);
+    } catch (error) {
+      console.log('Toast (fallback):', toast.title, '-', toast.description);
+    }
+  };
+
+  useEffect(() => {
+    setIsClient(true);
+    loadReports();
+    loadStatistics();
+  }, [currentPage]);
 
   // Filter reports based on search query
   const filteredReports = useMemo(() => {
@@ -76,13 +74,11 @@ export default function AdminReportsContent() {
       }
     } catch (error) {
       console.error('Failed to load reports:', error);
-      if (addToast) {
-        addToast({
-          title: 'Error',
-          description: 'Failed to load reports',
-          type: 'error',
-        });
-      }
+      showToast({
+        title: 'Error',
+        description: 'Failed to load reports',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -115,48 +111,40 @@ export default function AdminReportsContent() {
 
       if (response.ok) {
         setReports(reports.filter((r) => r.id !== reportId));
-        if (addToast) {
-          addToast({
-            title: 'Report Deleted',
-            description: 'Report has been successfully deleted',
-            type: 'success',
-          });
-        }
+        showToast({
+          title: 'Report Deleted',
+          description: 'Report has been successfully deleted',
+          type: 'success',
+        });
         loadStatistics();
       } else {
         throw new Error('Failed to delete');
       }
     } catch (error) {
-      if (addToast) {
-        addToast({
-          title: 'Error',
-          description: 'Failed to delete report',
-          type: 'error',
-        });
-      }
+      showToast({
+        title: 'Error',
+        description: 'Failed to delete report',
+        type: 'error',
+      });
     }
   };
 
   const handleDownload = (report: Report) => {
     if (report.status !== 'COMPLETED' || !report.file_url) {
-      if (addToast) {
-        addToast({
-          title: 'Error',
-          description: 'Report is not ready for download',
-          type: 'error',
-        });
-      }
+      showToast({
+        title: 'Error',
+        description: 'Report is not ready for download',
+        type: 'error',
+      });
       return;
     }
 
     window.open(report.file_url, '_blank');
-    if (addToast) {
-      addToast({
-        title: 'Download Started',
-        description: `Downloading ${report.title}...`,
-        type: 'info',
-      });
-    }
+    showToast({
+      title: 'Download Started',
+      description: `Downloading ${report.title}...`,
+      type: 'info',
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -178,27 +166,14 @@ export default function AdminReportsContent() {
     }
   };
 
-  const getTypeBadgeVariant = (type: string) => {
+  const getTypeBadgeVariant = (type: string): "default" | "secondary" | "destructive" | "outline" | "success" | "robotic" | "structural" | "fasteners" | "custom" => {
     switch (type) {
-      case 'MONTHLY_AUDIT_LOG':
+      case 'AUDIT_LOG':
         return 'default';
-      case 'MONTHLY_PRODUCT_PERFORMANCE':
-        return 'secondary';
       default:
         return 'outline';
     }
   };
-
-  // Don't render until component is mounted to avoid hydration issues
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-lg text-muted-foreground">Loading...</div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 space-y-6">
@@ -214,7 +189,7 @@ export default function AdminReportsContent() {
           <p className="text-muted-foreground mt-1">View, download, and manage your generated reports</p>
         </div>
         <Link href="/admin/reports/generate">
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
+          <Button className="bg-primary text-white hover:bg-primary/90 gap-2">
             <FilePlus className="w-4 h-4" />
             Generate Report
           </Button>
@@ -356,7 +331,7 @@ export default function AdminReportsContent() {
                         Download
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={() => handleDelete(report.id)}>
+                    <Button className="bg-red-600 text-white hover:bg-red-700" size="sm" onClick={() => handleDelete(report.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </CardFooter>

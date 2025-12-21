@@ -40,11 +40,8 @@ class ReportGeneratorService {
       // Generate report based on type
       const reportType = report.report_type as string;
       
-      if (reportType === 'MONTHLY_AUDIT_LOG') {
+      if (reportType === 'AUDIT_LOG') {
         fileUrl = await this.generateAuditLogReport(reportId, report);
-      } else if (reportType === 'MONTHLY_PRODUCT_PERFORMANCE') {
-        // Placeholder for product performance report
-        throw new Error('Product performance reports are not yet implemented');
       } else {
         // Legacy report types - simulate generation
         await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -92,8 +89,15 @@ class ReportGeneratorService {
       throw new Error(`Failed to upload report: ${error.message}`);
     }
 
-    // Return the storage path (not the public URL) for database storage
-    return fileName;
+    // Generate and return the full public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('admin-reports')
+      .getPublicUrl(fileName);
+
+    console.log(`Generated report file: ${fileName}`);
+    console.log(`Public URL: ${publicUrl}`);
+
+    return publicUrl;
   }
 }
 

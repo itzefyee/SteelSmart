@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError } from '@/lib/errors/app-errors';
 import { reportGeneratorService } from './ReportGeneratorService';
 import { AuditLogService } from '@/services/admin/audit/audit-log.service';
 import { getSupabaseServer } from '@/lib/supabase-server';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export class ReportService {
   private repository: ReportRepository;
@@ -42,10 +43,13 @@ export class ReportService {
       return null;
     }
 
-    // Generate public URL from storage path
-    const { getSupabaseAdmin } = require('@/lib/supabase-server');
+    // If file_url is already a full URL, return it directly
+    if (report.file_url.startsWith('http')) {
+      return report.file_url;
+    }
+
+    // Legacy support: if it's still a storage path, generate public URL
     const supabase = getSupabaseAdmin();
-    
     const { data: { publicUrl } } = supabase.storage
       .from('admin-reports')
       .getPublicUrl(report.file_url);
@@ -70,34 +74,14 @@ export class ReportService {
         status: 'PENDING',
       });
       
-      // Get current user for audit logging
-      const supabase = await getSupabaseServer();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        // Audit log: Report creation success
-        await AuditLogService.logReport(
-          user.id,
-          'CREATE',
-          { 
-            id: report.id, 
-            title: report.title, 
-            report_type: report.report_type 
-          }
-        );
-      }
-      
-      // Trigger generation asynchronously
+      // Trigger generation asynchronously (with error handling)
       reportGeneratorService.processReport(report.id).catch(error => {
         console.error(`Report generation failed for ID ${report.id}:`, error);
       });
       
       return report.id;
     } catch (error) {
-      // Get current user for audit logging
-      const supabase = await getSupabaseServer();
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      console.error('Error in createAndGenerate:', error);
       throw error;
     }
   }
@@ -120,14 +104,32 @@ export class ReportService {
     try {
       // Delete file from storage if exists
       if (report.file_url) {
-        const { getSupabaseAdmin } = require('@/lib/supabase-server');
         const supabase = getSupabaseAdmin();
-        const fileName = report.file_url.split('/').pop();
-        if (fileName) {
-          await supabase.storage.from('admin-reports').remove([fileName]);
+        console.log(`Attempting to delete file from storage: ${report.file_url}`);
+        
+        // Extract storage path from full URL if it's a full URL
+        let storagePath = report.file_url;
+        if (report.file_url.includes('/storage/v1/object/public/admin-reports/')) {
+          // Extract the path after the bucket name
+          const urlParts = report.file_url.split('/storage/v1/object/public/admin-reports/');
+          storagePath = urlParts[1];
+        }
+        
+        console.log(`Storage path to delete: ${storagePath}`);
+        
+        const { error: storageError } = await supabase.storage
+          .from('admin-reports')
+          .remove([storagePath]);
+        
+        if (storageError) {
+          console.warn('Failed to delete file from storage:', storageError);
+          // Don't fail the main operation if storage deletion fails
+        } else {
+          console.log(`Successfully deleted file from storage: ${storagePath}`);
         }
       }
       
+      // Delete the report record from database
       await this.repository.delete(id);
 
       // Get current user for audit logging
@@ -136,16 +138,39 @@ export class ReportService {
       
       if (user) {
         // Audit log: Report deletion success
-        await AuditLogService.logReport(
-          user.id,
-          'DELETE',
-          { id: report.id, title: report.title }
-        );
+        try {
+          await AuditLogService.logReport(
+            user.id,
+            'DELETE',
+            { id: report.id, title: report.title, file_url: report.file_url }
+          );
+        } catch (auditError) {
+          console.warn('Failed to create audit log:', auditError);
+          // Don't fail the main operation if audit logging fails
+        }
       }
     } catch (error) {
       // Get current user for audit logging
       const supabase = await getSupabaseServer();
       const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Audit log: Report deletion failure
+        try {
+          await AuditLogService.logReport(
+            user.id,
+            'DELETE',
+            { 
+              id: report.id, 
+              title: report.title, 
+              error: error instanceof Error ? error.message : 'Unknown error',
+              status: 'FAILED'
+            }
+          );
+        } catch (auditError) {
+          console.warn('Failed to create audit log:', auditError);
+        }
+      }
       
       throw error;
     }

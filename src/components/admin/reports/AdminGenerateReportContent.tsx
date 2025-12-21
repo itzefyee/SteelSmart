@@ -1,269 +1,300 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
+import { ArrowLeft, FileText, Calendar, Settings, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, Calendar, TrendingUp, Shield, BarChart } from 'lucide-react';
-import { useToast } from '@/components/ui/ToastProvider';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export function AdminGenerateReportContent() {
-  const [reportType, setReportType] = useState<string>('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
-  const [year, setYear] = useState<number>(new Date().getFullYear());
-  const [loading, setLoading] = useState(false);
+type ReportType = 'AUDIT_LOG';
 
-  const { addToast } = useToast();
+interface GenerateReportFormData {
+  reportType: ReportType;
+  reportName: string;
+  description: string;
+  month: number;
+  year: number;
+}
+
+const months = [
+  { value: 1, label: 'January' },
+  { value: 2, label: 'February' },
+  { value: 3, label: 'March' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'May' },
+  { value: 6, label: 'June' },
+  { value: 7, label: 'July' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'October' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' },
+];
+
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+export default function AdminGenerateReportContent() {
   const router = useRouter();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  
+  const now = new Date();
+  const [formData, setFormData] = useState<GenerateReportFormData>({
+    reportType: 'AUDIT_LOG',
+    reportName: '',
+    description: '',
+    month: now.getMonth() + 1,
+    year: now.getFullYear(),
+  });
 
-  const reportTypes = [
-    {
-      value: 'MONTHLY_AUDIT_LOG',
-      label: 'Monthly Audit Log Report',
-      description: 'Generate a comprehensive report of all admin activities for a specific month',
-      icon: Shield,
-      category: 'audit'
-    },
-    {
-      value: 'MONTHLY_PRODUCT_PERFORMANCE',
-      label: 'Monthly Product Performance Report',
-      description: 'Generate a report of product performance metrics for a specific month (Coming Soon)',
-      icon: BarChart,
-      category: 'product',
-      disabled: true
-    },
-  ];
+  // Safe toast function
+  const showToast = (toast: { title: string; description: string; type: 'success' | 'error' | 'info' | 'warning' }) => {
+    if (!isClient) {
+      console.log('Toast (SSR):', toast.title, '-', toast.description);
+      return;
+    }
+    
+    try {
+      // Dynamic import to avoid SSR issues
+      import('@/components/ui/ToastProvider').then(({ useToast }) => {
+        const toastContext = useToast();
+        toastContext.addToast(toast);
+      }).catch(() => {
+        console.log('Toast (fallback):', toast.title, '-', toast.description);
+      });
+    } catch {
+      console.log('Toast (fallback):', toast.title, '-', toast.description);
+    }
+  };
 
-  const months = [
-    { value: 1, label: 'January' },
-    { value: 2, label: 'February' },
-    { value: 3, label: 'March' },
-    { value: 4, label: 'April' },
-    { value: 5, label: 'May' },
-    { value: 6, label: 'June' },
-    { value: 7, label: 'July' },
-    { value: 8, label: 'August' },
-    { value: 9, label: 'September' },
-    { value: 10, label: 'October' },
-    { value: 11, label: 'November' },
-    { value: 12, label: 'December' },
-  ];
-
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!reportType || !title) {
-      addToast({
-        title: 'Error',
-        description: 'Please fill in all required fields',
+    if (!formData.reportName.trim()) {
+      showToast({
+        title: 'Validation Error',
+        description: 'Please enter a report name',
         type: 'error',
       });
       return;
     }
 
-    setLoading(true);
+    if (formData.reportType !== 'AUDIT_LOG') {
+      showToast({
+        title: 'Invalid Report Type',
+        description: 'Only audit log reports are currently supported',
+        type: 'error',
+      });
+      return;
+    }
 
-    const parameters: Record<string, any> = {
-      month,
-      year
-    };
+    setIsGenerating(true);
 
     try {
       const response = await fetch('/api/admin/reports', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          title,
-          report_type: reportType,
-          parameters,
-          description,
+          title: formData.reportName,
+          description: formData.description,
+          report_type: formData.reportType,
+          parameters: {
+            month: formData.month,
+            year: formData.year,
+          },
         }),
       });
 
       if (response.ok) {
-        const data = await response.json();
-        addToast({
+        showToast({
           title: 'Report Generation Started',
-          description: 'Your report is being generated. You can monitor its progress in the reports list.',
+          description: 'Your report is being generated. This may take a few moments.',
           type: 'success',
         });
-        router.push(`/admin/reports/${data.data.reportId}`);
+        
+        // Navigate back to reports page
+        router.push('/admin/reports');
       } else {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate report');
+        // Get the error details from the response
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
-    } catch (error: any) {
-      addToast({
+    } catch (error) {
+      console.error('Failed to generate report:', error);
+      showToast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to generate report. Please try again.',
         type: 'error',
       });
     } finally {
-      setLoading(false);
+      setIsGenerating(false);
     }
   };
 
-  const selectedReportType = reportTypes.find((type) => type.value === reportType);
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Generate New Report</h1>
-        <p className="text-muted-foreground">Create custom reports based on your data requirements</p>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Report Configuration</CardTitle>
-              <CardDescription>Configure the parameters for your new report</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="reportType">Report Type *</Label>
-                  <Select value={reportType} onValueChange={setReportType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a report type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {reportTypes.map((type) => (
-                        <SelectItem 
-                          key={type.value} 
-                          value={type.value}
-                          disabled={type.disabled}
-                        >
-                          <div className="flex items-center gap-2">
-                            <type.icon className="h-4 w-4" />
-                            <span className={type.disabled ? 'text-muted-foreground' : ''}>
-                              {type.label}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="title">Report Title *</Label>
-                  <Input
-                    id="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Enter a descriptive title for your report"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Optional description for the report"
-                    rows={3}
-                  />
-                </div>
-
-                {reportType && (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="month">Month *</Label>
-                      <Select value={month.toString()} onValueChange={(value) => setMonth(parseInt(value))}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {months.map((m) => (
-                            <SelectItem key={m.value} value={m.value.toString()}>
-                              {m.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="year">Year *</Label>
-                      <Select value={year.toString()} onValueChange={(value) => setYear(parseInt(value))}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {years.map((y) => (
-                            <SelectItem key={y} value={y.toString()}>
-                              {y}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-4">
-                  <Button type="submit" disabled={loading}>
-                    {loading ? 'Generating...' : 'Generate Report'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => router.push('/admin/reports')}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          {selectedReportType && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <selectedReportType.icon className="h-5 w-5" />
-                  {selectedReportType.label}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{selectedReportType.description}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Report Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm">Format:</span>
-                <span className="text-sm font-medium">PDF</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Processing Time:</span>
-                <span className="text-sm font-medium">2-5 minutes</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Auto-refresh:</span>
-                <span className="text-sm font-medium">Every 2 seconds</span>
-              </div>
-            </CardContent>
-          </Card>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="max-w-4xl mx-auto p-6"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-8">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push('/admin/reports')}
+          className="rounded-full"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Generate New Report</h1>
+          <p className="text-muted-foreground">Configure and generate a custom report</p>
         </div>
       </div>
-    </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Report Type Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              Report Type
+            </CardTitle>
+            <CardDescription>Audit log report for admin activities and system events</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 rounded-lg border-2 border-primary bg-primary/5">
+              <div className="font-medium text-foreground">Audit Log Report</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Admin activities and system events for the selected month
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Report Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5 text-primary" />
+              Report Details
+            </CardTitle>
+            <CardDescription>Provide information about your report</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reportName">Report Name *</Label>
+              <Input
+                id="reportName"
+                placeholder="e.g., December 2024 Audit Log Report"
+                value={formData.reportName}
+                onChange={(e) => setFormData({ ...formData, reportName: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Add a brief description of what this report should contain..."
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Date Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              Report Month
+            </CardTitle>
+            <CardDescription>Select the month and year for the report data</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Month *</Label>
+                <Select
+                  value={formData.month.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, month: parseInt(value) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value.toString()}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Year *</Label>
+                <Select
+                  value={formData.year.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, year: parseInt(value) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select year" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Submit */}
+        <div className="flex items-center justify-end gap-4 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push('/admin/reports')}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isGenerating}>
+            {isGenerating ? (
+              <>
+                <span className="animate-spin mr-2">⏳</span>
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 mr-2" />
+                Generate Report
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </motion.div>
   );
 }

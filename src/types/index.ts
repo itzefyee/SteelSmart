@@ -199,7 +199,8 @@ export interface ModalProps {
 export interface Report {
   id: string;
   title: string;
-  report_type: 'MONTHLY_MOST_QUOTED' | 'PRODUCT_ANALYTICS' | 'USER_ACTIVITY' | 'CUSTOM';
+  description?: string;
+  report_type: 'MONTHLY_MOST_QUOTED' | 'PRODUCT_ANALYTICS' | 'USER_ACTIVITY' | 'CUSTOM' | 'AUDIT_LOG';
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   parameters?: Record<string, any>;
   file_url?: string;
