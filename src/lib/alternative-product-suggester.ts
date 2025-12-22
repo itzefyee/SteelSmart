@@ -76,13 +76,13 @@ export class AlternativeProductSuggester {
     // Strategy 4: External supplier suggestions
     const supplierAlternatives = this.getExternalSupplierSuggestions(extractedSpecs);
 
-    // Combine and rank all alternatives
+    // Combine and rank all alternatives by confidence (highest first)
     const allAlternatives = [
       ...aiAlternatives,
       ...standardAlternatives,
       ...fabricationAlternatives,
       ...supplierAlternatives
-    ];
+    ].sort((a, b) => b.confidence - a.confidence);
 
     // Determine best action
     const suggestedAction = this.determineBestAction(extractedSpecs, allAlternatives);

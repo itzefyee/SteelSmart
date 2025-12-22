@@ -1357,11 +1357,89 @@ const CADAnalyzer: React.FC = () => {
   // Handler functions for sub-components
   const handleGetRecommendations = () => {
     if (!analysis) return;
+    
+    // Phrases to strip from dimension values (case-insensitive)
+    const irrelevantPhrases = [
+      'extracted from cad data',
+      'based on 3d cad data',
+      'custom (based on 3d cad data)',
+      'from cad analysis',
+      'cad extracted',
+      'n/a',
+      'not available',
+      'unknown',
+    ];
+    
+    // Helper to clean dimension value (remove trailing " inch symbol and irrelevant phrases)
+    const cleanValue = (val: unknown): string => {
+      if (!val) return '';
+      let str = String(val);
+      // Remove trailing " (inch symbol) for cleaner display
+      str = str.replace(/"$/, '').trim();
+      // Remove irrelevant phrases
+      const lowerStr = str.toLowerCase();
+      for (const phrase of irrelevantPhrases) {
+        if (lowerStr.includes(phrase)) {
+          str = str.replace(new RegExp(phrase, 'gi'), '').trim();
+        }
+      }
+      // Clean up any leftover punctuation from removed phrases
+      str = str.replace(/^[,\s:]+|[,\s:]+$/g, '').trim();
+      return str;
+    };
+    
+    // Helper to convert dimensions object to string
+    const formatDimensions = (dims: unknown): string => {
+      if (!dims) return '';
+      if (typeof dims === 'string') return cleanValue(dims);
+      if (typeof dims === 'object' && dims !== null) {
+        // Extract meaningful dimension values from object
+        const dimObj = dims as Record<string, unknown>;
+        const parts: string[] = [];
+        
+        // Priority: look for common dimension keys
+        if (dimObj.boundingBox && typeof dimObj.boundingBox === 'string') {
+          const cleaned = cleanValue(dimObj.boundingBox);
+          if (cleaned) parts.push(cleaned);
+        }
+        if (dimObj.width) {
+          const cleaned = cleanValue(dimObj.width);
+          if (cleaned) parts.push(`Width: ${cleaned}`);
+        }
+        if (dimObj.height) {
+          const cleaned = cleanValue(dimObj.height);
+          if (cleaned) parts.push(`Height: ${cleaned}`);
+        }
+        if (dimObj.depth) {
+          const cleaned = cleanValue(dimObj.depth);
+          if (cleaned) parts.push(`Depth: ${cleaned}`);
+        }
+        if (dimObj.length) {
+          const cleaned = cleanValue(dimObj.length);
+          if (cleaned) parts.push(`Length: ${cleaned}`);
+        }
+        if (dimObj.diameter) {
+          const cleaned = cleanValue(dimObj.diameter);
+          if (cleaned) parts.push(`Diameter: ${cleaned}`);
+        }
+        if (dimObj.materialThickness) {
+          const cleaned = cleanValue(dimObj.materialThickness);
+          if (cleaned) parts.push(`Thickness: ${cleaned}`);
+        }
+        
+        return parts.length > 0 ? parts.join(', ') : '';
+      }
+      return cleanValue(dims);
+    };
+    
     const analysisData = {
       drawingName: uploadState.file?.name || 'Analyzed Drawing',
       extractedSpecs: {
         ...analysis.extractedSpecs,
-        productName: analysis.extractedSpecs.componentType || '',
+        // Use productName if available, otherwise fall back to componentType
+        productName: analysis.extractedSpecs.productName || analysis.extractedSpecs.componentType || '',
+        // Ensure dimensions is a string, not an object
+        dimensions: formatDimensions(analysis.extractedSpecs.dimensions),
       },
       confidence: analysis.confidence
     };

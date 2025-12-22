@@ -93,7 +93,7 @@ export class ProductMatcher {
       
       // If we have good name matches, return them
       if (nameResults.length > 0) {
-        // If other specs are provided, filter name results by those specs
+        // If other specs are provided, combine name score with spec score
         if (specs.material || specs.dimensions || specs.loadCapacity || hasExplicitCategory) {
           const componentType =
             specs.componentType ||
@@ -104,14 +104,36 @@ export class ProductMatcher {
             dimensions: specs.dimensions,
             loadRequirements: specs.loadCapacity,
             componentType,
+            productName: specs.productName, // Pass product name for scoring bonus
           };
           
-          // Re-score name results with additional specs
+          // Re-score name results with additional specs, but preserve name match bonus
           const normalized = await this.normalizeSpecs(extractedSpecs, supabase, hasExplicitCategory ? specs.category : undefined);
           const candidates = await this.fetchProductsByIds(nameResults.map(r => r.productId), supabase);
           
+          // Create a map of name scores for combining
+          const nameScoreMap = new Map(nameResults.map(r => [r.productId, r.score]));
+          
           const rescored = candidates
-            .map(product => this.scoreProduct(product, normalized))
+            .map(product => {
+              const specScore = this.scoreProduct(product, normalized);
+              if (!specScore) return null;
+              
+              // Get the original name match score
+              const nameScore = nameScoreMap.get(product.id) || 0;
+              
+              // Combine scores: 60% name match + 40% spec match (name match is more important)
+              const combinedScore = (nameScore * 0.6) + (specScore.score * 0.4);
+              
+              return {
+                ...specScore,
+                score: Math.min(combinedScore, 0.99),
+                reasoning: nameScore > 0.7 
+                  ? `Strong name match + ${specScore.reasoning}`
+                  : specScore.reasoning,
+                matchedSpecs: [...new Set([...specScore.matchedSpecs, 'productName'])],
+              };
+            })
             .filter((score): score is RecommendationScore => Boolean(score))
             .sort((a, b) => b.score - a.score);
           
@@ -186,22 +208,35 @@ export class ProductMatcher {
     client: SupabaseClient,
     filterCategory?: string
   ): Promise<RecommendationScore[]> {
-    const searchTokens = searchTerm.toLowerCase().trim().split(/\s+/);
+    // Split into tokens, separating words from numbers/dimensions
+    const allTokens = searchTerm.toLowerCase().trim().split(/[\s,]+/);
     
-    // Build search query using ilike for fuzzy matching
+    // Separate word tokens from numeric/dimension tokens
+    const wordTokens = allTokens.filter(t => /^[a-z]+$/i.test(t) && t.length > 1);
+    const numericTokens = allTokens.filter(t => /\d/.test(t));
+    
+    // Build search query - search for each significant word
     let query = client
       .from('products')
       .select('*')
-      .limit(20);
+      .limit(30);
 
     // Filter by category if provided
     if (filterCategory && filterCategory !== 'all') {
       query = query.eq('category', filterCategory);
     }
 
-    // Search in name and description
-    const searchPattern = `%${searchTerm.toLowerCase()}%`;
-    query = query.or(`name.ilike.${searchPattern},description.ilike.${searchPattern}`);
+    // Build OR conditions for each word token
+    if (wordTokens.length > 0) {
+      const orConditions = wordTokens
+        .map(token => `name.ilike.%${token}%,description.ilike.%${token}%`)
+        .join(',');
+      query = query.or(orConditions);
+    } else {
+      // Fallback to full search term
+      const searchPattern = `%${searchTerm.toLowerCase()}%`;
+      query = query.or(`name.ilike.${searchPattern},description.ilike.${searchPattern}`);
+    }
 
     const { data: products, error } = await query;
 
@@ -219,16 +254,31 @@ export class ProductMatcher {
         structuredSpecs: specsMap.get(product.id),
       };
 
-      const nameTokens = product.name.toLowerCase().split(/\s+/);
-      const descTokens = (product.description || '').toLowerCase().split(/\s+/);
+      const productNameLower = product.name.toLowerCase();
+      const productDescLower = (product.description || '').toLowerCase();
+      const productNameTokens = productNameLower.split(/[\s\-]+/);
+      const productDescTokens = productDescLower.split(/[\s\-]+/);
       
-      // Calculate token overlap
-      const nameMatches = searchTokens.filter(token => 
-        nameTokens.some(nameToken => nameToken.includes(token) || token.includes(nameToken))
+      // Count word matches (more important)
+      const wordMatchesInName = wordTokens.filter(token => 
+        productNameTokens.some(nameToken => 
+          nameToken.includes(token) || token.includes(nameToken)
+        )
       ).length;
       
-      const descMatches = searchTokens.filter(token =>
-        descTokens.some(descToken => descToken.includes(token) || token.includes(descToken))
+      const wordMatchesInDesc = wordTokens.filter(token =>
+        productDescTokens.some(descToken => 
+          descToken.includes(token) || token.includes(descToken)
+        )
+      ).length;
+
+      // Count numeric/dimension matches (secondary importance)
+      const numericMatchesInName = numericTokens.filter(token =>
+        productNameLower.includes(token)
+      ).length;
+      
+      const numericMatchesInDesc = numericTokens.filter(token =>
+        productDescLower.includes(token)
       ).length;
 
       // Calculate base relevance score
@@ -236,18 +286,40 @@ export class ProductMatcher {
       const matchedSpecs: string[] = ['productName'];
       
       // Exact name match gets highest score
-      if (product.name.toLowerCase() === searchTerm.toLowerCase()) {
-        relevanceScore = 0.95;
+      if (productNameLower === searchTerm.toLowerCase()) {
+        relevanceScore = 0.98;
       }
       // Name contains exact search term
-      else if (product.name.toLowerCase().includes(searchTerm.toLowerCase())) {
-        relevanceScore = 0.85;
+      else if (productNameLower.includes(searchTerm.toLowerCase())) {
+        relevanceScore = 0.90;
       }
-      // Token-based scoring
-      else {
-        const nameScore = nameMatches / searchTokens.length;
-        const descScore = descMatches / searchTokens.length;
-        relevanceScore = (nameScore * 0.7) + (descScore * 0.3);
+      // Word-based scoring
+      else if (wordTokens.length > 0) {
+        // Word matches are weighted heavily (70% of score)
+        const wordScore = wordTokens.length > 0 
+          ? (wordMatchesInName / wordTokens.length) * 0.8 + (wordMatchesInDesc / wordTokens.length) * 0.2
+          : 0;
+        
+        // Numeric matches add bonus (up to 15%)
+        const numericScore = numericTokens.length > 0
+          ? ((numericMatchesInName + numericMatchesInDesc) / numericTokens.length) * 0.15
+          : 0;
+        
+        // Base score from word matches
+        relevanceScore = wordScore * 0.85 + numericScore;
+        
+        // Bonus for matching multiple key words
+        if (wordMatchesInName >= 2) {
+          relevanceScore += 0.10; // Bonus for 2+ word matches in name
+        }
+        if (wordMatchesInName >= 3) {
+          relevanceScore += 0.05; // Additional bonus for 3+ matches
+        }
+      }
+      // Fallback for numeric-only searches
+      else if (numericTokens.length > 0) {
+        const numericScore = (numericMatchesInName + numericMatchesInDesc) / (numericTokens.length * 2);
+        relevanceScore = numericScore * 0.6;
       }
 
       // Boost for category match (if filtering by category)
@@ -258,19 +330,22 @@ export class ProductMatcher {
 
       // Boost for in-stock items
       if (product.in_stock) {
-        relevanceScore += 0.05;
+        relevanceScore += 0.03;
         matchedSpecs.push('availability');
       }
 
       // Calculate data quality for confidence
       const dataQuality = this.calculateDataQuality(productWithSpecs);
-      const confidenceMultiplier = 0.85 + (0.15 * dataQuality.completeness); // 85-100%
+      const confidenceMultiplier = 0.90 + (0.10 * dataQuality.completeness); // 90-100%
 
       // Apply confidence multiplier
       const finalScore = relevanceScore * confidenceMultiplier;
 
       // Build reasoning
-      let reasoning = `Matches search term "${searchTerm}"`;
+      const matchedWords = wordTokens.filter(t => productNameLower.includes(t));
+      let reasoning = matchedWords.length > 0 
+        ? `Matches: ${matchedWords.join(', ')}`
+        : `Matches search term "${searchTerm}"`;
       if (filterCategory && filterCategory !== 'all') {
         reasoning += ` in ${filterCategory} category`;
       }
@@ -287,7 +362,7 @@ export class ProductMatcher {
         matchedSpecs,
       };
     })
-    .filter(score => score.score > 0.3) // Filter out weak matches
+    .filter(score => score.score > 0.20) // Lower threshold to catch partial matches
     .sort((a, b) => b.score - a.score);
 
     return scored;
@@ -474,7 +549,11 @@ export class ProductMatcher {
       explicitCategory,
       materialFamily,
       materialToken,
-      dimensionValues: this.extractNumbers(String(specs.dimensions || '')),
+      // Use extractDimensionsFromText for better parsing of complex dimension strings
+      // Falls back to extractNumbers if no structured dimensions found
+      dimensionValues: this.extractDimensionsFromText(String(specs.dimensions || '')).length > 0
+        ? this.extractDimensionsFromText(String(specs.dimensions || ''))
+        : this.extractNumbers(String(specs.dimensions || '')),
       loadValues: this.extractNumbers(String(specs.loadRequirements || '')),
       isSampleDrawing,
     };
@@ -635,12 +714,39 @@ export class ProductMatcher {
       const productNameLower = product.name.toLowerCase();
       const searchNameLower = specs.raw.productName.toLowerCase();
       
+      // Tokenize both names for word-by-word comparison
+      const productWords = productNameLower.split(/[\s\-]+/).filter(w => w.length > 1);
+      const searchWords = searchNameLower.split(/[\s\-]+/).filter(w => /^[a-z]+$/i.test(w) && w.length > 1);
+      
       // Check for exact or very close name match
-      if (productNameLower === searchNameLower || 
-          productNameLower.includes(searchNameLower) || 
-          searchNameLower.includes(productNameLower)) {
-        finalScore += 0.15; // 15% bonus for name match
+      if (productNameLower === searchNameLower) {
+        // Exact match - massive bonus
+        finalScore = Math.max(finalScore, 0.95);
         matchedSpecs.push('exact-name-match');
+      } else if (productNameLower.includes(searchNameLower) || searchNameLower.includes(productNameLower)) {
+        // One contains the other - large bonus
+        finalScore = Math.max(finalScore, 0.85);
+        matchedSpecs.push('name-contains-match');
+      } else if (searchWords.length > 0) {
+        // Word-by-word matching
+        const matchedWords = searchWords.filter(word => 
+          productWords.some(pw => pw.includes(word) || word.includes(pw))
+        );
+        const matchRatio = matchedWords.length / searchWords.length;
+        
+        if (matchRatio >= 0.8) {
+          // 80%+ words match - strong bonus
+          finalScore = Math.max(finalScore, 0.80);
+          matchedSpecs.push('strong-name-match');
+        } else if (matchRatio >= 0.5) {
+          // 50%+ words match - moderate bonus
+          finalScore += 0.25;
+          matchedSpecs.push('partial-name-match');
+        } else if (matchRatio > 0) {
+          // Some words match - small bonus
+          finalScore += 0.15;
+          matchedSpecs.push('weak-name-match');
+        }
       }
     }
 
@@ -997,15 +1103,16 @@ export class ProductMatcher {
 
   /**
    * Extract dimensions from text with unit awareness
-   * Handles patterns like: "200x100x10mm", "diameter: 50mm", "length 300mm"
+   * Handles patterns like: "200x100x10mm", "diameter: 50mm", "length 300mm", "2.756" thickness", "5x114.3mm PCD"
    */
   private extractDimensionsFromText(text: string): number[] {
     const patterns = [
       // Pattern: 200x100x10mm or 200 x 100 x 10 mm
       /(\d+\.?\d*)\s*x\s*(\d+\.?\d*)\s*x\s*(\d+\.?\d*)\s*(mm|cm|m|in|ft)?/gi,
-      // Pattern: 200x100mm or 200 x 100 mm
+      // Pattern: 200x100mm or 200 x 100 mm (also handles PCD like 5x114.3mm)
       /(\d+\.?\d*)\s*x\s*(\d+\.?\d*)\s*(mm|cm|m|in|ft)?/gi,
-      // Pattern: diameter: 50mm or diameter 50 mm
+      // Pattern: diameter: 50mm or diameter 50 mm or 50mm diameter
+      /(?:diameter[:\s]+)?(\d+\.?\d*)\s*(mm|cm|m|in)?\s*diameter/gi,
       /diameter[:\s]+(\d+\.?\d*)\s*(mm|cm|m|in)?/gi,
       // Pattern: length: 300mm or length 300 mm
       /length[:\s]+(\d+\.?\d*)\s*(mm|cm|m|in)?/gi,
@@ -1013,8 +1120,11 @@ export class ProductMatcher {
       /width[:\s]+(\d+\.?\d*)\s*(mm|cm|m|in)?/gi,
       // Pattern: height: 100mm
       /height[:\s]+(\d+\.?\d*)\s*(mm|cm|m|in)?/gi,
-      // Pattern: thickness: 10mm
-      /thickness[:\s]+(\d+\.?\d*)\s*(mm|cm|m|in)?/gi,
+      // Pattern: thickness: 10mm or 2.756" thickness (inch notation)
+      /thickness[:\s]+(\d+\.?\d*)\s*(mm|cm|m|in|")?/gi,
+      /(\d+\.?\d*)\s*["']\s*thickness/gi,
+      // Pattern: PCD like 5x114.3mm PCD
+      /(\d+\.?\d*)\s*x\s*(\d+\.?\d*)\s*(mm)?\s*PCD/gi,
     ];
 
     const values: number[] = [];
@@ -1026,7 +1136,7 @@ export class ProductMatcher {
         // Extract only numeric values from the match
         const nums = match
           .slice(1)
-          .filter(v => v && !isNaN(Number(v)) && !['mm', 'cm', 'm', 'in', 'ft'].includes(v.toLowerCase()))
+          .filter(v => v && !isNaN(Number(v)) && !['mm', 'cm', 'm', 'in', 'ft', '"', "'"].includes(v.toLowerCase()))
           .map(Number);
         
         // Add unique values only

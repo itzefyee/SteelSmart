@@ -95,9 +95,12 @@ const ProductRecommender: React.FC = () => {
       return 'robotic';
     }
     
-    // Structural components
+    // Structural components (including automotive/mechanical parts like brake rotors)
     if (type.includes('beam') || type.includes('structural') || type.includes('plate') || 
-        type.includes('angle') || type.includes('channel') || type.includes('column')) {
+        type.includes('angle') || type.includes('channel') || type.includes('column') ||
+        type.includes('automotive') || type.includes('mechanical') || type.includes('rotor') ||
+        type.includes('brake') || type.includes('disc') || type.includes('frame') ||
+        type.includes('chassis') || type.includes('suspension')) {
       return 'structural';
     }
     
