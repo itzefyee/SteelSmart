@@ -12,10 +12,11 @@ export async function GET(
     const report = await service.getById(id);
 
     // file_url now contains the full public URL, but we still provide backward compatibility
-    let publicFileUrl = report.file_url;
+    let publicFileUrl: string | undefined = report.file_url;
     if (report.file_url && !report.file_url.startsWith('http')) {
       // Legacy support: generate public URL for old storage paths
-      publicFileUrl = await service.getReportFileUrl(report);
+      const generatedUrl = await service.getReportFileUrl(report);
+      publicFileUrl = generatedUrl || undefined;
     }
 
     return NextResponse.json({ 

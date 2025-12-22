@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,13 +9,28 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Save, X, Upload } from 'lucide-react';
+import { ArrowLeft, Save, X, Upload, Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
+import { createClient } from '@supabase/supabase-js';
+
+interface Product {
+  id: string;
+  name: string;
+  category: string;
+}
 
 export function AdminNewProductContent() {
   const router = useRouter();
   const { addToast } = useToast();
   const [uploading, setUploading] = useState(false);
+  const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  // Initialize Supabase client
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   const [formData, setFormData] = useState({
     name: '',
@@ -26,7 +41,9 @@ export function AdminNewProductContent() {
     technical_details: '',
     lead_time: '',
     in_stock: true,
-    images: [] as string[],
+    imageFiles: [] as File[], // Store File objects instead of base64
+    imagePreviewUrls: [] as string[], // For preview purposes
+    compatible_with: [] as string[],
     specifications: {
       dimensions: '',
       weight: '',
@@ -36,11 +53,35 @@ export function AdminNewProductContent() {
     },
   });
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+  // Fetch available products for compatibility selection
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('/api/admin/products?limit=100');
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableProducts(data.data || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  const handleInputChange = (field: string, value: string | boolean | string[]) => {
     if (field === 'in_stock') {
       setFormData((prev) => ({
         ...prev,
         in_stock: value === 'true' || value === true,
+      }));
+    } else if (field === 'compatible_with') {
+      setFormData((prev) => ({
+        ...prev,
+        compatible_with: value as string[],
       }));
     } else if (field.startsWith('spec_')) {
       const specField = field.replace('spec_', '');
@@ -59,6 +100,46 @@ export function AdminNewProductContent() {
     }
   };
 
+  // Function to upload images to Supabase storage
+  const uploadImagesToStorage = async (productId: string, imageFiles: File[]): Promise<string[]> => {
+    const uploadedUrls: string[] = [];
+    
+    try {
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileName = `${productId}/image-${i + 1}.${fileExtension}`;
+        
+        console.log(`Uploading image ${i + 1}/${imageFiles.length}: ${fileName}`);
+        
+        const { data, error } = await supabase.storage
+          .from('product-images')
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: true
+          });
+        
+        if (error) {
+          console.error('Storage upload error:', error);
+          throw new Error(`Failed to upload image ${i + 1}: ${error.message}`);
+        }
+        
+        // Get the public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(fileName);
+        
+        uploadedUrls.push(publicUrl);
+        console.log(`Successfully uploaded: ${publicUrl}`);
+      }
+      
+      return uploadedUrls;
+    } catch (error) {
+      console.error('Error in uploadImagesToStorage:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -71,40 +152,79 @@ export function AdminNewProductContent() {
       return;
     }
 
-    const productData = {
-      name: formData.name,
-      category: formData.category,
-      material: formData.material,
-      price: parseFloat(formData.price),
-      description: formData.description,
-      image_url: formData.images[0] || null,
-      specifications: formData.specifications,
-    };
-
     try {
-      const response = await fetch('/api/admin/products', {
+      setUploading(true);
+
+      // Step 1: Create the product first (without images)
+      const productData = {
+        name: formData.name,
+        category: formData.category,
+        material: formData.material,
+        price: parseFloat(formData.price),
+        description: formData.description,
+        technical_details: formData.technical_details,
+        lead_time: formData.lead_time,
+        in_stock: formData.in_stock,
+        specifications: formData.specifications,
+        compatible_with: formData.compatible_with,
+        images: [], // Empty initially
+      };
+
+      const createResponse = await fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productData),
       });
 
-      if (response.ok) {
-        addToast({
-          title: 'Product Created',
-          description: 'The product has been successfully created.',
-          type: 'success',
-        });
-        router.push('/admin/products');
-      } else {
-        const error = await response.json();
+      if (!createResponse.ok) {
+        const error = await createResponse.json();
         throw new Error(error.error || 'Failed to create product');
       }
+
+      const createdProduct = await createResponse.json();
+      const productId = createdProduct.data.id;
+
+      // Step 2: Upload images to storage if any
+      let imageUrls: string[] = [];
+      if (formData.imageFiles.length > 0) {
+        addToast({
+          title: 'Uploading Images',
+          description: `Uploading ${formData.imageFiles.length} image(s)...`,
+          type: 'info',
+        });
+
+        imageUrls = await uploadImagesToStorage(productId, formData.imageFiles);
+      }
+
+      // Step 3: Update the product with image URLs
+      if (imageUrls.length > 0) {
+        const updateResponse = await fetch(`/api/admin/products/${productId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images: imageUrls }),
+        });
+
+        if (!updateResponse.ok) {
+          console.error('Failed to update product with image URLs');
+        }
+      }
+
+      addToast({
+        title: 'Product Created',
+        description: 'The product has been successfully created with images.',
+        type: 'success',
+      });
+      
+      router.push('/admin/products');
     } catch (error: any) {
+      console.error('Upload error:', error);
       addToast({
         title: 'Error',
-        description: error.message,
+        description: error.message || 'Failed to create product',
         type: 'error',
       });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -299,21 +419,26 @@ export function AdminNewProductContent() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {formData.images.length > 0 && (
+              {formData.imagePreviewUrls.length > 0 && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {formData.images.map((image, index) => (
+                    {formData.imagePreviewUrls.map((imageUrl, index) => (
                       <div key={index} className="relative group">
                         <img
-                          src={image}
+                          src={imageUrl}
                           alt={`Product ${index + 1}`}
                           className="w-full h-40 object-cover rounded-lg border"
                         />
                         <button
                           type="button"
                           onClick={() => {
-                            const newImages = formData.images.filter((_, i) => i !== index);
-                            setFormData((prev) => ({ ...prev, images: newImages }));
+                            const newImageFiles = formData.imageFiles.filter((_, i) => i !== index);
+                            const newPreviewUrls = formData.imagePreviewUrls.filter((_, i) => i !== index);
+                            setFormData((prev) => ({ 
+                              ...prev, 
+                              imageFiles: newImageFiles,
+                              imagePreviewUrls: newPreviewUrls
+                            }));
                             addToast({
                               title: 'Image Removed',
                               description: 'Image removed from preview',
@@ -360,24 +485,27 @@ export function AdminNewProductContent() {
                     }
 
                     setUploading(true);
-                    const imageUrls: string[] = [];
+                    const newFiles: File[] = [];
+                    const newPreviewUrls: string[] = [];
 
                     Array.from(files).forEach((file) => {
+                      newFiles.push(file);
+                      
                       const reader = new FileReader();
-
                       reader.onloadend = () => {
                         const base64String = reader.result as string;
-                        imageUrls.push(base64String);
+                        newPreviewUrls.push(base64String);
 
-                        if (imageUrls.length === files.length) {
+                        if (newPreviewUrls.length === files.length) {
                           setFormData((prev) => ({
                             ...prev,
-                            images: [...prev.images, ...imageUrls],
+                            imageFiles: [...prev.imageFiles, ...newFiles],
+                            imagePreviewUrls: [...prev.imagePreviewUrls, ...newPreviewUrls],
                           }));
 
                           addToast({
                             title: 'Images Added',
-                            description: `${imageUrls.length} image(s) added`,
+                            description: `${newFiles.length} image(s) added`,
                             type: 'success',
                           });
 
@@ -416,6 +544,93 @@ export function AdminNewProductContent() {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Compatible Products</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Select Compatible Products</Label>
+                <p className="text-sm text-muted-foreground">
+                  Choose products that are compatible with this product for recommendations.
+                </p>
+                
+                {loadingProducts ? (
+                  <div className="text-sm text-muted-foreground">Loading products...</div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto border rounded-md p-3">
+                      {availableProducts.map((product) => (
+                        <label
+                          key={product.id}
+                          className="flex items-center space-x-2 p-2 rounded hover:bg-muted cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.compatible_with.includes(product.id)}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              const currentCompatible = formData.compatible_with;
+                              
+                              if (isChecked) {
+                                handleInputChange('compatible_with', [...currentCompatible, product.id]);
+                              } else {
+                                handleInputChange('compatible_with', currentCompatible.filter(id => id !== product.id));
+                              }
+                            }}
+                            className="rounded border-gray-300"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{product.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted">
+                                {product.category}
+                              </span>
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    
+                    {formData.compatible_with.length > 0 && (
+                      <div className="mt-3">
+                        <div className="text-sm font-medium mb-2">
+                          Selected Products ({formData.compatible_with.length}):
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {formData.compatible_with.map((productId) => {
+                            const product = availableProducts.find(p => p.id === productId);
+                            return product ? (
+                              <div
+                                key={productId}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm"
+                              >
+                                <span>{product.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleInputChange('compatible_with', 
+                                      formData.compatible_with.filter(id => id !== productId)
+                                    );
+                                  }}
+                                  className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="flex justify-end gap-4">
           <Link href="/admin/products">
             <Button type="button" variant="outline">
@@ -423,9 +638,9 @@ export function AdminNewProductContent() {
               Cancel
             </Button>
           </Link>
-          <Button type="submit">
+          <Button type="submit" disabled={uploading}>
             <Save className="h-4 w-4 mr-2" />
-            Create Product
+            {uploading ? 'Creating Product...' : 'Create Product'}
           </Button>
         </div>
       </form>

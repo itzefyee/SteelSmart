@@ -74,9 +74,19 @@ export class ReportService {
         status: 'PENDING',
       });
       
-      // Trigger generation asynchronously (with error handling)
-      reportGeneratorService.processReport(report.id).catch(error => {
+      // Trigger generation asynchronously (with proper error handling)
+      reportGeneratorService.processReport(report.id).catch(async (error) => {
         console.error(`Report generation failed for ID ${report.id}:`, error);
+        
+        // Update status to FAILED if processing couldn't start
+        try {
+          await this.repository.update(report.id, {
+            status: 'FAILED',
+            error_message: error instanceof Error ? error.message : 'Failed to start processing',
+          });
+        } catch (updateError) {
+          console.error(`Failed to update report status for ID ${report.id}:`, updateError);
+        }
       });
       
       return report.id;
