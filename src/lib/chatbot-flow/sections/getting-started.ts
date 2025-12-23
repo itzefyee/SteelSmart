@@ -155,13 +155,13 @@ Need help choosing a format?`,
             {
                 title: 'Drill Guide Template',
                 description: 'Precision surgical drill guide with customizable bit sizes and grip styles.',
-                image: 'https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical_drill_guide/preview.png',
+                image: 'https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical_drill_guide-001/preview.png',
                 action: { label: 'Try Drill Guide Template', url: '/cad-generator?tab=template&template=drill-guide' }
             },
             {
                 title: 'Brake Rotor Template',
                 description: 'Automotive brake rotor with adjustable bolt pattern and rotor diameters.',
-                image: 'https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake_rotor/preview.png',
+                image: 'https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake_rotor-001/preview.png',
                 action: { label: 'Try Brake Rotor Template', url: '/cad-generator?tab=template&template=brake-rotor' }
             }
         ],

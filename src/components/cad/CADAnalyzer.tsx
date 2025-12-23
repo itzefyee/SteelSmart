@@ -229,17 +229,17 @@ const CADAnalyzer: React.FC = () => {
       {
         id: 1,
         file: '/products-models/i-beam-steel-200mm-grade.step',
-        previewFallback: '/images/steel-beam-cad-preview.svg',
+        previewFallback: '/images/products/steel-beam-001.png',
       },
       {
         id: 2,
         file: '/products-models/surgical_drill_guide.step',
-        previewFallback: '/images/sample-cad-preview.svg',
+        previewFallback: '/images/products/surgical-drill-guide-001.png',
       },
       {
         id: 4,
         file: '/products-models/brake_rotor.step',
-        previewFallback: '/images/sample-cad-preview.svg',
+        previewFallback: '/images/products/brake-rotor-001.png',
       },
     ];
 

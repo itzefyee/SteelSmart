@@ -68,7 +68,7 @@ export const cadTemplates = [
     name: "Drill Guide",
     category: "medical", 
     description: "Surgical drill guide with multiple bit sizes and rotating grips",
-    preview: "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical_drill_guide/preview.png",
+    preview: "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/surgical-drill-guide-001/preview.png",
     parameters: {
       handleLength: { label: "Handle Length", value: "150", unit: "mm", min: 50, max: 300 },
       bitSize1: { label: "Bit Size 1", value: "2", unit: "mm", min: 1, max: 10 },
@@ -82,7 +82,7 @@ export const cadTemplates = [
     name: "Gallows Frame",
     category: "structural",
     description: "Large structural frame with brackets and angle iron construction",
-    preview: "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/gallows_frame/preview.png",
+    preview: "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/gallows-frame-001/preview.png",
     parameters: {
       height: { label: "Height", value: "2400", unit: "mm", min: 1000, max: 5000 },
       width: { label: "Width", value: "1250", unit: "mm", min: 500, max: 3000 },
@@ -97,7 +97,7 @@ export const cadTemplates = [
     name: "Brake Rotor",
     category: "automotive",
     description: "Vented automotive brake rotor with bolt pattern",
-    preview: "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake_rotor/preview.png",
+    preview: "https://emgzohbqnkfxgzfvphzc.supabase.co/storage/v1/object/public/product-images/products/brake-rotor-001/preview.png",
     parameters: {
       diameter: { label: "Rotor Diameter", value: "320", unit: "mm", min: 200, max: 450 },
       holeCount: { label: "Bolt Holes", value: "5", unit: "", min: 3, max: 8 },

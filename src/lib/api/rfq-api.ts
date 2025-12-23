@@ -113,16 +113,37 @@ export class RFQAPI {
   static async submit(data: RFQFormData): Promise<RFQ> {
     const formData = new FormData();
     
-    // Add contact info and requirements as JSON strings
-    formData.append('contactInfo', JSON.stringify(data.contactInfo));
-    formData.append('requirements', JSON.stringify(data.requirements));
+    // Add contact info fields individually (API expects flat form fields)
+    // Required fields
+    formData.append('name', data.contactInfo.name || '');
+    formData.append('email', data.contactInfo.email || '');
+    formData.append('company', data.contactInfo.company || '');
+    formData.append('phone', data.contactInfo.phone || '');
+    
+    // Add requirements fields individually
+    // Required fields
+    formData.append('projectDescription', data.requirements.projectDescription || '');
+    formData.append('quantity', String(data.requirements.quantity || 1));
+    formData.append('specifications', data.requirements.specifications || '');
+    // Optional fields
+    formData.append('material', data.requirements.material || '');
+    formData.append('deadline', data.requirements.deadline || '');
+    formData.append('budget', data.requirements.budget || '');
     
     // Add files if present
     if (data.attachedFiles && data.attachedFiles.length > 0) {
-      data.attachedFiles.forEach((file, index) => {
-        formData.append(`file_${index}`, file);
+      data.attachedFiles.forEach((file) => {
+        formData.append('files', file);
       });
     }
+    
+    // Debug logging
+    console.log('Submitting RFQ with data:', {
+      name: data.contactInfo.name,
+      email: data.contactInfo.email,
+      projectDescription: data.requirements.projectDescription,
+      specifications: data.requirements.specifications,
+    });
     
     const response = await fetch('/api/submit-rfq', {
       method: 'POST',
