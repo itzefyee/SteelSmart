@@ -7,16 +7,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ProductService } from '@/services/product.service';
 import { ProductRepository } from '@/repositories/product.repository';
 
+// Mock the cache
 vi.mock('@/lib/cache/redis-cache', () => ({
   getCached: vi.fn(async (_key: string, fetcher: () => Promise<any>) => fetcher()),
 }));
 
-vi.mock('@/repositories/product.repository', () => {
-  const mockRepository = {
-    findWithFilters: vi.fn(),
-  };
-  return { ProductRepository: vi.fn(() => mockRepository) };
-});
+// Mock the repository
+const mockRepositoryInstance = {
+  findWithFilters: vi.fn(),
+};
+
+vi.mock('@/repositories/product.repository', () => ({
+  ProductRepository: class MockProductRepository {
+    findWithFilters = mockRepositoryInstance.findWithFilters;
+  }
+}));
 
 const mockProduct = {
   id: '052df8db-b0a1-4c2e-8fc5-28297362801d',
@@ -74,23 +79,12 @@ const mockProducts = [
   }
 ];
 
-const mockFilterResult = {
-  products: mockProducts,
-  pagination: {
-    total: 3,
-    page: 1,
-    limit: 20,
-    totalPages: 1
-  }
-};
-
 describe('UC103: Filter Products', () => {
   let productService: ProductService;
-  let mockRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRepository = new (require('@/repositories/product.repository').ProductRepository)();
+    const mockRepository = new ProductRepository({} as any);
     productService = new ProductService(mockRepository);
   });
 
@@ -101,9 +95,9 @@ describe('UC103: Filter Products', () => {
   it('TC_UP_UC103_001: filter products by multiple criteria', async () => {
     const multiFilterResult = { 
       products: [mockProducts[0]], 
-      pagination: { total: 1, page: 1, limit: 20, totalPages: 1 }
+      pagination: { total: 1, page: 1, limit: 20, totalPages: 1, hasMore: false }
     };
-    mockRepository.findWithFilters.mockResolvedValue(multiFilterResult);
+    mockRepositoryInstance.findWithFilters.mockResolvedValue(multiFilterResult);
 
     const result = await productService.getProducts(
       { 
@@ -118,7 +112,7 @@ describe('UC103: Filter Products', () => {
     expect(result.products[0].category).toBe('robotic');
     expect(result.products[0].price).toBeGreaterThanOrEqual(50);
     expect(result.products[0].in_stock).toBe(true);
-    expect(mockRepository.findWithFilters).toHaveBeenCalledWith(
+    expect(mockRepositoryInstance.findWithFilters).toHaveBeenCalledWith(
       { 
         category: 'robotic',
         minPrice: 50,
@@ -131,9 +125,9 @@ describe('UC103: Filter Products', () => {
   it('TC_UP_UC103_002: return empty array when no products match filter criteria', async () => {
     const emptyFilterResult = { 
       products: [], 
-      pagination: { total: 0, page: 1, limit: 20, totalPages: 0 }
+      pagination: { total: 0, page: 1, limit: 20, totalPages: 0, hasMore: false }
     };
-    mockRepository.findWithFilters.mockResolvedValue(emptyFilterResult);
+    mockRepositoryInstance.findWithFilters.mockResolvedValue(emptyFilterResult);
 
     const result = await productService.getProducts(
       { category: 'nonexistent-category' },
@@ -142,7 +136,7 @@ describe('UC103: Filter Products', () => {
 
     expect(result.products).toEqual([]);
     expect(result.pagination.total).toBe(0);
-    expect(mockRepository.findWithFilters).toHaveBeenCalledWith(
+    expect(mockRepositoryInstance.findWithFilters).toHaveBeenCalledWith(
       { category: 'nonexistent-category' },
       { page: 1, limit: 20 }
     );

@@ -6,12 +6,35 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ReportService } from '@/services/admin/report.service';
 
-vi.mock('@/repositories/admin/report.repository', () => {
-  const mockRepository = {
-    findById: vi.fn(),
-  };
-  return { ReportRepository: vi.fn(() => mockRepository) };
-});
+// Mock the repository
+const mockRepositoryInstance = {
+  findById: vi.fn(),
+};
+
+vi.mock('@/repositories/admin/report.repository', () => ({
+  ReportRepository: class MockReportRepository {
+    findById = mockRepositoryInstance.findById;
+  }
+}));
+
+// Mock the ReportGeneratorService
+vi.mock('@/services/admin/ReportGeneratorService', () => ({
+  reportGeneratorService: {
+    processReport: vi.fn().mockResolvedValue(undefined)
+  }
+}));
+
+// Mock Supabase
+vi.mock('@/lib/supabase-server', () => ({
+  getSupabaseServer: vi.fn(async () => ({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: { id: 'admin-123' } },
+        error: null
+      })
+    }
+  }))
+}));
 
 vi.mock('@/lib/supabase', () => ({
   getSupabaseAdmin: vi.fn(() => ({
@@ -22,6 +45,13 @@ vi.mock('@/lib/supabase', () => ({
       })
     }
   }))
+}));
+
+// Mock audit log service
+vi.mock('@/services/admin/audit/audit-log.service', () => ({
+  AuditLogService: {
+    logReport: vi.fn().mockResolvedValue(undefined)
+  }
 }));
 
 const mockCompletedReport = {
@@ -46,12 +76,10 @@ const mockPendingReport = {
 
 describe('UC402: Download Report (Admin)', () => {
   let reportService: ReportService;
-  let mockRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     reportService = new ReportService();
-    mockRepository = new (require('@/repositories/admin/report.repository').ReportRepository)();
   });
 
   afterEach(() => {
@@ -59,8 +87,6 @@ describe('UC402: Download Report (Admin)', () => {
   });
 
   it('TC_AR_UC402_001: download report successfully', async () => {
-    mockRepository.findById.mockResolvedValue(mockCompletedReport);
-
     const result = await reportService.getReportFileUrl(mockCompletedReport);
 
     expect(result).toBe('https://storage.supabase.co/admin-reports/audit/report-001.pdf');
@@ -68,7 +94,6 @@ describe('UC402: Download Report (Admin)', () => {
 
   it('TC_AR_UC402_002: return null for report without file URL', async () => {
     const reportWithoutFile = { ...mockCompletedReport, file_url: undefined };
-    mockRepository.findById.mockResolvedValue(reportWithoutFile);
 
     const result = await reportService.getReportFileUrl(reportWithoutFile);
 

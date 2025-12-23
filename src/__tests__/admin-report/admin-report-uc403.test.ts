@@ -7,20 +7,34 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ReportService } from '@/services/admin/report.service';
 import { NotFoundError } from '@/lib/errors/app-errors';
 
-vi.mock('@/repositories/admin/report.repository', () => {
-  const mockRepository = {
-    findById: vi.fn(),
-    delete: vi.fn(),
-  };
-  return { ReportRepository: vi.fn(() => mockRepository) };
-});
+// Mock the repository
+const mockRepositoryInstance = {
+  findById: vi.fn(),
+  delete: vi.fn(),
+};
 
-vi.mock('@/services/admin/audit/audit-log.service', () => ({
-  AuditLogService: {
-    logReport: vi.fn(),
-  },
+vi.mock('@/repositories/admin/report.repository', () => ({
+  ReportRepository: class MockReportRepository {
+    findById = mockRepositoryInstance.findById;
+    delete = mockRepositoryInstance.delete;
+  }
 }));
 
+// Mock the ReportGeneratorService
+vi.mock('@/services/admin/ReportGeneratorService', () => ({
+  reportGeneratorService: {
+    processReport: vi.fn().mockResolvedValue(undefined)
+  }
+}));
+
+// Mock audit log service
+vi.mock('@/services/admin/audit/audit-log.service', () => ({
+  AuditLogService: {
+    logReport: vi.fn().mockResolvedValue(undefined)
+  }
+}));
+
+// Mock Supabase
 vi.mock('@/lib/supabase-server', () => ({
   getSupabaseServer: vi.fn(async () => ({
     auth: {
@@ -32,12 +46,14 @@ vi.mock('@/lib/supabase-server', () => ({
   }))
 }));
 
+const mockSupabaseStorage = {
+  from: vi.fn().mockReturnThis(),
+  remove: vi.fn().mockResolvedValue({ error: null })
+};
+
 vi.mock('@/lib/supabase', () => ({
   getSupabaseAdmin: vi.fn(() => ({
-    storage: {
-      from: vi.fn().mockReturnThis(),
-      remove: vi.fn().mockResolvedValue({ error: null })
-    }
+    storage: mockSupabaseStorage
   }))
 }));
 
@@ -56,12 +72,10 @@ const mockReport = {
 
 describe('UC403: Delete Report (Admin)', () => {
   let reportService: ReportService;
-  let mockRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     reportService = new ReportService();
-    mockRepository = new (require('@/repositories/admin/report.repository').ReportRepository)();
   });
 
   afterEach(() => {
@@ -69,15 +83,14 @@ describe('UC403: Delete Report (Admin)', () => {
   });
 
   it('TC_AR_UC403_001: delete report successfully', async () => {
-    const mockSupabase = require('@/lib/supabase').getSupabaseAdmin();
-    mockRepository.findById.mockResolvedValue(mockReport);
-    mockRepository.delete.mockResolvedValue(undefined);
+    mockRepositoryInstance.findById.mockResolvedValue(mockReport);
+    mockRepositoryInstance.delete.mockResolvedValue(undefined);
 
     await reportService.delete('report-001');
 
-    expect(mockRepository.findById).toHaveBeenCalledWith('report-001');
-    expect(mockSupabase.storage.from).toHaveBeenCalledWith('admin-reports');
-    expect(mockSupabase.storage.remove).toHaveBeenCalled();
-    expect(mockRepository.delete).toHaveBeenCalledWith('report-001');
+    expect(mockRepositoryInstance.findById).toHaveBeenCalledWith('report-001');
+    expect(mockSupabaseStorage.from).toHaveBeenCalledWith('admin-reports');
+    expect(mockSupabaseStorage.remove).toHaveBeenCalled();
+    expect(mockRepositoryInstance.delete).toHaveBeenCalledWith('report-001');
   });
 });

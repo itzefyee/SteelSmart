@@ -7,16 +7,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ProductService } from '@/services/product.service';
 import { ProductRepository } from '@/repositories/product.repository';
 
+// Mock the cache
 vi.mock('@/lib/cache/redis-cache', () => ({
   getCached: vi.fn(async (_key: string, fetcher: () => Promise<any>) => fetcher()),
 }));
 
-vi.mock('@/repositories/product.repository', () => {
-  const mockRepository = {
-    findById: vi.fn(),
-  };
-  return { ProductRepository: vi.fn(() => mockRepository) };
-});
+// Mock the repository
+const mockRepositoryInstance = {
+  findById: vi.fn(),
+};
+
+vi.mock('@/repositories/product.repository', () => ({
+  ProductRepository: class MockProductRepository {
+    findById = mockRepositoryInstance.findById;
+  }
+}));
 
 const mockProduct = {
   id: '052df8db-b0a1-4c2e-8fc5-28297362801d',
@@ -50,11 +55,10 @@ const mockProduct = {
 
 describe('UC101: View Product Details', () => {
   let productService: ProductService;
-  let mockRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRepository = new (require('@/repositories/product.repository').ProductRepository)();
+    const mockRepository = new ProductRepository({} as any);
     productService = new ProductService(mockRepository);
   });
 
@@ -63,16 +67,16 @@ describe('UC101: View Product Details', () => {
   });
 
   it('TC_UP_UC101_001: retrieve product details successfully for valid product ID', async () => {
-    mockRepository.findById.mockResolvedValue(mockProduct);
+    mockRepositoryInstance.findById.mockResolvedValue(mockProduct);
 
     const result = await productService.getProductById('052df8db-b0a1-4c2e-8fc5-28297362801d');
 
     expect(result).toEqual(mockProduct);
-    expect(mockRepository.findById).toHaveBeenCalledWith('052df8db-b0a1-4c2e-8fc5-28297362801d');
+    expect(mockRepositoryInstance.findById).toHaveBeenCalledWith('052df8db-b0a1-4c2e-8fc5-28297362801d');
   });
 
   it('TC_UP_UC101_002: throw error for non-existent product ID', async () => {
-    mockRepository.findById.mockResolvedValue(null);
+    mockRepositoryInstance.findById.mockResolvedValue(null);
 
     await expect(productService.getProductById('non-existent-id'))
       .rejects.toThrow('Product with ID non-existent-id not found');

@@ -20,6 +20,24 @@ vi.mock('@/repositories/admin/product.repository', () => ({
   }
 }));
 
+vi.mock('@/lib/supabase-server', () => ({
+  getSupabaseServer: vi.fn(async () => ({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: { id: 'admin-123' } },
+        error: null
+      })
+    }
+  }))
+}));
+
+// Mock the audit log service
+vi.mock('@/services/admin/audit/audit-log.service', () => ({
+  AuditLogService: {
+    logProduct: vi.fn().mockResolvedValue(undefined)
+  }
+}));
+
 const existingProduct = {
   id: '052df8db-b0a1-4c2e-8fc5-28297362801d',
   sku: 'pressure-sensor-001',

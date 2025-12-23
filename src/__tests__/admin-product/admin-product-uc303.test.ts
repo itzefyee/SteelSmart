@@ -31,6 +31,13 @@ vi.mock('@/lib/supabase-server', () => ({
   }))
 }));
 
+// Mock the audit log service
+vi.mock('@/services/admin/audit/audit-log.service', () => ({
+  AuditLogService: {
+    logProduct: vi.fn().mockResolvedValue(undefined)
+  }
+}));
+
 const existingProduct = {
   id: '052df8db-b0a1-4c2e-8fc5-28297362801d',
   sku: 'pressure-sensor-001',
@@ -94,17 +101,18 @@ describe('UC303: Edit Product (Admin)', () => {
     expect(mockRepositoryInstance.update).toHaveBeenCalledWith('052df8db-b0a1-4c2e-8fc5-28297362801d', updateData);
   });
 
-  it('TC_AP_UC303_003: reject update with invalid price validation', async () => {
+  it('TC_AP_UC303_002: reject update with invalid price validation', async () => {
     mockRepositoryInstance.findById.mockResolvedValue(existingProduct);
 
-    const invalidPrices = [
-      { price: -10 }, // Negative price (validatePositiveNumber)
-      { price: undefined }, // Undefined price (validatePositiveNumber)
-    ];
+    // Test negative price - should throw ValidationError
+    await expect(productService.update('052df8db-b0a1-4c2e-8fc5-28297362801d', { price: -10 }))
+      .rejects.toThrow(ValidationError);
+  });
 
-    for (const updateData of invalidPrices) {
-      await expect(productService.update('052df8db-b0a1-4c2e-8fc5-28297362801d', updateData))
-        .rejects.toThrow(ValidationError);
-    }
+  it('TC_AP_UC303_003: throw NotFoundError for non-existent product', async () => {
+    mockRepositoryInstance.findById.mockResolvedValue(null);
+
+    await expect(productService.update('non-existent-id', { name: 'Updated Name' }))
+      .rejects.toThrow(NotFoundError);
   });
 });

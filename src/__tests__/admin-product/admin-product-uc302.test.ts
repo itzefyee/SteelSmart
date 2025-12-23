@@ -30,6 +30,13 @@ vi.mock('@/lib/supabase-server', () => ({
   }))
 }));
 
+// Mock the audit log service
+vi.mock('@/services/admin/audit/audit-log.service', () => ({
+  AuditLogService: {
+    logProduct: vi.fn().mockResolvedValue(undefined)
+  }
+}));
+
 // Input type that matches what the service expects (includes id as required by CreateProductInput)
 const validProductInput: CreateProductInput = {
   id: '052df8db-b0a1-4c2e-8fc5-28297362802d', // Service will override this

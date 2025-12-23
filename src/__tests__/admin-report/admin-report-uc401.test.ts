@@ -7,12 +7,53 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ReportService } from '@/services/admin/report.service';
 import { NotFoundError } from '@/lib/errors/app-errors';
 
-vi.mock('@/repositories/admin/report.repository', () => {
-  const mockRepository = {
-    findById: vi.fn(),
-  };
-  return { ReportRepository: vi.fn(() => mockRepository) };
-});
+// Mock the repository
+const mockRepositoryInstance = {
+  findById: vi.fn(),
+};
+
+vi.mock('@/repositories/admin/report.repository', () => ({
+  ReportRepository: class MockReportRepository {
+    findById = mockRepositoryInstance.findById;
+  }
+}));
+
+// Mock the ReportGeneratorService
+vi.mock('@/services/admin/ReportGeneratorService', () => ({
+  reportGeneratorService: {
+    processReport: vi.fn().mockResolvedValue(undefined)
+  }
+}));
+
+// Mock Supabase
+vi.mock('@/lib/supabase-server', () => ({
+  getSupabaseServer: vi.fn(async () => ({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: { id: 'admin-123' } },
+        error: null
+      })
+    }
+  }))
+}));
+
+vi.mock('@/lib/supabase', () => ({
+  getSupabaseAdmin: vi.fn(() => ({
+    storage: {
+      from: vi.fn().mockReturnThis(),
+      getPublicUrl: vi.fn().mockReturnValue({
+        data: { publicUrl: 'https://storage.supabase.co/admin-reports/audit/report-001.pdf' }
+      })
+    }
+  }))
+}));
+
+// Mock audit log service
+vi.mock('@/services/admin/audit/audit-log.service', () => ({
+  AuditLogService: {
+    logReport: vi.fn().mockResolvedValue(undefined)
+  }
+}));
 
 const mockReport = {
   id: 'report-001',
@@ -32,12 +73,10 @@ const mockReport = {
 
 describe('UC401: View Report Details (Admin)', () => {
   let reportService: ReportService;
-  let mockRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     reportService = new ReportService();
-    mockRepository = new (require('@/repositories/admin/report.repository').ReportRepository)();
   });
 
   afterEach(() => {
@@ -45,16 +84,16 @@ describe('UC401: View Report Details (Admin)', () => {
   });
 
   it('TC_AR_UC401_001: retrieve report details successfully', async () => {
-    mockRepository.findById.mockResolvedValue(mockReport);
+    mockRepositoryInstance.findById.mockResolvedValue(mockReport);
 
     const result = await reportService.getById('report-001');
 
     expect(result).toEqual(mockReport);
-    expect(mockRepository.findById).toHaveBeenCalledWith('report-001');
+    expect(mockRepositoryInstance.findById).toHaveBeenCalledWith('report-001');
   });
 
   it('TC_AR_UC401_002: throw NotFoundError for non-existent report ID', async () => {
-    mockRepository.findById.mockResolvedValue(null);
+    mockRepositoryInstance.findById.mockResolvedValue(null);
 
     await expect(reportService.getById('non-existent-id'))
       .rejects.toThrow(NotFoundError);
