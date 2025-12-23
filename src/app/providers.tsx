@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, lazy, Suspense } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/components/ui/ToastProvider';
-import SteelbotAssistant from '@/components/chatbot/SteelbotAssistant';
+// import SteelbotAssistant from '@/components/chatbot/SteelbotAssistant'; // Temporarily disabled
 
 // Lazy load React Query DevTools to avoid SSR issues
 const ReactQueryDevtools = lazy(() =>
@@ -40,7 +40,7 @@ export function Providers({ children }: ProvidersProps) {
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           {children}
-          <SteelbotAssistant />
+          {/* <SteelbotAssistant /> */}{/* Temporarily disabled */}
           {/* React Query DevTools - only visible in development */}
           {process.env.NODE_ENV === 'development' && (
             <Suspense fallback={null}>
