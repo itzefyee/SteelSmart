@@ -28,6 +28,7 @@
     "enrich-all:dry-run": "npx tsx scripts/missing-data-supabase/enrich-all.ts --dry-run",
     "enrich:component-types": "npx tsx scripts/missing-data-supabase/map-component-types.ts",
     "enrich:load-capacity": "npx tsx scripts/missing-data-supabase/calculate-load-capacity.ts",
+    "seed:taxonomy": "npx tsx scripts/seed-taxonomy-data.ts",
     "enrich:dimensions": "npx tsx scripts/missing-data-supabase/fill-dimensions.ts",
     "validate:materials": "npx tsx scripts/missing-data-supabase/validate-materials.ts",
     "validate:references": "npx tsx scripts/missing-data-supabase/validate-references.ts",

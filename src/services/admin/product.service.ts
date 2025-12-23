@@ -1,6 +1,7 @@
 import { ProductRepository, type ProductFilters, type CreateProductInput, type UpdateProductInput } from '@/repositories/admin/product.repository';
 import type { Product } from '@/types';
-import { NotFoundError, ValidationError } from '@/lib/errors/app-errors';
+import { NotFoundError } from '@/lib/errors/app-errors';
+import { validateRequired, validatePositiveNumber } from '@/lib/validation-utils';
 import { AuditLogService } from '@/services/admin/audit/audit-log.service';
 import { getSupabaseServer } from '@/lib/supabase-server';
 
@@ -34,17 +35,9 @@ export class ProductService {
 
   async create(input: CreateProductInput): Promise<Product> {
     // Service Layer: Business Rule Validation
-    if (!input.name || input.name.trim().length === 0) {
-      throw new ValidationError('Name is required', { name: 'Name is required' });
-    }
-    
-    if (!input.price || input.price < 0) {
-      throw new ValidationError('Valid price is required', { price: 'Price must be positive' });
-    }
-    
-    if (!input.category) {
-      throw new ValidationError('Category is required', { category: 'Category is required' });
-    }
+    validateRequired(input.name, 'Name');
+    validatePositiveNumber(input.price, 'Price');
+    validateRequired(input.category, 'Category');
     
     // Generate a unique ID for the product
     const productId = crypto.randomUUID();
@@ -83,8 +76,8 @@ export class ProductService {
     }
     
     // Validate
-    if (input.price !== undefined && input.price < 0) {
-      throw new ValidationError('Price must be positive', { price: 'Price must be positive' });
+    if (input.price !== undefined && input.price !== null) {
+      validatePositiveNumber(input.price, 'Price');
     }
     
     try {

@@ -9,14 +9,21 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Save, X, Upload, Check, ChevronsUpDown } from 'lucide-react';
+import { ArrowLeft, Save, X, Upload } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 interface Product {
   id: string;
   name: string;
   category: string;
+}
+
+interface ComponentTaxonomy {
+  id: string;
+  canonical_name: string;
+  category: string;
+  description: string;
 }
 
 export function AdminNewProductContent() {
@@ -25,17 +32,16 @@ export function AdminNewProductContent() {
   const [uploading, setUploading] = useState(false);
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
-
-  // Initialize Supabase client
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const [componentTaxonomies, setComponentTaxonomies] = useState<ComponentTaxonomy[]>([]);
+  const [materialFamilies, setMaterialFamilies] = useState<string[]>([]);
+  const [loadingTaxonomies, setLoadingTaxonomies] = useState(true);
 
   const [formData, setFormData] = useState({
     name: '',
     category: '',
     material: '',
+    material_family: '',
+    component_type_id: '',
     price: '',
     description: '',
     technical_details: '',
@@ -70,6 +76,34 @@ export function AdminNewProductContent() {
     };
 
     fetchProducts();
+  }, []);
+
+  // Fetch component taxonomies and material families
+  useEffect(() => {
+    const fetchTaxonomiesAndMaterials = async () => {
+      try {
+        const [taxonomyResponse, materialResponse] = await Promise.all([
+          fetch('/api/component-taxonomy'),
+          fetch('/api/material-families')
+        ]);
+
+        if (taxonomyResponse.ok) {
+          const taxonomyData = await taxonomyResponse.json();
+          setComponentTaxonomies(taxonomyData.data || []);
+        }
+
+        if (materialResponse.ok) {
+          const materialData = await materialResponse.json();
+          setMaterialFamilies(materialData.data || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch taxonomies or materials:', error);
+      } finally {
+        setLoadingTaxonomies(false);
+      }
+    };
+
+    fetchTaxonomiesAndMaterials();
   }, []);
 
   const handleInputChange = (field: string, value: string | boolean | string[]) => {
@@ -160,6 +194,8 @@ export function AdminNewProductContent() {
         name: formData.name,
         category: formData.category,
         material: formData.material,
+        material_family: formData.material_family || null,
+        component_type_id: formData.component_type_id || null,
         price: parseFloat(formData.price),
         description: formData.description,
         technical_details: formData.technical_details,
@@ -270,6 +306,53 @@ export function AdminNewProductContent() {
                     onChange={(e) => handleInputChange('material', e.target.value)}
                     placeholder="e.g., Aluminum, Steel, Plastic"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="material_family">Material Family</Label>
+                  <Select 
+                    value={formData.material_family || undefined} 
+                    onValueChange={(value) => handleInputChange('material_family', value)}
+                    disabled={loadingTaxonomies}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={loadingTaxonomies ? "Loading..." : "Select material family"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {materialFamilies.map((family) => (
+                        <SelectItem key={family} value={family}>
+                          {family}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="component_type_id">Component Type</Label>
+                  <Select 
+                    value={formData.component_type_id || undefined} 
+                    onValueChange={(value) => handleInputChange('component_type_id', value)}
+                    disabled={loadingTaxonomies}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={loadingTaxonomies ? "Loading..." : "Select component type"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {componentTaxonomies.map((taxonomy) => (
+                        <SelectItem key={taxonomy.id} value={taxonomy.id}>
+                          <div className="flex flex-col">
+                            <span>{taxonomy.canonical_name}</span>
+                            {taxonomy.description && (
+                              <span className="text-xs text-muted-foreground">{taxonomy.description}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">

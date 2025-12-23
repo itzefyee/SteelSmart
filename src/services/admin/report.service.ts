@@ -1,6 +1,7 @@
 import { ReportRepository, type ReportFilters, type CreateReportInput } from '@/repositories/admin/report.repository';
 import type { Report } from '@/types';
 import { NotFoundError, ValidationError } from '@/lib/errors/app-errors';
+import { validateRequired } from '@/lib/validation-utils';
 import { reportGeneratorService } from './ReportGeneratorService';
 import { AuditLogService } from '@/services/admin/audit/audit-log.service';
 import { getSupabaseServer } from '@/lib/supabase-server';
@@ -59,13 +60,8 @@ export class ReportService {
 
   async createAndGenerate(input: CreateReportInput): Promise<string> {
     // Validate
-    if (!input.title || input.title.trim().length === 0) {
-      throw new ValidationError('Title is required', { title: 'Title is required' });
-    }
-    
-    if (!input.report_type) {
-      throw new ValidationError('Report type is required', { report_type: 'Report type is required' });
-    }
+    validateRequired(input.title, 'Title');
+    validateRequired(input.report_type, 'Report type');
     
     try {
       // Create report

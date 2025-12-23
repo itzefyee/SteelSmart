@@ -223,6 +223,8 @@ export interface CreateProductInput {
   name: string;
   category: string;
   material: string;
+  material_family?: string;
+  component_type_id?: string;
   price: number;
   description?: string;
   specifications?: Record<string, any>;
