@@ -47,7 +47,7 @@ const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
 
 ### 2. Alternative Product Suggester (`src/lib/alternative-product-suggester.ts`)
 
-**Before (Gemini):**
+**Before (Gemini):***
 ```typescript
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 const result = await model.generateContent(prompt);
