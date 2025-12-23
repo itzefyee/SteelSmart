@@ -47,19 +47,6 @@ export async function PUT(req: NextRequest) {
     const repository = new UserRepository(supabase);
     const service = new UserService(repository);
 
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in' },
-        { status: 401 }
-      );
-    }
-
     // Parse request body
     const body = await req.json();
     const { company, phone } = body;
@@ -79,21 +66,8 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Prepare update data
-    const updateData: any = {
-      updated_at: new Date().toISOString(),
-    };
-
-    if (company !== undefined) {
-      updateData.company = company;
-    }
-
-    if (phone !== undefined) {
-      updateData.phone = phone;
-    }
-
-    // Update profile through service
-    const profile = await service.updateProfile(user.id, {
+    // Update profile through service (service handles auth internally)
+    const profile = await service.updateProfile({
       company,
       phone,
     });
