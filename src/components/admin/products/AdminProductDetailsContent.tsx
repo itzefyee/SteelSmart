@@ -21,6 +21,7 @@ import {
 import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { useAdminProduct, useDeleteAdminProduct } from '@/hooks/admin/useAdminProducts';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface AdminProductDetailsContentProps {
   productId: string;
@@ -29,10 +30,30 @@ interface AdminProductDetailsContentProps {
 export function AdminProductDetailsContent({ productId }: AdminProductDetailsContentProps) {
   const router = useRouter();
   const { addToast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedImage, setSelectedImage] = useState(0);
 
-  // Use React Query hook instead of manual state management
-  const { data: product, isLoading, error } = useAdminProduct(productId);
+  // Clear cache and force fresh fetch when component mounts
+  useEffect(() => {
+    // Clear any existing cache for this product
+    queryClient.removeQueries({ queryKey: ['admin', 'products', 'detail', productId] });
+  }, [productId, queryClient]);
+
+  // Use React Query hook with fresh data fetching
+  const { data: product, isLoading, error, refetch } = useAdminProduct(productId, {
+    refetchOnMount: true,
+    staleTime: 0 // Always fetch fresh data
+  });
+  
+  // Force refetch when component mounts
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      refetch();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [productId, refetch]);
+
   const deleteProductMutation = useDeleteAdminProduct();
 
   const images = product?.images || [];

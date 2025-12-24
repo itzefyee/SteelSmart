@@ -32,7 +32,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
@@ -127,7 +127,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         )}
       >
         {/* Header */}
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background px-6">
+        <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -135,6 +135,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           >
             <Menu className="h-5 w-5" />
           </Button>
+          
+          {/* Admin Email Display */}
+          <div className="flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-md">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-sm text-muted-foreground">Admin:</span>
+            <span className="text-sm font-medium text-foreground">
+              {user?.email || 'Loading...'}
+            </span>
+          </div>
         </header>
 
         {/* Page Content */}

@@ -72,9 +72,9 @@ export function useAdminProducts(filters?: ProductFilters) {
   return useQuery({
     queryKey: adminProductsKeys.list(filters),
     queryFn: () => adminProductsApi.getAll(filters),
-    staleTime: 2 * 60 * 1000, // 2 minutes cache for admin data
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-    refetchOnMount: false, // Use cache if available
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't keep in cache
+    refetchOnMount: true, // Always refetch when component mounts
     refetchOnWindowFocus: false, // Don't refetch on focus
   });
 }

@@ -24,11 +24,18 @@ import { useAdminProducts, useDeleteAdminProduct } from '@/hooks/admin/useAdminP
 import { ProductGridSkeleton } from '@/components/admin/ProductCardSkeleton';
 import { AdminErrorBoundary } from '@/components/admin/AdminErrorBoundary';
 import { useToast } from '@/components/ui/ToastProvider';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function AdminProductsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const { addToast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Clear cache when component mounts to ensure fresh data
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: ['admin', 'products'] });
+  }, [queryClient]);
   
   // Debounce search term to avoid excessive API calls
   useEffect(() => {
@@ -41,7 +48,7 @@ export default function AdminProductsContent() {
     };
   }, [searchTerm]);
   
-  // Use React Query for data fetching with search filters
+  // Use React Query for data fetching with search filters - always fetch fresh data
   const { data: products = [], isLoading: loading, error } = useAdminProducts({
     search: debouncedSearchTerm || undefined,
   });
