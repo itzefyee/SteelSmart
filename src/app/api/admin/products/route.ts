@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ProductService } from '@/services/admin/product.service';
 import { handleApiError } from '@/lib/api/error-handler';
 
-// Add caching headers for better performance
+// Disable caching for fresh data
 export const dynamic = 'force-dynamic';
-export const revalidate = 60; // Revalidate every 60 seconds
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,14 +15,13 @@ export async function GET(request: NextRequest) {
     const service = new ProductService();
     const products = await service.getAll({ category, search, inStock });
 
-    // Add cache headers for better performance
+    // Return fresh data without caching
     const response = NextResponse.json({ data: products });
     
-    // Cache for 1 minute, but allow stale content for 5 minutes while revalidating
-    response.headers.set(
-      'Cache-Control',
-      'public, s-maxage=60, stale-while-revalidate=300'
-    );
+    // Disable caching to ensure fresh data
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
     
     return response;
   } catch (error) {
@@ -33,16 +31,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('API POST /api/admin/products - Starting');
     const body = await request.json();
+    console.log('API POST - Request body:', body);
     
     const service = new ProductService();
+    console.log('API POST - Service created');
+    
     const product = await service.create(body);
+    console.log('API POST - Product created:', product);
 
     return NextResponse.json(
       { data: product, message: 'Product created successfully' },
       { status: 201 }
     );
   } catch (error) {
+    console.error('API POST - Error:', error);
     return handleApiError(error);
   }
 }

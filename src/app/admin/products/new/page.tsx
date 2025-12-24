@@ -1,5 +1,5 @@
-import { AdminNewProductContent } from '@/components/admin/products/AdminNewProductContent';
+import { AdminAddProductContent } from '@/components/admin/products/AdminAddProductContent';
 
 export default function NewProductPage() {
-  return <AdminNewProductContent />;
+  return <AdminAddProductContent />;
 }

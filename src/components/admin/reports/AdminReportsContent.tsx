@@ -9,6 +9,7 @@ import { Eye, Download, Trash2, Search, FileText, Calendar, FilePlus } from 'luc
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import type { Report } from '@/types';
+import { useToast } from '@/components/ui/ToastProvider';
 
 export default function AdminReportsContent() {
   const [reports, setReports] = useState<Report[]>([]);
@@ -16,7 +17,7 @@ export default function AdminReportsContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [isClient, setIsClient] = useState(false);
+  const { addToast } = useToast();
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -25,24 +26,7 @@ export default function AdminReportsContent() {
     failed: 0,
   });
 
-  // Safe toast function that only works on client-side
-  const showToast = (toast: { title: string; description: string; type: string }) => {
-    if (!isClient) {
-      console.log('Toast (SSR):', toast.title, '-', toast.description);
-      return;
-    }
-    
-    try {
-      const { useToast } = require('@/components/ui/ToastProvider');
-      const toastContext = useToast();
-      toastContext.addToast(toast);
-    } catch (error) {
-      console.log('Toast (fallback):', toast.title, '-', toast.description);
-    }
-  };
-
   useEffect(() => {
-    setIsClient(true);
     loadReports();
     loadStatistics();
   }, [currentPage]);
@@ -74,7 +58,7 @@ export default function AdminReportsContent() {
       }
     } catch (error) {
       console.error('Failed to load reports:', error);
-      showToast({
+      addToast({
         title: 'Error',
         description: 'Failed to load reports',
         type: 'error',
@@ -111,7 +95,7 @@ export default function AdminReportsContent() {
 
       if (response.ok) {
         setReports(reports.filter((r) => r.id !== reportId));
-        showToast({
+        addToast({
           title: 'Report Deleted',
           description: 'Report has been successfully deleted',
           type: 'success',
@@ -121,7 +105,7 @@ export default function AdminReportsContent() {
         throw new Error('Failed to delete');
       }
     } catch (error) {
-      showToast({
+      addToast({
         title: 'Error',
         description: 'Failed to delete report',
         type: 'error',
@@ -131,7 +115,7 @@ export default function AdminReportsContent() {
 
   const handleDownload = (report: Report) => {
     if (report.status !== 'COMPLETED' || !report.file_url) {
-      showToast({
+      addToast({
         title: 'Error',
         description: 'Report is not ready for download',
         type: 'error',
@@ -140,7 +124,7 @@ export default function AdminReportsContent() {
     }
 
     window.open(report.file_url, '_blank');
-    showToast({
+    addToast({
       title: 'Download Started',
       description: `Downloading ${report.title}...`,
       type: 'info',
@@ -284,16 +268,17 @@ export default function AdminReportsContent() {
               >
                 <Card className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        <CardTitle className="text-lg line-clamp-2">{report.title}</CardTitle>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                        <CardTitle className="text-lg line-clamp-2 flex-1 leading-5 mt-1.5">{report.title}</CardTitle>
+                      </div>
+                      <div className="text-sm text-muted-foreground flex-shrink-0">
+                        {new Date(report.created_at || '').toLocaleDateString()}
                       </div>
                     </div>
                     <CardDescription className="line-clamp-2">
-                      {`${report.report_type.replace(/_/g, ' ')} report generated on ${new Date(
-                        report.created_at || ''
-                      ).toLocaleDateString()}`}
+                      {report.description || `${report.report_type.replace(/_/g, ' ')} report`}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -306,10 +291,6 @@ export default function AdminReportsContent() {
                     </div>
 
                     <div className="space-y-2 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>{new Date(report.created_at || '').toLocaleDateString()}</span>
-                      </div>
                       {report.file_url && (
                         <div className="flex justify-between">
                           <span>Status:</span>

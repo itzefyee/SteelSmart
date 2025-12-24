@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
+import { useDeleteAdminProduct } from '@/hooks/admin/useAdminProducts';
 import type { Product } from '@/types';
 
 interface AdminProductDetailsContentProps {
@@ -32,6 +33,9 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
+
+  // React Query mutation for deleting products
+  const deleteProductMutation = useDeleteAdminProduct();
 
   const images = product?.images || [];
 
@@ -96,24 +100,18 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
     if (!productId) return;
 
     try {
-      const response = await fetch(`/api/admin/products/${productId}`, {
-        method: 'DELETE',
+      await deleteProductMutation.mutateAsync(productId);
+      
+      addToast({
+        title: 'Product Deleted',
+        description: 'Product has been deleted successfully',
+        type: 'success',
       });
-
-      if (response.ok) {
-        addToast({
-          title: 'Product Deleted',
-          description: 'Product has been deleted successfully',
-          type: 'success',
-        });
-        router.push('/admin/products');
-      } else {
-        throw new Error('Failed to delete');
-      }
-    } catch (error) {
+      router.push('/admin/products');
+    } catch (error: any) {
       addToast({
         title: 'Error',
-        description: 'Failed to delete product',
+        description: error.message || 'Failed to delete product',
         type: 'error',
       });
     }
@@ -162,15 +160,6 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
   return (
     <div className="min-h-screen bg-white text-gray-900">
       <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Breadcrumb Navigation */}
-        <nav className="flex items-center space-x-2 text-sm text-gray-600">
-          <Link href="/admin" className="hover:text-gray-900 transition-colors">Admin</Link>
-          <span>/</span>
-          <Link href="/admin/products" className="hover:text-gray-900 transition-colors">Products</Link>
-          <span>/</span>
-          <span className="text-gray-900 font-medium">{product.name}</span>
-        </nav>
-
         {/* Admin Actions Bar */}
         <div className="flex items-center justify-between">
           <Link href="/admin/products">
@@ -204,7 +193,7 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleDelete}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    className="bg-red-600 text-white hover:bg-red-700"
                   >
                     Delete
                   </AlertDialogAction>
@@ -283,7 +272,7 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
                 <div className={`w-3 h-3 rounded-full ${(product as any).in_stock !== false ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 <span className="text-sm font-medium text-gray-700">
                   {(product as any).in_stock !== false ? 'In Stock' : 'Out of Stock'}
-                  {(product as any).in_stock !== false && ' • 4-6 business days'}
+                  {(product as any).in_stock !== false && (product as any).lead_time && ` • ${(product as any).lead_time}`}
                 </span>
               </div>
             </div>

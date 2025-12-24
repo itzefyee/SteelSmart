@@ -28,7 +28,7 @@ const adminProductsApi = {
     return data.data;
   },
 
-  create: async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>): Promise<Product> => {
+  create: async (product: any): Promise<Product> => {
     const response = await fetch('/api/admin/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -72,8 +72,10 @@ export function useAdminProducts(filters?: ProductFilters) {
   return useQuery({
     queryKey: adminProductsKeys.list(filters),
     queryFn: () => adminProductsApi.getAll(filters),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0, // Always consider data stale
+    gcTime: 0, // Don't cache data
+    refetchOnMount: true, // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window gains focus
   });
 }
 
@@ -81,7 +83,10 @@ export function useAdminProduct(id: string) {
   return useQuery({
     queryKey: adminProductsKeys.detail(id),
     queryFn: () => adminProductsApi.getById(id),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0, // Always consider data stale
+    gcTime: 0, // Don't cache data
+    refetchOnMount: true, // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window gains focus
     enabled: !!id,
   });
 }
@@ -92,8 +97,9 @@ export function useCreateAdminProduct() {
   return useMutation({
     mutationFn: adminProductsApi.create,
     onSuccess: () => {
-      // Invalidate and refetch products list
-      queryClient.invalidateQueries({ queryKey: adminProductsKeys.lists() });
+      // Clear cache and trigger background refetch
+      queryClient.removeQueries({ queryKey: adminProductsKeys.all });
+      queryClient.refetchQueries({ queryKey: adminProductsKeys.all });
     },
   });
 }
@@ -103,11 +109,10 @@ export function useUpdateAdminProduct() {
   
   return useMutation({
     mutationFn: adminProductsApi.update,
-    onSuccess: (data) => {
-      // Update the specific product in cache
-      queryClient.setQueryData(adminProductsKeys.detail(data.id), data);
-      // Invalidate lists to ensure consistency
-      queryClient.invalidateQueries({ queryKey: adminProductsKeys.lists() });
+    onSuccess: () => {
+      // Clear cache and trigger background refetch
+      queryClient.removeQueries({ queryKey: adminProductsKeys.all });
+      queryClient.refetchQueries({ queryKey: adminProductsKeys.all });
     },
   });
 }
@@ -117,11 +122,15 @@ export function useDeleteAdminProduct() {
   
   return useMutation({
     mutationFn: adminProductsApi.delete,
-    onSuccess: (_, deletedId) => {
-      // Remove from cache
-      queryClient.removeQueries({ queryKey: adminProductsKeys.detail(deletedId) });
-      // Invalidate lists
-      queryClient.invalidateQueries({ queryKey: adminProductsKeys.lists() });
+    onSuccess: () => {
+      // Clear all admin product queries from cache immediately
+      queryClient.removeQueries({ queryKey: adminProductsKeys.all });
+      
+      // Trigger background refetch without waiting
+      queryClient.refetchQueries({ 
+        queryKey: adminProductsKeys.all,
+        type: 'active'
+      });
     },
   });
 }

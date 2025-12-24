@@ -49,6 +49,8 @@ export class ProductService {
         id: productId,
       });
 
+      // Temporarily disable audit logging to debug
+      /*
       // Get current user for audit logging
       const supabase = await getSupabaseServer();
       const { data: { user } } = await supabase.auth.getUser();
@@ -61,6 +63,7 @@ export class ProductService {
           { id: product.id, name: product.name }
         );
       }
+      */
 
       return product;
     } catch (error) {

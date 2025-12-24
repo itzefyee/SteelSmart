@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Save, X, Upload } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { supabase } from '@/lib/supabase';
+import { useCreateAdminProduct } from '@/hooks/admin/useAdminProducts';
 
 interface Product {
   id: string;
@@ -26,7 +27,7 @@ interface ComponentTaxonomy {
   description: string;
 }
 
-export function AdminNewProductContent() {
+export function AdminAddProductContent() {
   const router = useRouter();
   const { addToast } = useToast();
   const [uploading, setUploading] = useState(false);
@@ -36,12 +37,16 @@ export function AdminNewProductContent() {
   const [materialFamilies, setMaterialFamilies] = useState<string[]>([]);
   const [loadingTaxonomies, setLoadingTaxonomies] = useState(true);
 
+  // React Query mutation for creating products
+  const createProductMutation = useCreateAdminProduct();
+
   const [formData, setFormData] = useState({
     name: '',
+    sku: '',
     category: '',
     material: '',
-    material_family: '',
-    component_type_id: '',
+    material_family: 'none',
+    component_type_id: 'none',
     price: '',
     description: '',
     technical_details: '',
@@ -57,6 +62,12 @@ export function AdminNewProductContent() {
       loadCapacity: '',
       operatingTemp: '',
     },
+  });
+
+  const [skuValidation, setSkuValidation] = useState({
+    isChecking: false,
+    isAvailable: true,
+    message: ''
   });
 
   // Fetch available products for compatibility selection
@@ -106,6 +117,40 @@ export function AdminNewProductContent() {
     fetchTaxonomiesAndMaterials();
   }, []);
 
+  const checkSkuAvailability = async (sku: string) => {
+    if (!sku.trim()) {
+      setSkuValidation({ isChecking: false, isAvailable: true, message: '' });
+      return;
+    }
+
+    setSkuValidation({ isChecking: true, isAvailable: true, message: 'Checking SKU availability...' });
+
+    try {
+      const response = await fetch(`/api/admin/products/check-sku?sku=${encodeURIComponent(sku)}`);
+      const result = await response.json();
+
+      if (response.ok) {
+        setSkuValidation({
+          isChecking: false,
+          isAvailable: result.available,
+          message: result.available ? 'SKU is available' : 'SKU already exists'
+        });
+      } else {
+        setSkuValidation({
+          isChecking: false,
+          isAvailable: false,
+          message: 'Error checking SKU'
+        });
+      }
+    } catch (error) {
+      setSkuValidation({
+        isChecking: false,
+        isAvailable: false,
+        message: 'Error checking SKU'
+      });
+    }
+  };
+
   const handleInputChange = (field: string, value: string | boolean | string[]) => {
     if (field === 'in_stock') {
       setFormData((prev) => ({
@@ -131,45 +176,61 @@ export function AdminNewProductContent() {
         ...prev,
         [field]: value,
       }));
+
+      // Check SKU availability when SKU field changes
+      if (field === 'sku' && typeof value === 'string') {
+        const timeoutId = setTimeout(() => {
+          checkSkuAvailability(value);
+        }, 500); // Debounce for 500ms
+
+        return () => clearTimeout(timeoutId);
+      }
     }
   };
 
-  // Function to upload images to Supabase storage
+  // Function to upload images via API endpoint
   const uploadImagesToStorage = async (productId: string, imageFiles: File[]): Promise<string[]> => {
-    const uploadedUrls: string[] = [];
+    console.log('uploadImagesToStorage - Starting server-side upload with:', { productId, fileCount: imageFiles.length });
     
     try {
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
-        const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-        const fileName = `${productId}/image-${i + 1}.${fileExtension}`;
-        
-        console.log(`Uploading image ${i + 1}/${imageFiles.length}: ${fileName}`);
-        
-        const { data, error } = await supabase.storage
-          .from('product-images')
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: true
-          });
-        
-        if (error) {
-          console.error('Storage upload error:', error);
-          throw new Error(`Failed to upload image ${i + 1}: ${error.message}`);
+      const formData = new FormData();
+      
+      // Add all files to FormData
+      imageFiles.forEach((file, index) => {
+        console.log(`uploadImagesToStorage - Adding file ${index + 1}:`, { 
+          name: file.name, 
+          size: file.size, 
+          type: file.type 
+        });
+        formData.append('images', file);
+      });
+      
+      console.log('uploadImagesToStorage - Sending request to API...');
+      
+      const response = await fetch(`/api/admin/products/${productId}/images`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      console.log('uploadImagesToStorage - API response status:', response.status);
+      
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
         }
-        
-        // Get the public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('product-images')
-          .getPublicUrl(fileName);
-        
-        uploadedUrls.push(publicUrl);
-        console.log(`Successfully uploaded: ${publicUrl}`);
+        console.error('uploadImagesToStorage - API error:', errorData);
+        throw new Error(errorData.error || `Failed to upload images (${response.status})`);
       }
       
-      return uploadedUrls;
+      const result = await response.json();
+      console.log('uploadImagesToStorage - API success:', result);
+      
+      return result.urls || [];
     } catch (error) {
-      console.error('Error in uploadImagesToStorage:', error);
+      console.error('uploadImagesToStorage - Error:', error);
       throw error;
     }
   };
@@ -186,16 +247,27 @@ export function AdminNewProductContent() {
       return;
     }
 
+    // Check SKU availability if SKU is provided
+    if (formData.sku && !skuValidation.isAvailable) {
+      addToast({
+        title: 'Validation Error',
+        description: 'SKU already exists. Please choose a different SKU.',
+        type: 'error',
+      });
+      return;
+    }
+
     try {
       setUploading(true);
 
       // Step 1: Create the product first (without images)
       const productData = {
         name: formData.name,
+        sku: formData.sku,
         category: formData.category,
         material: formData.material,
-        material_family: formData.material_family || null,
-        component_type_id: formData.component_type_id || null,
+        material_family: formData.material_family === 'none' ? null : formData.material_family,
+        component_type_id: formData.component_type_id === 'none' ? null : formData.component_type_id,
         price: parseFloat(formData.price),
         description: formData.description,
         technical_details: formData.technical_details,
@@ -206,22 +278,11 @@ export function AdminNewProductContent() {
         images: [], // Empty initially
       };
 
-      const createResponse = await fetch('/api/admin/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productData),
-      });
-
-      if (!createResponse.ok) {
-        const error = await createResponse.json();
-        throw new Error(error.error || 'Failed to create product');
-      }
-
-      const createdProduct = await createResponse.json();
-      const productId = createdProduct.data.id;
+      // Use React Query mutation to create product
+      const createdProduct = await createProductMutation.mutateAsync(productData);
+      const productId = createdProduct.id;
 
       // Step 2: Upload images to storage if any
-      let imageUrls: string[] = [];
       if (formData.imageFiles.length > 0) {
         addToast({
           title: 'Uploading Images',
@@ -229,20 +290,7 @@ export function AdminNewProductContent() {
           type: 'info',
         });
 
-        imageUrls = await uploadImagesToStorage(productId, formData.imageFiles);
-      }
-
-      // Step 3: Update the product with image URLs
-      if (imageUrls.length > 0) {
-        const updateResponse = await fetch(`/api/admin/products/${productId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ images: imageUrls }),
-        });
-
-        if (!updateResponse.ok) {
-          console.error('Failed to update product with image URLs');
-        }
+        await uploadImagesToStorage(productId, formData.imageFiles);
       }
 
       addToast({
@@ -253,7 +301,6 @@ export function AdminNewProductContent() {
       
       router.push('/admin/products');
     } catch (error: any) {
-      console.error('Upload error:', error);
       addToast({
         title: 'Error',
         description: error.message || 'Failed to create product',
@@ -294,8 +341,33 @@ export function AdminNewProductContent() {
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     placeholder="Enter product name"
+                    className={formData.name ? 'bg-blue-50' : 'bg-white'}
                     required
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sku">SKU</Label>
+                  <Input
+                    id="sku"
+                    value={formData.sku}
+                    onChange={(e) => handleInputChange('sku', e.target.value)}
+                    placeholder="Enter product SKU (e.g., PSR-001)"
+                    className={`${formData.sku ? 'bg-blue-50' : 'bg-white'} ${
+                      formData.sku && !skuValidation.isAvailable ? 'border-red-500' : ''
+                    }`}
+                  />
+                  {formData.sku && (
+                    <div className={`text-sm ${
+                      skuValidation.isChecking 
+                        ? 'text-gray-500' 
+                        : skuValidation.isAvailable 
+                          ? 'text-green-600' 
+                          : 'text-red-600'
+                    }`}>
+                      {skuValidation.message}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -305,6 +377,7 @@ export function AdminNewProductContent() {
                     value={formData.material}
                     onChange={(e) => handleInputChange('material', e.target.value)}
                     placeholder="e.g., Aluminum, Steel, Plastic"
+                    className={formData.material ? 'bg-blue-50' : 'bg-white'}
                   />
                 </div>
 
@@ -315,11 +388,11 @@ export function AdminNewProductContent() {
                     onValueChange={(value) => handleInputChange('material_family', value)}
                     disabled={loadingTaxonomies}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={formData.material_family && formData.material_family !== 'none' ? 'bg-blue-50' : 'bg-white'}>
                       <SelectValue placeholder={loadingTaxonomies ? "Loading..." : "Select material family"} />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="none">None</SelectItem>
                       {materialFamilies.map((family) => (
                         <SelectItem key={family} value={family}>
                           {family}
@@ -336,14 +409,20 @@ export function AdminNewProductContent() {
                     onValueChange={(value) => handleInputChange('component_type_id', value)}
                     disabled={loadingTaxonomies}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder={loadingTaxonomies ? "Loading..." : "Select component type"} />
+                    <SelectTrigger className={formData.component_type_id && formData.component_type_id !== 'none' ? 'bg-blue-50' : 'bg-white'}>
+                      <SelectValue placeholder={loadingTaxonomies ? "Loading..." : "Select component type"}>
+                        {formData.component_type_id && formData.component_type_id !== 'none' ? (
+                          componentTaxonomies.find(t => t.id === formData.component_type_id)?.canonical_name || 'Select component type'
+                        ) : (
+                          formData.component_type_id === 'none' ? 'None' : 'Select component type'
+                        )}
+                      </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="none">None</SelectItem>
                       {componentTaxonomies.map((taxonomy) => (
                         <SelectItem key={taxonomy.id} value={taxonomy.id}>
-                          <div className="flex flex-col">
+                          <div className="flex flex-col items-start">
                             <span>{taxonomy.canonical_name}</span>
                             {taxonomy.description && (
                               <span className="text-xs text-muted-foreground">{taxonomy.description}</span>
@@ -358,10 +437,10 @@ export function AdminNewProductContent() {
                 <div className="space-y-2">
                   <Label htmlFor="category">Category *</Label>
                   <Select value={formData.category || undefined} onValueChange={(value) => handleInputChange('category', value)}>
-                    <SelectTrigger>
+                    <SelectTrigger className={formData.category ? 'bg-blue-50' : 'bg-white'}>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white">
                       <SelectItem value="robotic">Robotic</SelectItem>
                       <SelectItem value="custom">Custom</SelectItem>
                       <SelectItem value="fasteners">Fasteners</SelectItem>
@@ -380,6 +459,7 @@ export function AdminNewProductContent() {
                       value={formData.price}
                       onChange={(e) => handleInputChange('price', e.target.value)}
                       placeholder="0.00"
+                      className={formData.price ? 'bg-blue-50' : 'bg-white'}
                       required
                     />
                   </div>
@@ -391,6 +471,7 @@ export function AdminNewProductContent() {
                       value={formData.lead_time}
                       onChange={(e) => handleInputChange('lead_time', e.target.value)}
                       placeholder="e.g., 2-3 weeks"
+                      className={formData.lead_time ? 'bg-blue-50' : 'bg-white'}
                     />
                   </div>
                 </div>
@@ -401,10 +482,10 @@ export function AdminNewProductContent() {
                     value={formData.in_stock ? 'true' : 'false'}
                     onValueChange={(value) => handleInputChange('in_stock', value === 'true')}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-blue-50">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white">
                       <SelectItem value="true">In Stock</SelectItem>
                       <SelectItem value="false">Out of Stock</SelectItem>
                     </SelectContent>
@@ -418,6 +499,7 @@ export function AdminNewProductContent() {
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     placeholder="Enter product description"
+                    className={formData.description ? 'bg-blue-50' : 'bg-white'}
                     rows={3}
                   />
                 </div>
@@ -429,6 +511,7 @@ export function AdminNewProductContent() {
                     value={formData.technical_details}
                     onChange={(e) => handleInputChange('technical_details', e.target.value)}
                     placeholder="Enter technical specifications and details"
+                    className={formData.technical_details ? 'bg-blue-50' : 'bg-white'}
                     rows={3}
                   />
                 </div>
@@ -449,6 +532,7 @@ export function AdminNewProductContent() {
                     value={formData.specifications.dimensions}
                     onChange={(e) => handleInputChange('spec_dimensions', e.target.value)}
                     placeholder="e.g., Ø320 mm x 32 mm vented rotor"
+                    className={formData.specifications.dimensions ? 'bg-blue-50' : 'bg-white'}
                   />
                 </div>
 
@@ -459,6 +543,7 @@ export function AdminNewProductContent() {
                     value={formData.specifications.weight}
                     onChange={(e) => handleInputChange('spec_weight', e.target.value)}
                     placeholder="e.g., 9.2 kg per rotor"
+                    className={formData.specifications.weight ? 'bg-blue-50' : 'bg-white'}
                   />
                 </div>
 
@@ -469,6 +554,7 @@ export function AdminNewProductContent() {
                     value={formData.specifications.tolerance}
                     onChange={(e) => handleInputChange('spec_tolerance', e.target.value)}
                     placeholder="e.g., Face runout ≤ 0.03 mm"
+                    className={formData.specifications.tolerance ? 'bg-blue-50' : 'bg-white'}
                   />
                 </div>
 
@@ -479,6 +565,7 @@ export function AdminNewProductContent() {
                     value={formData.specifications.loadCapacity}
                     onChange={(e) => handleInputChange('spec_loadCapacity', e.target.value)}
                     placeholder="e.g., Clamp load up to 45 kN"
+                    className={formData.specifications.loadCapacity ? 'bg-blue-50' : 'bg-white'}
                   />
                 </div>
 
@@ -489,6 +576,7 @@ export function AdminNewProductContent() {
                     value={formData.specifications.operatingTemp}
                     onChange={(e) => handleInputChange('spec_operatingTemp', e.target.value)}
                     placeholder="e.g., Up to 650°C continuous"
+                    className={formData.specifications.operatingTemp ? 'bg-blue-50' : 'bg-white'}
                   />
                 </div>
               </CardContent>
@@ -611,7 +699,7 @@ export function AdminNewProductContent() {
                     {uploading ? 'Processing images...' : 'Click to select product images'}
                   </div>
                   <div
-                    className={`px-4 py-2 bg-primary text-primary-foreground rounded-md transition-colors flex items-center gap-2 ${
+                    className={`px-4 py-2 bg-primary text-white rounded-md transition-colors flex items-center gap-2 ${
                       uploading ? 'opacity-50' : 'hover:bg-primary/90'
                     }`}
                   >

@@ -53,6 +53,7 @@ export class ProductRepository {
 
   async create(input: CreateProductInput): Promise<Product> {
     const supabase = await getSupabaseServer();
+    
     const { data, error } = await supabase
       .from('products')
       .insert(input)

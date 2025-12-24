@@ -20,6 +20,7 @@ import {
 import { ArrowLeft, Download, Trash2, FileText, Calendar, Clock, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
+import { useToast } from '@/components/ui/ToastProvider';
 
 interface Report {
   id: string;
@@ -42,26 +43,9 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
   const router = useRouter();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isClient, setIsClient] = useState(false);
-
-  // Safe toast function that only works on client-side
-  const showToast = (toast: { title: string; description: string; type: string }) => {
-    if (!isClient) {
-      console.log('Toast (SSR):', toast.title, '-', toast.description);
-      return;
-    }
-    
-    try {
-      const { useToast } = require('@/components/ui/ToastProvider');
-      const toastContext = useToast();
-      toastContext.addToast(toast);
-    } catch (error) {
-      console.log('Toast (fallback):', toast.title, '-', toast.description);
-    }
-  };
+  const { addToast } = useToast();
 
   useEffect(() => {
-    setIsClient(true);
     if (reportId) {
       loadReport(reportId);
     }
@@ -76,14 +60,14 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
       if (data.data) {
         setReport(data.data);
       } else {
-        showToast({
+        addToast({
           title: 'Error',
           description: 'Failed to load report',
           type: 'error',
         });
       }
     } catch (error) {
-      showToast({
+      addToast({
         title: 'Error',
         description: 'Failed to load report',
         type: 'error',
@@ -95,7 +79,7 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
 
   const handleDownload = () => {
     if (!report || report.status !== 'COMPLETED' || (!report.public_file_url && !report.file_url)) {
-      showToast({
+      addToast({
         title: 'Download unavailable',
         description: 'This report is not yet ready for download.',
         type: 'error',
@@ -106,7 +90,7 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
     // Use public_file_url if available, otherwise fall back to file_url
     const downloadUrl = report.public_file_url || report.file_url;
     window.open(downloadUrl, '_blank');
-    showToast({
+    addToast({
       title: 'Download started',
       description: `Downloading ${report.title}...`,
       type: 'info',
@@ -122,7 +106,7 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
       });
 
       if (response.ok) {
-        showToast({
+        addToast({
           title: 'Report Deleted',
           description: 'Report has been deleted successfully',
           type: 'success',
@@ -132,7 +116,7 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
         throw new Error('Failed to delete');
       }
     } catch (error) {
-      showToast({
+      addToast({
         title: 'Error',
         description: 'Failed to delete report',
         type: 'error',
@@ -354,7 +338,7 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
                 className="w-full h-[500px] border-0"
                 title="PDF Preview"
                 onError={() => {
-                  showToast({
+                  addToast({
                     title: 'Preview Error',
                     description: 'Unable to preview PDF. You can still download the report.',
                     type: 'warning',

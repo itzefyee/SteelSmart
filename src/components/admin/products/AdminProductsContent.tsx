@@ -23,31 +23,12 @@ import type { Product } from '@/types';
 import { useAdminProducts, useDeleteAdminProduct } from '@/hooks/admin/useAdminProducts';
 import { ProductGridSkeleton } from '@/components/admin/ProductCardSkeleton';
 import { AdminErrorBoundary } from '@/components/admin/AdminErrorBoundary';
+import { useToast } from '@/components/ui/ToastProvider';
 
 export default function AdminProductsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [isClient, setIsClient] = useState(false);
-  
-  // Safe toast function that only works on client-side
-  const showToast = (toast: { title: string; description: string; type: string }) => {
-    if (!isClient) {
-      console.log('Toast (SSR):', toast.title, '-', toast.description);
-      return;
-    }
-    
-    try {
-      const { useToast } = require('@/components/ui/ToastProvider');
-      const toastContext = useToast();
-      toastContext.addToast(toast);
-    } catch (error) {
-      console.log('Toast (fallback):', toast.title, '-', toast.description);
-    }
-  };
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  const { addToast } = useToast();
   
   // Debounce search term to avoid excessive API calls
   useEffect(() => {
@@ -83,13 +64,13 @@ export default function AdminProductsContent() {
   const handleDelete = async (productId: string) => {
     try {
       await deleteProductMutation.mutateAsync(productId);
-      showToast({
+      addToast({
         title: 'Success',
         description: 'Product deleted successfully',
         type: 'success',
       });
     } catch (error) {
-      showToast({
+      addToast({
         title: 'Error',
         description: 'Failed to delete product',
         type: 'error',
@@ -209,7 +190,7 @@ export default function AdminProductsContent() {
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => handleDelete(product.id)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        className="bg-red-600 text-white hover:bg-red-700"
                       >
                         Delete
                       </AlertDialogAction>

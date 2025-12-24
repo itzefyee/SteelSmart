@@ -24,10 +24,14 @@ export function Providers({ children }: ProvidersProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Data is considered fresh for 60 seconds
-            staleTime: 60 * 1000,
-            // Don't refetch when window regains focus to reduce unnecessary requests
-            refetchOnWindowFocus: false,
+            // Always consider data stale (fetch fresh data every time)
+            staleTime: 0,
+            // Don't cache data in memory
+            gcTime: 0,
+            // Always refetch when component mounts
+            refetchOnMount: true,
+            // Refetch when window regains focus
+            refetchOnWindowFocus: true,
             // Retry failed requests once before giving up
             retry: 1,
           },
