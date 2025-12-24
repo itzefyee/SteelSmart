@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -20,8 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
-import { useDeleteAdminProduct } from '@/hooks/admin/useAdminProducts';
-import type { Product } from '@/types';
+import { useAdminProduct, useDeleteAdminProduct } from '@/hooks/admin/useAdminProducts';
 
 interface AdminProductDetailsContentProps {
   productId: string;
@@ -30,47 +29,13 @@ interface AdminProductDetailsContentProps {
 export function AdminProductDetailsContent({ productId }: AdminProductDetailsContentProps) {
   const router = useRouter();
   const { addToast } = useToast();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
 
-  // React Query mutation for deleting products
+  // Use React Query hook instead of manual state management
+  const { data: product, isLoading, error } = useAdminProduct(productId);
   const deleteProductMutation = useDeleteAdminProduct();
 
   const images = product?.images || [];
-
-  const loadProduct = async (id: string) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/admin/products/${id}`);
-      const data = await response.json();
-      
-      if (data.data) {
-        setProduct(data.data);
-      } else {
-        addToast({
-          title: 'Error',
-          description: 'Failed to load product',
-          type: 'error',
-        });
-      }
-    } catch (error) {
-      addToast({
-        title: 'Error',
-        description: 'Failed to load product',
-        type: 'error',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (productId) {
-      loadProduct(productId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
 
   const handlePreviousImage = useCallback(() => {
     setSelectedImage((prev) => (prev === 0 ? images.length - 1 : prev - 1));
@@ -117,7 +82,8 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
     }
   };
 
-  if (loading) {
+  // Show error state if there's an error
+  if (error) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -130,13 +96,55 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
         </div>
         <Card>
           <CardContent className="p-8 text-center">
-            <div className="text-muted-foreground">Loading product...</div>
+            <div className="text-muted-foreground">Failed to load product</div>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  // Show not found state if no product and not loading
+  if (!isLoading && !product) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href="/admin/products">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </Link>
+        </div>
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="text-muted-foreground">Product not found</div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // If still loading and no cached data, show minimal loading (this should rarely happen due to caching)
+  if (isLoading && !product) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href="/admin/products">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </Link>
+        </div>
+        {/* Minimal loading - should rarely show due to React Query caching */}
+        <div className="min-h-[200px] flex items-center justify-center">
+          <div className="text-muted-foreground">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // At this point, product should be available (either from cache or fresh fetch)
   if (!product) {
     return (
       <div className="space-y-6">
@@ -159,48 +167,50 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
+      {/* Back Button - Close to Sidebar */}
+      <div className="p-6 pb-0">
+        <Link href="/admin/products">
+          <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Products
+          </Button>
+        </Link>
+      </div>
+
       <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Admin Actions Bar */}
-        <div className="flex items-center justify-between">
-          <Link href="/admin/products">
+        {/* Action Buttons - Right Aligned */}
+        <div className="flex justify-end gap-2">
+          <Link href={`/admin/products/${product.id}/edit`}>
             <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Products
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Product
             </Button>
           </Link>
-          <div className="flex gap-2">
-            <Link href={`/admin/products/${product.id}/edit`}>
-              <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Product
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="bg-red-600 hover:bg-red-700">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
               </Button>
-            </Link>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="bg-red-600 hover:bg-red-700">
-                  <Trash2 className="h-4 w-4 mr-2" />
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Product</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{product.name}"? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  className="bg-red-600 text-white hover:bg-red-700"
+                >
                   Delete
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Product</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete "{product.name}"? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDelete}
-                    className="bg-red-600 text-white hover:bg-red-700"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
 
         {/* Main Product Layout */}

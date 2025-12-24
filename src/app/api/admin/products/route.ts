@@ -15,15 +15,12 @@ export async function GET(request: NextRequest) {
     const service = new ProductService();
     const products = await service.getAll({ category, search, inStock });
 
-    // Return fresh data without caching
-    const response = NextResponse.json({ data: products });
-    
-    // Disable caching to ensure fresh data
-    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    
-    return response;
+    // Return with moderate caching for admin data
+    return NextResponse.json({ data: products }, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=120, stale-while-revalidate=300', // 2 min cache, 5 min stale
+      },
+    });
   } catch (error) {
     return handleApiError(error);
   }
@@ -31,22 +28,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('API POST /api/admin/products - Starting');
     const body = await request.json();
-    console.log('API POST - Request body:', body);
     
     const service = new ProductService();
-    console.log('API POST - Service created');
-    
     const product = await service.create(body);
-    console.log('API POST - Product created:', product);
 
     return NextResponse.json(
       { data: product, message: 'Product created successfully' },
       { status: 201 }
     );
   } catch (error) {
-    console.error('API POST - Error:', error);
     return handleApiError(error);
   }
 }

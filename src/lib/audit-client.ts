@@ -45,17 +45,16 @@ export class AuditClient {
   }
 
   static async logAuth(action: 'LOGIN' | 'LOGOUT') {
-    try {
-      await fetch('/api/audit-log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action,
-          module: 'AUTH'
-        })
-      });
-    } catch (error) {
-      console.error('Failed to log auth audit:', error);
-    }
+    // Make audit logging non-blocking by not awaiting the fetch
+    fetch('/api/audit-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        module: 'AUTH'
+      })
+    }).catch(error => {
+      console.warn('Failed to log auth audit (non-critical):', error);
+    });
   }
 }

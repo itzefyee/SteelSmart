@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -10,26 +10,20 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import type { Report } from '@/types';
 import { useToast } from '@/components/ui/ToastProvider';
+import { useAdminReports, useAdminReportStatistics, useDeleteAdminReport } from '@/hooks/admin/useAdminReports';
 
 export default function AdminReportsContent() {
-  const [reports, setReports] = useState<Report[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
-  const [stats, setStats] = useState({
-    total: 0,
-    pending: 0,
-    processing: 0,
-    completed: 0,
-    failed: 0,
-  });
 
-  useEffect(() => {
-    loadReports();
-    loadStatistics();
-  }, [currentPage]);
+  // Use React Query hooks instead of manual state management
+  const { data: reportsData, isLoading, error } = useAdminReports(currentPage, 10);
+  const { data: stats } = useAdminReportStatistics();
+  const deleteReportMutation = useDeleteAdminReport();
+
+  const reports = reportsData?.data || [];
+  const totalPages = reportsData?.pagination?.totalPages || 1;
 
   // Filter reports based on search query
   const filteredReports = useMemo(() => {
@@ -43,67 +37,16 @@ export default function AdminReportsContent() {
     );
   }, [reports, searchQuery]);
 
-  const loadReports = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/admin/reports?page=${currentPage}&limit=10`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-
-      if (data.data) {
-        setReports(data.data);
-        setTotalPages(data.pagination?.totalPages || 1);
-      }
-    } catch (error) {
-      console.error('Failed to load reports:', error);
-      addToast({
-        title: 'Error',
-        description: 'Failed to load reports',
-        type: 'error',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadStatistics = async () => {
-    try {
-      const response = await fetch('/api/admin/reports/statistics');
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-
-      if (data.data) {
-        setStats(data.data);
-      }
-    } catch (error) {
-      console.error('Failed to load statistics:', error);
-      // Don't show toast for statistics failure, just log it
-    }
-  };
-
   const handleDelete = async (reportId: string) => {
     if (!confirm('Are you sure you want to delete this report?')) return;
 
     try {
-      const response = await fetch(`/api/admin/reports/${reportId}`, {
-        method: 'DELETE',
+      await deleteReportMutation.mutateAsync(reportId);
+      addToast({
+        title: 'Report Deleted',
+        description: 'Report has been successfully deleted',
+        type: 'success',
       });
-
-      if (response.ok) {
-        setReports(reports.filter((r) => r.id !== reportId));
-        addToast({
-          title: 'Report Deleted',
-          description: 'Report has been successfully deleted',
-          type: 'success',
-        });
-        loadStatistics();
-      } else {
-        throw new Error('Failed to delete');
-      }
     } catch (error) {
       addToast({
         title: 'Error',
@@ -214,23 +157,23 @@ export default function AdminReportsContent() {
           <CardContent>
             <div className="grid grid-cols-5 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold">{stats.total}</div>
+                <div className="text-2xl font-bold">{stats?.total || 0}</div>
                 <div className="text-sm text-muted-foreground">Total</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+                <div className="text-2xl font-bold text-yellow-600">{stats?.pending || 0}</div>
                 <div className="text-sm text-muted-foreground">Pending</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{stats.processing}</div>
+                <div className="text-2xl font-bold text-blue-600">{stats?.processing || 0}</div>
                 <div className="text-sm text-muted-foreground">Processing</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+                <div className="text-2xl font-bold text-green-600">{stats?.completed || 0}</div>
                 <div className="text-sm text-muted-foreground">Completed</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">{stats.failed}</div>
+                <div className="text-2xl font-bold text-red-600">{stats?.failed || 0}</div>
                 <div className="text-sm text-muted-foreground">Failed</div>
               </div>
             </div>
@@ -244,10 +187,14 @@ export default function AdminReportsContent() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.15 }}
       >
-        {loading ? (
+        {isLoading && !reports.length ? (
+          <div className="min-h-[200px] flex items-center justify-center">
+            <div className="text-muted-foreground">Loading...</div>
+          </div>
+        ) : error ? (
           <Card>
             <CardContent className="p-8 text-center">
-              <div className="text-muted-foreground">Loading reports...</div>
+              <div className="text-muted-foreground">Failed to load reports</div>
             </CardContent>
           </Card>
         ) : filteredReports.length === 0 ? (

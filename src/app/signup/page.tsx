@@ -1,11 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import TechnicalPattern from '@/components/TechnicalPattern';
 import BlueprintSketchLayer from '@/components/BlueprintSketchLayer';
+
+interface PasswordValidation {
+  hasUppercase: boolean;
+  hasLowercase: boolean;
+  hasSymbol: boolean;
+  hasValidLength: boolean;
+}
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -16,8 +23,28 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [showPasswordValidation, setShowPasswordValidation] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordValidation, setPasswordValidation] = useState<PasswordValidation>({
+    hasUppercase: false,
+    hasLowercase: false,
+    hasSymbol: false,
+    hasValidLength: false,
+  });
   const { signUp } = useAuth();
   const router = useRouter();
+
+  // Real-time password validation
+  useEffect(() => {
+    const validation: PasswordValidation = {
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasSymbol: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+      hasValidLength: password.length >= 8 && password.length <= 12,
+    };
+    setPasswordValidation(validation);
+  }, [password]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,9 +58,10 @@ export default function SignupPage() {
       return;
     }
 
-    // Validate password strength
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    // Validate password strength using the same logic as auth service
+    const { hasUppercase, hasLowercase, hasSymbol, hasValidLength } = passwordValidation;
+    if (!hasValidLength || !hasUppercase || !hasLowercase || !hasSymbol) {
+      setError('Password does not meet the required criteria');
       setLoading(false);
       return;
     }
@@ -48,11 +76,11 @@ export default function SignupPage() {
       setLoading(false);
     } else {
       setSuccess(true);
-      // Redirect after a short delay to show success message
+      // Wait longer to allow profile creation and redirect
       setTimeout(() => {
         router.push('/');
         router.refresh();
-      }, 2000);
+      }, 3000); // Increased from 2000 to 3000ms
     }
   };
 
@@ -115,36 +143,145 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="flex items-center text-sm font-medium text-gray-700 mb-2">
                 Password *
+                <div className="relative ml-2">
+                  <svg 
+                    className="w-4 h-4 text-gray-400 cursor-help" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    onMouseEnter={() => setShowPasswordValidation(true)}
+                    onMouseLeave={() => setShowPasswordValidation(false)}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  
+                  {/* Password validation tooltip */}
+                  {showPasswordValidation && (
+                    <div className="absolute left-0 top-6 z-50 w-72 p-3 bg-white border border-gray-200 rounded-lg shadow-lg">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Password Requirements:</h4>
+                      <div className="space-y-1 text-xs">
+                        <div className={`flex items-center ${passwordValidation.hasValidLength ? 'text-green-600' : 'text-gray-500'}`}>
+                          {passwordValidation.hasValidLength ? (
+                            <svg className="w-3 h-3 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <div className="w-3 h-3 mr-2 border border-gray-300 rounded-sm"></div>
+                          )}
+                          8-12 characters long
+                        </div>
+                        <div className={`flex items-center ${passwordValidation.hasUppercase ? 'text-green-600' : 'text-gray-500'}`}>
+                          {passwordValidation.hasUppercase ? (
+                            <svg className="w-3 h-3 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <div className="w-3 h-3 mr-2 border border-gray-300 rounded-sm"></div>
+                          )}
+                          At least 1 uppercase letter
+                        </div>
+                        <div className={`flex items-center ${passwordValidation.hasLowercase ? 'text-green-600' : 'text-gray-500'}`}>
+                          {passwordValidation.hasLowercase ? (
+                            <svg className="w-3 h-3 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <div className="w-3 h-3 mr-2 border border-gray-300 rounded-sm"></div>
+                          )}
+                          At least 1 lowercase letter
+                        </div>
+                        <div className={`flex items-center ${passwordValidation.hasSymbol ? 'text-green-600' : 'text-gray-500'}`}>
+                          {passwordValidation.hasSymbol ? (
+                            <svg className="w-3 h-3 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <div className="w-3 h-3 mr-2 border border-gray-300 rounded-sm"></div>
+                          )}
+                          At least 1 special character (!@#$%^&*...)
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </label>
-              <input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                required
-                disabled={loading}
-                minLength={6}
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setShowPasswordValidation(true)}
+                  onBlur={() => setTimeout(() => setShowPasswordValidation(false), 200)}
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  disabled={loading}
+                >
+                  {showPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
                 Confirm Password *
               </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                required
-                disabled={loading}
-              />
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  disabled={loading}
+                >
+                  {showConfirmPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {/* Password match indicator */}
+              {confirmPassword && password && confirmPassword === password && (
+                <div className="flex items-center mt-2 text-green-600 text-sm">
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  Password Matched
+                </div>
+              )}
             </div>
 
             <div>

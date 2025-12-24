@@ -11,6 +11,7 @@ import { useLoginAudit } from '@/hooks/useLoginAudit';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { signIn } = useAuth();
@@ -31,65 +32,66 @@ export default function LoginPage() {
         return;
       }
 
-      // Let AuthProvider handle the auth state change
-      // The onAuthStateChange listener will update user and profile
-      // We'll redirect after the auth state is properly set
-      
-      // Check for redirect parameter first
-      const urlParams = new URLSearchParams(window.location.search);
-      const redirectTo = urlParams.get('redirectTo');
-      
-      if (redirectTo) {
-        router.push(redirectTo);
-        return;
-      }
+      // Audit log: Login success
+      await logLoginSuccess();
 
-      // Wait for auth state to update, then redirect based on role
-      // Use a more reliable approach with polling
+      // Wait for auth state to update and get user profile
       let attempts = 0;
-      const maxAttempts = 10;
+      const maxAttempts = 20; // Increased attempts
       
-      const checkAuthAndRedirect = async () => {
+      const checkProfileAndRedirect = async () => {
         attempts++;
         
-        const { getSupabaseClient } = await import('@/lib/supabase');
-        const supabase = getSupabaseClient();
-        
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('Role')
-            .eq('id', user.id)
-            .single();
+        try {
+          const { getSupabaseClient } = await import('@/lib/supabase');
+          const supabase = getSupabaseClient();
           
-          if (!profileError && profile) {
-            // Audit log: Login success
-            await logLoginSuccess();
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (user) {
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('Role')
+              .eq('id', user.id)
+              .single();
             
-            // Successfully got profile, redirect based on role
-            if (profile.Role?.toLowerCase() === 'admin') {
-              router.push('/admin');
-            } else {
-              router.push('/');
+            if (!profileError && profile) {
+              // Check if user is admin first - admins always go to /admin
+              if (profile.Role?.toLowerCase() === 'admin') {
+                window.location.href = '/admin';
+                return;
+              }
+              
+              // For non-admin users, check for redirect parameter
+              const urlParams = new URLSearchParams(window.location.search);
+              const redirectTo = urlParams.get('redirectTo');
+              
+              if (redirectTo) {
+                // If there's a specific redirect for non-admin users, use it
+                router.push(redirectTo);
+              } else {
+                // Default redirect for non-admin users
+                window.location.href = '/';
+              }
+              return;
             }
-            return;
           }
+        } catch (err) {
+          console.warn('Error checking profile:', err);
         }
         
         // If we haven't succeeded and haven't hit max attempts, try again
         if (attempts < maxAttempts) {
-          setTimeout(checkAuthAndRedirect, 200);
+          setTimeout(checkProfileAndRedirect, 250);
         } else {
           // Fallback: redirect to home after max attempts
           console.warn('Could not determine user role, redirecting to home');
-          router.push('/');
+          window.location.href = '/';
         }
       };
       
       // Start checking after a brief delay to let auth state settle
-      setTimeout(checkAuthAndRedirect, 100);
+      setTimeout(checkProfileAndRedirect, 100);
       
     } catch (err) {
       setError('An unexpected error occurred');
@@ -150,16 +152,35 @@ export default function LoginPage() {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                required
-                disabled={loading}
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  disabled={loading}
+                >
+                  {showPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
             <button

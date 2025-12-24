@@ -137,7 +137,7 @@ const ProductFilter: React.FC<ProductFilterProps> = ({
                   checked={filters.materials.includes(material)}
                   onChange={() => toggleMaterial(material)}
                 />
-                <span className="ml-3 text-sm font-semibold text-slate-800">
+                <span className="ml-3 text-sm font-semibold text-slate-800 text-right flex-1">
                   {material}
                 </span>
               </label>

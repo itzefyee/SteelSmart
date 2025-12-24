@@ -4,44 +4,55 @@ import { getSupabaseServer } from '@/lib/supabase-server';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await getSupabaseServer();
-    
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Audit log timeout')), 3000); // 3 second timeout
+    });
 
-    const body = await request.json();
-    const { action, module, entityId, entityName, status = 'SUCCESS' } = body;
+    const auditLogPromise = (async () => {
+      const supabase = await getSupabaseServer();
+      
+      // Verify user is authenticated
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
 
-    // Validate required fields
-    if (!action || !module) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
+      const body = await request.json();
+      const { action, module, entityId, entityName, status = 'SUCCESS' } = body;
 
-    // Log based on module type
-    if (module === 'PRODUCT') {
-      await AuditLogService.logProduct(
-        user.id,
-        action,
-        { id: entityId, name: entityName }
-      );
-    } else if (module === 'REPORT') {
-      await AuditLogService.logReport(
-        user.id,
-        action,
-        { id: entityId, title: entityName }
-      );
-    } else if (module === 'AUTH') {
-      await AuditLogService.logAuth(user.id, action, { email: user.email });
-    } else {
-      return NextResponse.json({ error: 'Invalid module' }, { status: 400 });
-    }
+      // Validate required fields
+      if (!action || !module) {
+        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      }
 
-    return NextResponse.json({ success: true });
+      // Log based on module type
+      if (module === 'PRODUCT') {
+        await AuditLogService.logProduct(
+          user.id,
+          action,
+          { id: entityId, name: entityName }
+        );
+      } else if (module === 'REPORT') {
+        await AuditLogService.logReport(
+          user.id,
+          action,
+          { id: entityId, title: entityName }
+        );
+      } else if (module === 'AUTH') {
+        await AuditLogService.logAuth(user.id, action, { email: user.email });
+      } else {
+        return NextResponse.json({ error: 'Invalid module' }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true });
+    })();
+
+    // Race between audit log operation and timeout
+    return await Promise.race([auditLogPromise, timeoutPromise]);
   } catch (error) {
     console.error('Audit log API error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    // Return success even on error to prevent blocking logout
+    return NextResponse.json({ success: true, warning: 'Audit log failed but operation continued' });
   }
 }

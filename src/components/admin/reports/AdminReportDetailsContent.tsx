@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,19 +20,8 @@ import { ArrowLeft, Download, Trash2, FileText, Calendar, Clock, User } from 'lu
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { useToast } from '@/components/ui/ToastProvider';
-
-interface Report {
-  id: string;
-  title: string;
-  report_type: string;
-  status: string;
-  file_url?: string;
-  public_file_url?: string;
-  file_size?: string;
-  created_at?: string;
-  updated_at?: string;
-  description?: string;
-}
+import { useAdminReport, useDeleteAdminReport } from '@/hooks/admin/useAdminReports';
+import type { Report } from '@/types';
 
 interface AdminReportDetailsContentProps {
   reportId: string;
@@ -41,44 +29,14 @@ interface AdminReportDetailsContentProps {
 
 export function AdminReportDetailsContent({ reportId }: AdminReportDetailsContentProps) {
   const router = useRouter();
-  const [report, setReport] = useState<Report | null>(null);
-  const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
 
-  useEffect(() => {
-    if (reportId) {
-      loadReport(reportId);
-    }
-  }, [reportId]);
-
-  const loadReport = async (id: string) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/admin/reports/${id}`);
-      const data = await response.json();
-      
-      if (data.data) {
-        setReport(data.data);
-      } else {
-        addToast({
-          title: 'Error',
-          description: 'Failed to load report',
-          type: 'error',
-        });
-      }
-    } catch (error) {
-      addToast({
-        title: 'Error',
-        description: 'Failed to load report',
-        type: 'error',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Use React Query hooks instead of manual state management
+  const { data: report, isLoading, error } = useAdminReport(reportId);
+  const deleteReportMutation = useDeleteAdminReport();
 
   const handleDownload = () => {
-    if (!report || report.status !== 'COMPLETED' || (!report.public_file_url && !report.file_url)) {
+    if (!report || report.status !== 'COMPLETED' || !report.file_url) {
       addToast({
         title: 'Download unavailable',
         description: 'This report is not yet ready for download.',
@@ -87,9 +45,7 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
       return;
     }
 
-    // Use public_file_url if available, otherwise fall back to file_url
-    const downloadUrl = report.public_file_url || report.file_url;
-    window.open(downloadUrl, '_blank');
+    window.open(report.file_url, '_blank');
     addToast({
       title: 'Download started',
       description: `Downloading ${report.title}...`,
@@ -101,20 +57,13 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
     if (!reportId) return;
 
     try {
-      const response = await fetch(`/api/admin/reports/${reportId}`, {
-        method: 'DELETE',
+      await deleteReportMutation.mutateAsync(reportId);
+      addToast({
+        title: 'Report Deleted',
+        description: 'Report has been deleted successfully',
+        type: 'success',
       });
-
-      if (response.ok) {
-        addToast({
-          title: 'Report Deleted',
-          description: 'Report has been deleted successfully',
-          type: 'success',
-        });
-        router.push('/admin/reports');
-      } else {
-        throw new Error('Failed to delete');
-      }
+      router.push('/admin/reports');
     } catch (error) {
       addToast({
         title: 'Error',
@@ -139,7 +88,8 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
     }
   };
 
-  if (loading) {
+  // Show error state if there's an error
+  if (error) {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-4xl mx-auto px-4 py-8">
@@ -153,7 +103,7 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
           </div>
           <Card>
             <CardContent className="p-8 text-center">
-              <div className="text-muted-foreground">Loading report...</div>
+              <div className="text-muted-foreground">Failed to load report</div>
             </CardContent>
           </Card>
         </div>
@@ -161,6 +111,58 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
     );
   }
 
+  // Show not found state if no report and not loading
+  if (!isLoading && !report) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="flex items-center gap-4 mb-6">
+            <Link href="/admin/reports">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+            </Link>
+          </div>
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <FileText className="w-16 h-16 text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold text-foreground mb-2">Report Not Found</h2>
+            <p className="text-muted-foreground mb-6">The report you're looking for doesn't exist.</p>
+            <Link href="/admin/reports">
+              <Button variant="outline">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Reports
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If still loading and no cached data, show minimal loading (this should rarely happen due to caching)
+  if (isLoading && !report) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="flex items-center gap-4 mb-6">
+            <Link href="/admin/reports">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+            </Link>
+          </div>
+          {/* Minimal loading - should rarely show due to React Query caching */}
+          <div className="min-h-[200px] flex items-center justify-center">
+            <div className="text-muted-foreground">Loading...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // At this point, report should be available (either from cache or fresh fetch)
   if (!report) {
     return (
       <div className="min-h-screen bg-background">
@@ -244,7 +246,7 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
                 <div className="flex gap-2">
                   <Button
                     onClick={handleDownload}
-                    disabled={report.status !== 'COMPLETED' || (!report.public_file_url && !report.file_url)}
+                    disabled={report.status !== 'COMPLETED' || !report.file_url}
                     className="bg-primary text-white hover:bg-primary/90 gap-2"
                   >
                     <Download className="w-4 h-4" />
@@ -332,9 +334,9 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
         >
           <h2 className="text-lg font-semibold text-foreground mb-4">Report Preview</h2>
           <div className="bg-muted/50 rounded-lg border border-border overflow-hidden min-h-[500px]">
-            {report.status === 'COMPLETED' && (report.public_file_url || report.file_url) ? (
+            {report.status === 'COMPLETED' && report.file_url ? (
               <iframe
-                src={report.public_file_url || report.file_url}
+                src={report.file_url}
                 className="w-full h-[500px] border-0"
                 title="PDF Preview"
                 onError={() => {

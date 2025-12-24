@@ -312,21 +312,20 @@ export function AdminAddProductContent() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center gap-4">
         <Link href="/admin/products">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            Back to Products
           </Button>
         </Link>
-        <div>
+        <div className="mt-4">
           <h1 className="text-3xl font-bold tracking-tight">Add New Product</h1>
-          <p className="text-muted-foreground">Create a new product for your catalog</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-6">
             <Card>
@@ -384,8 +383,8 @@ export function AdminAddProductContent() {
                 <div className="space-y-2">
                   <Label htmlFor="material_family">Material Family</Label>
                   <Select 
-                    value={formData.material_family || undefined} 
-                    onValueChange={(value) => handleInputChange('material_family', value)}
+                    value={formData.material_family === 'none' ? '' : formData.material_family} 
+                    onValueChange={(value) => handleInputChange('material_family', value || 'none')}
                     disabled={loadingTaxonomies}
                   >
                     <SelectTrigger className={formData.material_family && formData.material_family !== 'none' ? 'bg-blue-50' : 'bg-white'}>
@@ -405,8 +404,8 @@ export function AdminAddProductContent() {
                 <div className="space-y-2">
                   <Label htmlFor="component_type_id">Component Type</Label>
                   <Select 
-                    value={formData.component_type_id || undefined} 
-                    onValueChange={(value) => handleInputChange('component_type_id', value)}
+                    value={formData.component_type_id === 'none' ? '' : formData.component_type_id} 
+                    onValueChange={(value) => handleInputChange('component_type_id', value || 'none')}
                     disabled={loadingTaxonomies}
                   >
                     <SelectTrigger className={formData.component_type_id && formData.component_type_id !== 'none' ? 'bg-blue-50' : 'bg-white'}>
@@ -414,7 +413,7 @@ export function AdminAddProductContent() {
                         {formData.component_type_id && formData.component_type_id !== 'none' ? (
                           componentTaxonomies.find(t => t.id === formData.component_type_id)?.canonical_name || 'Select component type'
                         ) : (
-                          formData.component_type_id === 'none' ? 'None' : 'Select component type'
+                          'Select component type'
                         )}
                       </SelectValue>
                     </SelectTrigger>
@@ -436,7 +435,7 @@ export function AdminAddProductContent() {
 
                 <div className="space-y-2">
                   <Label htmlFor="category">Category *</Label>
-                  <Select value={formData.category || undefined} onValueChange={(value) => handleInputChange('category', value)}>
+                  <Select value={formData.category || ''} onValueChange={(value) => handleInputChange('category', value)}>
                     <SelectTrigger className={formData.category ? 'bg-blue-50' : 'bg-white'}>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
@@ -458,6 +457,12 @@ export function AdminAddProductContent() {
                       step="0.01"
                       value={formData.price}
                       onChange={(e) => handleInputChange('price', e.target.value)}
+                      onBlur={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) {
+                          handleInputChange('price', value.toFixed(2));
+                        }
+                      }}
                       placeholder="0.00"
                       className={formData.price ? 'bg-blue-50' : 'bg-white'}
                       required
@@ -739,15 +744,15 @@ export function AdminAddProductContent() {
                         >
                           <input
                             type="checkbox"
-                            checked={formData.compatible_with.includes(product.id)}
+                            checked={formData.compatible_with.includes((product as any).sku)}
                             onChange={(e) => {
                               const isChecked = e.target.checked;
                               const currentCompatible = formData.compatible_with;
                               
                               if (isChecked) {
-                                handleInputChange('compatible_with', [...currentCompatible, product.id]);
+                                handleInputChange('compatible_with', [...currentCompatible, (product as any).sku]);
                               } else {
-                                handleInputChange('compatible_with', currentCompatible.filter(id => id !== product.id));
+                                handleInputChange('compatible_with', currentCompatible.filter(sku => sku !== (product as any).sku));
                               }
                             }}
                             className="rounded border-gray-300"
@@ -770,11 +775,11 @@ export function AdminAddProductContent() {
                           Selected Products ({formData.compatible_with.length}):
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {formData.compatible_with.map((productId) => {
-                            const product = availableProducts.find(p => p.id === productId);
+                          {formData.compatible_with.map((productSku) => {
+                            const product = availableProducts.find(p => (p as any).sku === productSku);
                             return product ? (
                               <div
-                                key={productId}
+                                key={productSku}
                                 className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm"
                               >
                                 <span>{product.name}</span>
@@ -782,7 +787,7 @@ export function AdminAddProductContent() {
                                   type="button"
                                   onClick={() => {
                                     handleInputChange('compatible_with', 
-                                      formData.compatible_with.filter(id => id !== productId)
+                                      formData.compatible_with.filter(sku => sku !== productSku)
                                     );
                                   }}
                                   className="ml-1 hover:bg-primary/20 rounded-full p-0.5"

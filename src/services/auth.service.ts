@@ -92,13 +92,16 @@ export class AuthService {
     }
 
     // Password strength requirements:
-    // - At least 8 characters
+    // - Length between 8-12 characters
     // - At least one uppercase letter
     // - At least one lowercase letter
-    // - At least one number
     // - At least one special character
     if (password.length < 8) {
       throw new ValidationError('Password must be at least 8 characters long');
+    }
+
+    if (password.length > 12) {
+      throw new ValidationError('Password must be no more than 12 characters long');
     }
 
     if (!/[A-Z]/.test(password)) {
@@ -107,10 +110,6 @@ export class AuthService {
 
     if (!/[a-z]/.test(password)) {
       throw new ValidationError('Password must contain at least one lowercase letter');
-    }
-
-    if (!/\d/.test(password)) {
-      throw new ValidationError('Password must contain at least one number');
     }
 
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {

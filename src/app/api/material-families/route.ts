@@ -5,24 +5,46 @@ export async function GET() {
   try {
     const supabase = await getSupabaseServer();
     
+    // Get distinct material families from products table
     const { data, error } = await supabase
-      .from('material_synonyms')
-      .select('family')
-      .order('family');
+      .from('products')
+      .select('material_family')
+      .not('material_family', 'is', null)
+      .order('material_family');
     
     if (error) {
-      throw new Error(`Failed to fetch material families: ${error.message}`);
+      console.error('Error fetching material families:', error);
+      // Fallback to hardcoded values if database query fails
+      const fallbackFamilies = [
+        'cast iron', // Exact match for database
+        'Steel',
+        'Aluminum',
+        'Stainless Steel', 
+        'Carbon Steel',
+        'Alloy Steel',
+        'Cast Iron',
+        'Brass',
+        'Bronze',
+        'Copper',
+        'Titanium',
+        'Plastic',
+        'Composite',
+        'Ceramic'
+      ];
+      return NextResponse.json({ data: fallbackFamilies });
     }
     
-    // Extract unique families
-    const families = data?.map(item => item.family) || [];
+    // Extract unique material families
+    const uniqueFamilies = [...new Set(data?.map(item => item.material_family).filter(Boolean))] as string[];
     
-    return NextResponse.json({ data: families });
+    // Add some common ones if the list is empty
+    if (uniqueFamilies.length === 0) {
+      uniqueFamilies.push('cast iron', 'Steel', 'Aluminum', 'Cast Iron', 'Stainless Steel');
+    }
+    
+    return NextResponse.json({ data: uniqueFamilies });
   } catch (error) {
-    console.error('Material families fetch error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch material families' },
-      { status: 500 }
-    );
+    console.error('Error in material-families API:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

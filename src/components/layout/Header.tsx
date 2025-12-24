@@ -65,7 +65,7 @@ const Header: React.FC = () => {
               </div>
             ) : (
               <Link 
-                href={user ? "/account" : "/login"}
+                href="/account"
                 className="text-gray-700 hover:text-primary transition-colors flex items-center"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -144,7 +144,7 @@ const Header: React.FC = () => {
                   </div>
                 ) : (
                   <Link 
-                    href={user ? "/account" : "/login"}
+                    href="/account"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg flex items-center"
                     onClick={() => setIsMenuOpen(false)}
                   >

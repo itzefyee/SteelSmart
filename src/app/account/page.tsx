@@ -14,8 +14,9 @@ import WireframeIconLayer from '@/components/layout/WireframeIconLayer';
 
 export default function AccountPage() {
   const router = useRouter();
-  const { user, profile: authProfile, loading: authLoading } = useAuth();
+  const { user, profile: authProfile, loading: authLoading, isLoggingOut } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [profileRetryCount, setProfileRetryCount] = useState(0);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -24,7 +25,32 @@ export default function AccountPage() {
     }
   }, [authLoading, user, router]);
 
+  // Retry profile loading if user exists but profile doesn't
+  useEffect(() => {
+    if (user && !authProfile && !authLoading && profileRetryCount < 5) {
+      const timer = setTimeout(() => {
+        setProfileRetryCount(prev => prev + 1);
+        // Force a page refresh to trigger profile refetch
+        window.location.reload();
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [user, authProfile, authLoading, profileRetryCount]);
+
   const accountIdentifier = user?.email ?? authProfile?.company ?? 'your account';
+
+  // Show logging out spinner
+  if (isLoggingOut) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-gray-600">Logging Out...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading spinner while auth is loading
   if (authLoading) {
@@ -52,11 +78,23 @@ export default function AccountPage() {
     );
   }
 
-  // Show loading if no profile yet
+  // Show loading if no profile yet (with helpful message for new users)
   if (!authProfile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <LoadingSpinner size="lg" />
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-gray-600">
+            {profileRetryCount > 0 
+              ? 'Setting up your profile...' 
+              : 'Loading your account...'}
+          </p>
+          {profileRetryCount > 2 && (
+            <p className="mt-2 text-sm text-gray-500">
+              This may take a moment for new accounts
+            </p>
+          )}
+        </div>
       </div>
     );
   }

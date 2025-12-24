@@ -10,6 +10,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   session: Session | null;
   loading: boolean;
+  isLoggingOut: boolean;
   isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, metadata?: UserMetadata) => Promise<{ error: Error | null }>;
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   session: null,
   loading: true,
+  isLoggingOut: false,
   isAdmin: false,
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
@@ -34,10 +36,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const supabase = getSupabaseClient();
 
-  // Fetch user profile from database
-  const fetchProfile = async (userId: string) => {
+  // Fetch user profile from database with retry logic
+  const fetchProfile = async (userId: string, retryCount = 0): Promise<UserProfile | null> => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -46,6 +49,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
+        // If profile doesn't exist and we haven't retried much, wait and retry
+        if (error.code === 'PGRST116' && retryCount < 3) {
+          console.log(`Profile not found, retrying in ${(retryCount + 1) * 1000}ms...`);
+          await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
+          return fetchProfile(userId, retryCount + 1);
+        }
         console.error('Error fetching profile:', error);
         return null;
       }
@@ -140,23 +149,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clear local state first for immediate UI feedback
+      // Set logging out state
+      setIsLoggingOut(true);
+      
+      // Clear local state immediately for instant UI feedback
       setUser(null);
       setProfile(null);
+      setSession(null);
       
-      // Then sign out from Supabase
-      const { error } = await supabase.auth.signOut();
+      // Sign out from Supabase
+      await supabase.auth.signOut();
       
-      if (error) {
-        console.error('Supabase signOut error:', error);
-        // Even if Supabase signOut fails, we've cleared local state
-        // The user appears logged out in the UI
-      }
+      // Force a page refresh to ensure middleware runs with cleared auth state
+      window.location.href = '/';
     } catch (error) {
       console.error('SignOut error:', error);
-      // Still clear local state even if there's an error
+      // Still clear local state and redirect even if there's an error
       setUser(null);
       setProfile(null);
+      setSession(null);
+      window.location.href = '/';
     }
   };
 
@@ -205,6 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     session,
     loading,
+    isLoggingOut,
     isAdmin: profile?.Role?.toLowerCase() === 'admin',
     signIn,
     signUp,

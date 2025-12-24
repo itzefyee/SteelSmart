@@ -84,10 +84,10 @@ const CATEGORY_STYLES: Record<
       </div>
 
       <div className="p-5 flex flex-col flex-1 relative z-10 text-slate-900">
-        {/* Top Content - Variable Height */}
-        <div className="flex-1">
-          {/* Category Badge */}
-          <div className="flex items-center justify-between mb-2">
+        {/* Top Content - Fixed Height Structure */}
+        <div className="flex-1 flex flex-col">
+          {/* Category Badge and Stock Status - Fixed Height */}
+          <div className="flex items-center justify-between mb-2 h-6">
             {product.category && (
               <Link 
                 href={`/catalog?category=${product.category}`}
@@ -107,48 +107,63 @@ const CATEGORY_STYLES: Record<
             </div>
           </div>
 
-          {/* Product Name */}
-          <h3 className="font-semibold text-slate-900 mb-4 line-clamp-2 text-base">
-            {product.name}
-          </h3>
-
-          {/* Key Specifications - Fixed 2-row height for each field */}
-          <div className="space-y-2 text-xs text-slate-600 mb-4">
-            {typeof product.specifications === 'object' && product.specifications !== null && 'dimensions' in product.specifications && (
-              <div className="grid grid-cols-2 gap-x-3 h-6">
-                <span className="text-left flex items-start">Dimensions:</span>
-                <span className="font-semibold text-slate-900 text-right break-words leading-tight">{(product.specifications as any).dimensions}</span>
-              </div>
-            )}
-            {product.material && (
-              <div className="grid grid-cols-2 gap-x-3 h-6">
-                <span className="text-left flex items-start">Material:</span>
-                <span className="font-semibold text-slate-900 text-right break-words leading-tight">{product.material}</span>
-              </div>
-            )}
-            {typeof product.specifications === 'object' && product.specifications !== null && 'loadCapacity' in product.specifications && (
-              <div className="grid grid-cols-2 gap-x-3 h-6">
-                <span className="text-left flex items-start">Capacity:</span>
-                <span className="font-semibold text-slate-900 text-right break-words leading-tight">{(product.specifications as any).loadCapacity}</span>
-              </div>
-            )}
+          {/* Product Name - Fixed Height (2 lines max) */}
+          <div className="h-12 mb-4">
+            <h3 className="font-semibold text-slate-900 line-clamp-2 text-base leading-6">
+              {product.name}
+            </h3>
           </div>
 
-          {/* Compatible Products (if enabled) */}
+          {/* Key Specifications - Fixed Height (3 rows, each 2 lines max) */}
+          <div className="h-24 mb-4">
+            <div className="space-y-1 text-xs text-slate-600">
+              {/* Dimensions Row - Fixed Height */}
+              <div className="grid grid-cols-2 h-7">
+                <span className="text-left flex items-start">Dimensions:</span>
+                <span className="font-semibold text-slate-900 text-right break-words leading-tight line-clamp-2 text-xs">
+                  {typeof product.specifications === 'object' && product.specifications !== null && 'dimensions' in product.specifications 
+                    ? (product.specifications as any).dimensions 
+                    : '—'}
+                </span>
+              </div>
+              
+              {/* Material Row - Fixed Height */}
+              <div className="grid grid-cols-2 h-7">
+                <span className="text-left flex items-start">Material:</span>
+                <span className="font-semibold text-slate-900 text-right break-words leading-tight line-clamp-2 text-xs">
+                  {product.material || '—'}
+                </span>
+              </div>
+              
+              {/* Capacity Row - Fixed Height */}
+              <div className="grid grid-cols-2 h-7">
+                <span className="text-left flex items-start">Capacity:</span>
+                <span className="font-semibold text-slate-900 text-right break-words leading-tight line-clamp-2 text-xs">
+                  {typeof product.specifications === 'object' && product.specifications !== null && 'loadCapacity' in product.specifications 
+                    ? (product.specifications as any).loadCapacity 
+                    : '—'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Compatible Products (if enabled) - Fixed Height */}
           {showCompatibility && product.compatible_with && product.compatible_with.length > 0 && (
-            <div className="mb-4 p-2 bg-blue-100 border border-blue-300 rounded text-xs text-blue-800">
-              <span className="font-medium text-blue-900">Compatible with:</span>
-              <span className="text-blue-800 ml-1">
-                {product.compatible_with.length} product{product.compatible_with.length !== 1 ? 's' : ''}
-              </span>
+            <div className="h-8 mb-4">
+              <div className="p-2 bg-blue-100 border border-blue-300 rounded text-xs text-blue-800">
+                <span className="font-medium text-blue-900">Compatible with:</span>
+                <span className="text-blue-800 ml-1">
+                  {product.compatible_with.length} product{product.compatible_with.length !== 1 ? 's' : ''}
+                </span>
+              </div>
             </div>
           )}
         </div>
 
         {/* Bottom Content - Fixed Position */}
         <div className="mt-auto">
-          {/* Price and Lead Time */}
-          <div className="flex items-center justify-between mb-2">
+          {/* Price and Lead Time - Fixed Height */}
+          <div className="flex items-center justify-between mb-2 h-6">
             <div className="text-lg font-bold text-blue-700">
               {formatPrice(product.price)}
             </div>
@@ -159,15 +174,15 @@ const CATEGORY_STYLES: Record<
             )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2">
+          {/* Action Buttons - Fixed Height */}
+          <div className="flex gap-2 h-10">
             <Link
               href={`/catalog/${product.id}`}
-              className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded-lg text-sm font-medium border border-blue-600 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-all"
+              className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded-lg text-sm font-medium border border-blue-600 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-all flex items-center justify-center"
             >
               View Details
             </Link>
-            <button className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-all">
+            <button className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-all flex items-center justify-center">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>

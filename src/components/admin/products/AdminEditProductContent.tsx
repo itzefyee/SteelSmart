@@ -11,7 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Save, X, Upload } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
-import { useUpdateAdminProduct } from '@/hooks/admin/useAdminProducts';
+import { useAdminProduct, useUpdateAdminProduct, useAdminProducts } from '@/hooks/admin/useAdminProducts';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface Product {
   id: string;
@@ -33,16 +34,36 @@ interface AdminEditProductContentProps {
 export function AdminEditProductContent({ productId }: AdminEditProductContentProps) {
   const router = useRouter();
   const { addToast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
-  const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(true);
   const [componentTaxonomies, setComponentTaxonomies] = useState<ComponentTaxonomy[]>([]);
   const [materialFamilies, setMaterialFamilies] = useState<string[]>([]);
   const [loadingTaxonomies, setLoadingTaxonomies] = useState(true);
 
+  // Use React Query hook for product data - always fetch fresh data for editing
+  const { data: product, isLoading, error, refetch } = useAdminProduct(productId, { 
+    refetchOnMount: true,
+    staleTime: 0 // Always fetch fresh data for editing
+  });
+
+  // Use React Query hook for available products
+  const { data: availableProductsData, isLoading: isLoadingProducts } = useAdminProducts();
+  const availableProducts = availableProductsData || [];
+  
   // React Query mutation for updating products
   const updateProductMutation = useUpdateAdminProduct();
+
+  // Clear cache and force fresh fetch when component mounts
+  useEffect(() => {
+    // Clear any existing cache for this product
+    queryClient.removeQueries({ queryKey: ['admin', 'products', 'detail', productId] });
+    // Force immediate refetch after a small delay
+    const timeoutId = setTimeout(() => {
+      refetch();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [productId, queryClient, refetch]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -77,31 +98,61 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
     message: ''
   });
 
+  // Initialize form data when BOTH product data AND dropdown data are available
   useEffect(() => {
-    if (productId) {
-      loadProduct();
+    console.log('Form initialization check:', {
+      hasProduct: !!product,
+      loadingTaxonomies,
+      componentTaxonomiesCount: componentTaxonomies.length,
+      materialFamiliesCount: materialFamilies.length,
+      productMaterialFamily: product ? (product as any).material_family : 'no product',
+      productComponentTypeId: product ? (product as any).component_type_id : 'no product'
+    });
+
+    if (product && !loadingTaxonomies && componentTaxonomies.length > 0 && materialFamilies.length > 0) {
+      console.log('Initializing form with complete data...');
+      const specs =
+        typeof (product as any).specifications === 'object' && (product as any).specifications !== null
+          ? (product as any).specifications
+          : {};
+
+      const newFormData = {
+        name: product.name,
+        sku: (product as any).sku || '',
+        category: product.category || '',
+        description: product.description || '',
+        material: (product as any).material || '',
+        material_family: (product as any).material_family ? (product as any).material_family : 'none',
+        component_type_id: (product as any).component_type_id ? (product as any).component_type_id : 'none',
+        price: (product as any).price ? parseFloat((product as any).price).toFixed(2) : '',
+        in_stock: (product as any).in_stock !== false,
+        lead_time: (product as any).lead_time || '',
+        technical_details: (product as any).technical_details || '',
+        compatible_with: (product as any).compatible_with || [],
+        images: (product as any).images || [],
+        imageFiles: [],
+        imagePreviewUrls: [],
+        specifications: {
+          dimensions: specs.dimensions || '',
+          weight: specs.weight || '',
+          tolerance: specs.tolerance || '',
+          loadCapacity: specs.loadCapacity || '',
+          operatingTemp: specs.operatingTemp || '',
+        },
+      };
+
+      console.log('Form data being set:', {
+        material_family: newFormData.material_family,
+        component_type_id: newFormData.component_type_id,
+        category: newFormData.category
+      });
+
+      setFormData(newFormData);
+      
+      // Store original SKU for folder renaming
+      setOriginalSku((product as any).sku || '');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
-
-  // Fetch available products for compatibility selection
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await fetch('/api/admin/products?limit=100');
-        if (response.ok) {
-          const data = await response.json();
-          setAvailableProducts(data.data || []);
-        }
-      } catch (error) {
-        console.error('Failed to fetch products:', error);
-      } finally {
-        setLoadingProducts(false);
-      }
-    };
-
-    fetchProducts();
-  }, []);
+  }, [product, loadingTaxonomies, componentTaxonomies, materialFamilies]);
 
   // Fetch component taxonomies and material families
   useEffect(() => {
@@ -130,57 +181,6 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
 
     fetchTaxonomiesAndMaterials();
   }, []);
-
-  const loadProduct = async () => {
-    try {
-      const response = await fetch(`/api/admin/products/${productId}`);
-      const data = await response.json();
-
-      if (data.data) {
-        const product: Product = data.data;
-        const specs =
-          typeof (product as any).specifications === 'object' && (product as any).specifications !== null
-            ? ((product as any).specifications as Record<string, any>)
-            : {};
-
-        setFormData({
-          name: product.name,
-          sku: (product as any).sku || '',
-          category: product.category || '',
-          material: (product as any).material || '',
-          material_family: (product as any).material_family || 'none',
-          component_type_id: (product as any).component_type_id || 'none',
-          price: (product as any).price?.toString() || '',
-          description: (product as any).description || '',
-          technical_details: (product as any).technical_details || '',
-          lead_time: (product as any).lead_time || '',
-          in_stock: (product as any).in_stock !== false,
-          images: (product as any).images || [],
-          imageFiles: [],
-          imagePreviewUrls: [],
-          compatible_with: (product as any).compatible_with || [],
-          specifications: {
-            dimensions: specs.dimensions || '',
-            weight: specs.weight || '',
-            tolerance: specs.tolerance || '',
-            loadCapacity: specs.loadCapacity || '',
-            operatingTemp: specs.operatingTemp || '',
-          },
-        });
-        
-        // Store original SKU for folder renaming
-        setOriginalSku((product as any).sku || '');
-      }
-    } catch (error) {
-      addToast({
-        title: 'Error',
-        description: 'Failed to load product',
-        type: 'error',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const checkSkuAvailability = async (sku: string) => {
     if (!sku.trim()) {
@@ -416,7 +416,13 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
     }
   };
 
-  if (loading) {
+  // At the top of the render, check current state
+  if (!product && !isLoading) {
+    // Product not found after loading
+  }
+
+  // Show error state if there's an error
+  if (error) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -429,29 +435,52 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
         </div>
         <Card>
           <CardContent className="p-8 text-center">
-            <div className="text-muted-foreground">Loading product...</div>
+            <div className="text-muted-foreground">Failed to load product</div>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  // Show not found state if no product and not loading
+  if (!isLoading && !product) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href="/admin/products">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </Link>
+        </div>
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="text-muted-foreground">Product not found</div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // At this point, product should be available (either from cache or fresh fetch)
+  // Removed loading screen - component will render with form data once product loads
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center gap-4">
         <Link href="/admin/products">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            Back to Products
           </Button>
         </Link>
-        <div>
+        <div className="mt-4">
           <h1 className="text-3xl font-bold tracking-tight">Edit Product</h1>
-          <p className="text-muted-foreground">Update product information</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-6">
             <Card>
@@ -509,8 +538,8 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
                 <div className="space-y-2">
                   <Label htmlFor="material_family">Material Family</Label>
                   <Select 
-                    value={formData.material_family || undefined} 
-                    onValueChange={(value) => handleInputChange('material_family', value)}
+                    value={formData.material_family && formData.material_family !== 'none' ? formData.material_family : undefined} 
+                    onValueChange={(value) => handleInputChange('material_family', value || 'none')}
                     disabled={loadingTaxonomies}
                   >
                     <SelectTrigger className={formData.material_family && formData.material_family !== 'none' ? 'bg-blue-50' : 'bg-white'}>
@@ -530,8 +559,8 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
                 <div className="space-y-2">
                   <Label htmlFor="component_type_id">Component Type</Label>
                   <Select 
-                    value={formData.component_type_id || undefined} 
-                    onValueChange={(value) => handleInputChange('component_type_id', value)}
+                    value={formData.component_type_id && formData.component_type_id !== 'none' ? formData.component_type_id : undefined} 
+                    onValueChange={(value) => handleInputChange('component_type_id', value || 'none')}
                     disabled={loadingTaxonomies}
                   >
                     <SelectTrigger className={formData.component_type_id && formData.component_type_id !== 'none' ? 'bg-blue-50' : 'bg-white'}>
@@ -539,7 +568,7 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
                         {formData.component_type_id && formData.component_type_id !== 'none' ? (
                           componentTaxonomies.find(t => t.id === formData.component_type_id)?.canonical_name || 'Select component type'
                         ) : (
-                          formData.component_type_id === 'none' ? 'None' : 'Select component type'
+                          'Select component type'
                         )}
                       </SelectValue>
                     </SelectTrigger>
@@ -583,6 +612,12 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
                       step="0.01"
                       value={formData.price}
                       onChange={(e) => handleInputChange('price', e.target.value)}
+                      onBlur={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value)) {
+                          handleInputChange('price', value.toFixed(2));
+                        }
+                      }}
                       placeholder="0.00"
                       className={formData.price ? 'bg-blue-50' : 'bg-white'}
                       required
@@ -885,27 +920,27 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
                   Choose products that are compatible with this product for recommendations.
                 </p>
                 
-                {loadingProducts ? (
+                {isLoadingProducts ? (
                   <div className="text-sm text-muted-foreground">Loading products...</div>
                 ) : (
                   <div className="space-y-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto border rounded-md p-3">
-                      {availableProducts.filter(p => p.id !== productId).map((product) => (
+                      {availableProducts.filter((p: any) => p.id !== productId).map((product: any) => (
                         <label
                           key={product.id}
                           className="flex items-center space-x-2 p-2 rounded hover:bg-muted cursor-pointer"
                         >
                           <input
                             type="checkbox"
-                            checked={formData.compatible_with.includes(product.id)}
+                            checked={formData.compatible_with.includes((product as any).sku)}
                             onChange={(e) => {
                               const isChecked = e.target.checked;
                               const currentCompatible = formData.compatible_with;
                               
                               if (isChecked) {
-                                handleInputChange('compatible_with', [...currentCompatible, product.id]);
+                                handleInputChange('compatible_with', [...currentCompatible, (product as any).sku]);
                               } else {
-                                handleInputChange('compatible_with', currentCompatible.filter(id => id !== product.id));
+                                handleInputChange('compatible_with', currentCompatible.filter(sku => sku !== (product as any).sku));
                               }
                             }}
                             className="rounded border-gray-300"
@@ -928,11 +963,13 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
                           Selected Products ({formData.compatible_with.length}):
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {formData.compatible_with.map((productId) => {
-                            const product = availableProducts.find(p => p.id === productId);
+                          {formData.compatible_with.map((productSku) => {
+                            // Search by SKU instead of ID since compatible_with contains SKUs
+                            const product = availableProducts.find((p: any) => p.sku === productSku);
+                            
                             return product ? (
                               <div
-                                key={productId}
+                                key={productSku}
                                 className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm"
                               >
                                 <span>{product.name}</span>
@@ -940,7 +977,7 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
                                   type="button"
                                   onClick={() => {
                                     handleInputChange('compatible_with', 
-                                      formData.compatible_with.filter(id => id !== productId)
+                                      formData.compatible_with.filter(sku => sku !== productSku)
                                     );
                                   }}
                                   className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
@@ -948,7 +985,11 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
                                   <X className="h-3 w-3" />
                                 </button>
                               </div>
-                            ) : null;
+                            ) : (
+                              <div key={productSku} className="text-xs text-red-500">
+                                Product not found: {productSku}
+                              </div>
+                            );
                           })}
                         </div>
                       </div>
