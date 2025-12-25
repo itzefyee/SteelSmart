@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/components/auth/AuthProvider';
 
 const Header: React.FC = () => {
@@ -15,7 +16,7 @@ const Header: React.FC = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <img src="/images/logo.svg" alt="SteelSmart" className="h-11 w-auto" />
+              <Image src="/images/logo.svg" alt="SteelSmart" width={120} height={44} className="h-11 w-auto" priority />
             </Link>
           </div>
 
@@ -77,10 +78,12 @@ const Header: React.FC = () => {
             
             {/* TARUMT Logo */}
             <div className="flex items-center ml-6 pl-6 border-l border-gray-200">
-              <img 
+              <Image 
                 src="/images/tarumt-logo-767.png" 
                 alt="TARUMT" 
-                className="h-8 w-auto opacity-100"
+                width={100}
+                height={32}
+                className="h-8 w-auto"
               />
             </div>
           </nav>
@@ -158,10 +161,12 @@ const Header: React.FC = () => {
               
               {/* TARUMT Logo - Mobile */}
               <div className="flex items-center justify-center px-4 py-4 border-t border-gray-100 mt-2">
-                <img 
+                <Image 
                   src="/images/tarumt-logo-767.png" 
                   alt="TARUMT" 
-                  className="h-6 w-auto opacity-100"
+                  width={75}
+                  height={24}
+                  className="h-6 w-auto"
                 />
               </div>
             </div>

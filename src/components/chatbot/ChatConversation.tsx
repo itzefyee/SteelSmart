@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Bot, ExternalLink, Loader2, Reply, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -215,7 +216,9 @@ const ChatConversation: React.FC<ChatConversationProps> = ({ history, onHistoryC
         <div className="flex gap-3 overflow-x-auto">
           {node.items.map((item) => (
             <div key={item.title} className="min-w-[200px] glass-card border border-slate-100 p-3">
-              <img src={item.image} alt={item.title} className="rounded-xl mb-2 h-28 w-full object-cover" />
+              <div className="relative h-28 w-full mb-2">
+                <Image src={item.image} alt={item.title} fill className="rounded-xl object-cover" sizes="200px" />
+              </div>
               <h4 className="text-sm font-semibold text-slate-800">{item.title}</h4>
               <p className="text-xs text-slate-500 mb-2">{item.description}</p>
               {item.action && (

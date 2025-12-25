@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import ProductCard from '@/components/products/ProductCard';
 import ProductRecommendations from '@/components/products/ProductRecommendations';
 import ProductImagePlaceholder from '@/components/products/ProductImagePlaceholder';
@@ -61,10 +62,12 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
                                     {/* Reduced aspect ratio for smaller main image */}
                                     <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100">
                                         {images[selectedImage] ? (
-                                            <img 
+                                            <Image 
                                                 src={images[selectedImage]} 
                                                 alt={`${product.name} - View ${selectedImage + 1}`}
-                                                className="w-full h-full object-contain"
+                                                fill
+                                                className="object-contain"
+                                                sizes="(max-width: 768px) 100vw, 50vw"
                                             />
                                         ) : (
                                             <ProductImagePlaceholder product={product} className="w-full h-full" />
@@ -117,12 +120,14 @@ const ProductDetailClient: React.FC<ProductDetailClientProps> = ({
                                             }`}
                                             onClick={() => setSelectedImage(index)}
                                         >
-                                            <div className="w-full h-full bg-gradient-to-br from-slate-50 to-slate-100">
+                                            <div className="relative w-full h-full bg-gradient-to-br from-slate-50 to-slate-100">
                                                 {image ? (
-                                                    <img 
+                                                    <Image 
                                                         src={image} 
                                                         alt={`Thumbnail ${index + 1}`}
-                                                        className="w-full h-full object-contain"
+                                                        fill
+                                                        className="object-contain"
+                                                        sizes="80px"
                                                     />
                                                 ) : (
                                                     <ProductImagePlaceholder product={product} className="w-full h-full" />

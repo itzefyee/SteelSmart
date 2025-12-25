@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const Footer: React.FC = () => {
   return (
@@ -9,7 +10,7 @@ const Footer: React.FC = () => {
           {/* Company Info */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <img src="/images/logo-white.svg" alt="SteelSmart" className="h-11 w-auto" />
+              <Image src="/images/logo-white.svg" alt="SteelSmart" width={120} height={44} className="h-11 w-auto" />
             </div>
             <p className="text-gray-400 text-sm">
               AI-powered marketplace for metal and steel parts, serving engineers and manufacturers worldwide.

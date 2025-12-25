@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import type { Product } from '@/lib/supabase';
 
 interface ProductImagePlaceholderProps {
@@ -127,11 +128,13 @@ const ProductImagePlaceholder: React.FC<ProductImagePlaceholderProps> = ({ produ
   if (product.images && product.images.length > 0) {
     const imageSrc = product.images[0];
     return (
-      <div className={`w-full h-full ${className}`}>
-        <img 
+      <div className={`relative w-full h-full ${className}`}>
+        <Image 
           src={imageSrc} 
           alt={product.name}
-          className="w-full h-full object-cover bg-white"
+          fill
+          className="object-cover bg-white"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           onError={(e) => {
             // If image fails to load, hide it and show fallback
             (e.target as HTMLImageElement).style.display = 'none';
