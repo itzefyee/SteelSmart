@@ -155,31 +155,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    console.log('🔓 Starting logout process...');
     try {
       // Set logging out state
       setIsLoggingOut(true);
       
-      // Clear local state immediately for instant UI feedback
+      // Sign out from Supabase and wait for completion
+      console.log('🔓 Calling Supabase signOut...');
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Supabase signOut error:', error);
+      } else {
+        console.log('🔓 Supabase signOut successful');
+      }
+      
+      // Clear local state immediately after Supabase signout
+      console.log('🔓 Clearing local auth state...');
       setUser(null);
       setProfile(null);
       setSession(null);
-      
-      // Sign out from Supabase
-      await supabase.auth.signOut();
-      
-      // Reset logging out state before redirect
       setIsLoggingOut(false);
       
-      // Force a page refresh to ensure middleware runs with cleared auth state
-      window.location.href = '/';
+      // Force a complete page reload to ensure clean state
+      // This prevents any race conditions with middleware
+      console.log('🔓 Redirecting to homepage...');
+      window.location.replace('/');
     } catch (error) {
       console.error('SignOut error:', error);
       // Still clear local state and redirect even if there's an error
       setUser(null);
       setProfile(null);
       setSession(null);
-      setIsLoggingOut(false); // Reset loading state
-      window.location.href = '/';
+      setIsLoggingOut(false);
+      
+      // Force redirect even on error
+      window.location.replace('/');
     }
   };
 

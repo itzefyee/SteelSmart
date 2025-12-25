@@ -46,9 +46,7 @@ class ReportGeneratorService {
       } else if (reportType === 'RFQ_REPORT') {
         fileUrl = await this.generateRFQReport(reportId, report);
       } else {
-        // Legacy report types - simulate generation
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        fileUrl = `legacy/${reportId}.pdf`;
+        throw new Error(`Unsupported report type: ${reportType}`);
       }
 
       // Only update to completed if we successfully got a file URL

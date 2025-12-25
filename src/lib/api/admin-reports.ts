@@ -2,7 +2,7 @@ import type { Report, ReportStatistics } from '@/types';
 
 export interface ReportGenerateParams {
   title: string;
-  report_type: 'MONTHLY_MOST_QUOTED' | 'PRODUCT_ANALYTICS' | 'USER_ACTIVITY' | 'CUSTOM' | 'AUDIT_LOG' | 'RFQ_REPORT';
+  report_type: 'AUDIT_LOG' | 'RFQ_REPORT';
   parameters?: Record<string, any>;
 }
 
@@ -105,29 +105,6 @@ export async function retryReport(reportId: string): Promise<ApiResponse<void>> 
     }
     
     return { data: undefined };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Unknown error' };
-  }
-}
-
-export async function createMonthlyMostQuotedReport(
-  month: number,
-  year: number
-): Promise<ApiResponse<{ reportId: string }>> {
-  try {
-    const response = await fetch('/api/admin/reports/monthly-most-quoted', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ month, year }),
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      return { error: error.error || 'Failed to create monthly report' };
-    }
-    
-    const data = await response.json();
-    return { data: { reportId: data.data.reportId } };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Unknown error' };
   }

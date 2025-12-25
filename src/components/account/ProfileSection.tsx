@@ -60,8 +60,8 @@ export default function ProfileSection({ profile, onUpdate }: ProfileSectionProp
     setIsLoggingOut(true);
     try {
       await signOut();
-      // Let the AuthProvider handle the redirect via onAuthStateChange
-      // No need for manual redirect as middleware will handle it
+      // AuthProvider handles the redirect, no need to reset loading state
+      // as the page will be replaced
     } catch (error) {
       console.error('Logout error:', error);
       setIsLoggingOut(false);

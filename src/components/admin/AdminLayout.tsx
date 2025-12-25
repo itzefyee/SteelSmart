@@ -87,13 +87,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             onClick={async () => {
               setIsLoggingOut(true);
               try {
-                // Perform logout - let AuthProvider handle redirect
+                // Perform logout - AuthProvider handles redirect
                 await signOut();
                 
                 // Log audit in background (non-blocking)
                 AuditClient.logAuth('LOGOUT').catch(error => {
                   console.warn('Audit logging failed (non-critical):', error);
                 });
+                // No need to reset loading state as page will be replaced
               } catch (error) {
                 console.error('Logout error:', error);
                 setIsLoggingOut(false);

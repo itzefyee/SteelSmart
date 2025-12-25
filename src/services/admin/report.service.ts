@@ -205,17 +205,4 @@ export class ReportService {
   async getStatistics() {
     return this.repository.getStatistics();
   }
-
-  async createMonthlyMostQuotedReport(month: number, year: number): Promise<string> {
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-
-    return this.createAndGenerate({
-      title: `Monthly Most Quoted Products - ${monthNames[month - 1]} ${year}`,
-      report_type: 'MONTHLY_MOST_QUOTED',
-      parameters: { month, year },
-    });
-  }
 }
