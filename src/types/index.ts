@@ -200,7 +200,7 @@ export interface Report {
   id: string;
   title: string;
   description?: string;
-  report_type: 'MONTHLY_MOST_QUOTED' | 'PRODUCT_ANALYTICS' | 'USER_ACTIVITY' | 'CUSTOM' | 'AUDIT_LOG';
+  report_type: 'MONTHLY_MOST_QUOTED' | 'PRODUCT_ANALYTICS' | 'USER_ACTIVITY' | 'CUSTOM' | 'AUDIT_LOG' | 'RFQ_REPORT';
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   parameters?: Record<string, any>;
   file_url?: string;

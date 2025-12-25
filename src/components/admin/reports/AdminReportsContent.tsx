@@ -106,6 +106,8 @@ export default function AdminReportsContent() {
     switch (type) {
       case 'AUDIT_LOG':
         return 'default';
+      case 'RFQ_REPORT':
+        return 'success';
       default:
         return 'outline';
     }

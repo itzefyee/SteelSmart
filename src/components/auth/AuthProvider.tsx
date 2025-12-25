@@ -71,6 +71,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       setUser(user);
       
+      // Reset logging out state on initial load
+      setIsLoggingOut(false);
+      
       // Fetch profile if user is authenticated
       if (user) {
         const userProfile = await fetchProfile(user.id);
@@ -80,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }).catch((error) => {
       console.error('Error getting user:', error);
+      setIsLoggingOut(false); // Reset on error too
       setLoading(false);
     });
 
@@ -88,6 +92,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
+      
+      // Reset logging out state on any auth change
+      setIsLoggingOut(false);
       
       // For SIGNED_IN event, verify user with getUser()
       if (event === 'SIGNED_IN' && session) {
@@ -160,6 +167,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Sign out from Supabase
       await supabase.auth.signOut();
       
+      // Reset logging out state before redirect
+      setIsLoggingOut(false);
+      
       // Force a page refresh to ensure middleware runs with cleared auth state
       window.location.href = '/';
     } catch (error) {
@@ -168,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setProfile(null);
       setSession(null);
+      setIsLoggingOut(false); // Reset loading state
       window.location.href = '/';
     }
   };

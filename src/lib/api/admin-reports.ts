@@ -2,7 +2,7 @@ import type { Report, ReportStatistics } from '@/types';
 
 export interface ReportGenerateParams {
   title: string;
-  report_type: 'MONTHLY_MOST_QUOTED' | 'PRODUCT_ANALYTICS' | 'USER_ACTIVITY' | 'CUSTOM';
+  report_type: 'MONTHLY_MOST_QUOTED' | 'PRODUCT_ANALYTICS' | 'USER_ACTIVITY' | 'CUSTOM' | 'AUDIT_LOG' | 'RFQ_REPORT';
   parameters?: Record<string, any>;
 }
 
