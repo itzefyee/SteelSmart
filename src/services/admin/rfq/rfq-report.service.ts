@@ -26,11 +26,22 @@ interface RFQReportData {
 }
 
 export class RFQReportService {
-  static async generateRFQReport(period: string): Promise<RFQReportData> {
+  static async generateRFQReport(month: number, year: number): Promise<RFQReportData> {
     const supabase = await getSupabaseServer();
     
     try {
-      // Fetch all RFQ items from database
+      // Create date range for the specified month/year
+      const startDate = new Date(year, month - 1, 1); // month is 0-indexed in Date constructor
+      const endDate = new Date(year, month, 0); // Last day of the month
+      
+      // Format period string for display
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const period = `${monthNames[month - 1]} ${year}`;
+      
+      // Fetch RFQ items from database for the specified month/year
       const { data: rfqItems, error } = await supabase
         .from('rfq_submissions')
         .select(`
@@ -45,6 +56,8 @@ export class RFQReportService {
           status,
           created_at
         `)
+        .gte('created_at', startDate.toISOString())
+        .lt('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
 
       if (error) {

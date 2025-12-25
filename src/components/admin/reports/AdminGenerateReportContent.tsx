@@ -19,7 +19,6 @@ interface GenerateReportFormData {
   description: string;
   month: number;
   year: number;
-  period: string; // For RFQ reports
 }
 
 const months = [
@@ -52,7 +51,6 @@ export default function AdminGenerateReportContent() {
     description: '',
     month: now.getMonth() + 1,
     year: now.getFullYear(),
-    period: 'Q4 2024', // Default period for RFQ reports
   });
 
   // Safe toast function
@@ -112,9 +110,7 @@ export default function AdminGenerateReportContent() {
           title: formData.reportName,
           description: formData.description,
           report_type: formData.reportType,
-          parameters: formData.reportType === 'AUDIT_LOG' 
-            ? { month: formData.month, year: formData.year }
-            : { period: formData.period },
+          parameters: { month: formData.month, year: formData.year },
         }),
       });
 
@@ -247,76 +243,55 @@ export default function AdminGenerateReportContent() {
           </CardContent>
         </Card>
 
-        {/* Date/Period Selection */}
+        {/* Date Selection */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-primary" />
-              {formData.reportType === 'AUDIT_LOG' ? 'Report Month' : 'Report Period'}
+              Report Month
             </CardTitle>
-            <CardDescription>
-              {formData.reportType === 'AUDIT_LOG' 
-                ? 'Select the month and year for the report data'
-                : 'Specify the period for RFQ performance analysis'
-              }
-            </CardDescription>
+            <CardDescription>Select the month and year for the report data</CardDescription>
           </CardHeader>
           <CardContent>
-            {formData.reportType === 'AUDIT_LOG' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Month *</Label>
-                  <Select
-                    value={formData.month.toString()}
-                    onValueChange={(value) => setFormData({ ...formData, month: parseInt(value) })}
-                  >
-                    <SelectTrigger className={formData.month ? 'bg-blue-50' : ''}>
-                      <SelectValue placeholder="Select month" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      {months.map((month) => (
-                        <SelectItem key={month.value} value={month.value.toString()}>
-                          {month.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Year *</Label>
-                  <Select
-                    value={formData.year.toString()}
-                    onValueChange={(value) => setFormData({ ...formData, year: parseInt(value) })}
-                  >
-                    <SelectTrigger className={formData.year ? 'bg-blue-50' : ''}>
-                      <SelectValue placeholder="Select year" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      {years.map((year) => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="period">Period *</Label>
-                <Input
-                  id="period"
-                  placeholder="e.g., Q4 2024, December 2024, 2024 Annual"
-                  value={formData.period}
-                  onChange={(e) => setFormData({ ...formData, period: e.target.value })}
-                  className={formData.period ? 'bg-blue-50' : ''}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Enter a descriptive period (e.g., "Q4 2024", "December 2024", "2024 Annual")
-                </p>
+                <Label>Month *</Label>
+                <Select
+                  value={formData.month.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, month: parseInt(value) })}
+                >
+                  <SelectTrigger className={formData.month ? 'bg-blue-50' : ''}>
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value.toString()}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
+
+              <div className="space-y-2">
+                <Label>Year *</Label>
+                <Select
+                  value={formData.year.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, year: parseInt(value) })}
+                >
+                  <SelectTrigger className={formData.year ? 'bg-blue-50' : ''}>
+                    <SelectValue placeholder="Select year" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

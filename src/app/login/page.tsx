@@ -35,63 +35,9 @@ export default function LoginPage() {
       // Audit log: Login success
       await logLoginSuccess();
 
-      // Wait for auth state to update and get user profile
-      let attempts = 0;
-      const maxAttempts = 20; // Increased attempts
-      
-      const checkProfileAndRedirect = async () => {
-        attempts++;
-        
-        try {
-          const { getSupabaseClient } = await import('@/lib/supabase');
-          const supabase = getSupabaseClient();
-          
-          const { data: { user } } = await supabase.auth.getUser();
-          
-          if (user) {
-            const { data: profile, error: profileError } = await supabase
-              .from('profiles')
-              .select('Role')
-              .eq('id', user.id)
-              .single();
-            
-            if (!profileError && profile) {
-              // Check if user is admin first - admins always go to /admin
-              if (profile.Role?.toLowerCase() === 'admin') {
-                window.location.href = '/admin';
-                return;
-              }
-              
-              // For non-admin users, check for redirect parameter
-              const urlParams = new URLSearchParams(window.location.search);
-              const redirectTo = urlParams.get('redirectTo');
-              
-              if (redirectTo) {
-                // If there's a specific redirect for non-admin users, use it
-                router.push(redirectTo);
-              } else {
-                // Default redirect for non-admin users
-                window.location.href = '/';
-              }
-              return;
-            }
-          }
-        } catch (err) {
-          console.warn('Error checking profile:', err);
-        }
-        
-        // If we haven't succeeded and haven't hit max attempts, try again
-        if (attempts < maxAttempts) {
-          setTimeout(checkProfileAndRedirect, 250);
-        } else {
-          // Fallback: redirect to home after max attempts
-          console.warn('Could not determine user role, redirecting to home');
-          window.location.href = '/';
-        }
-      };
-      
-      // Start checking after a brief delay to let auth state settle
-      setTimeout(checkProfileAndRedirect, 100);
+      // Let the middleware handle the redirect by forcing a page refresh
+      // The middleware will automatically redirect based on user role and redirectTo parameter
+      window.location.href = window.location.href;
       
     } catch (err) {
       setError('An unexpected error occurred');

@@ -134,6 +134,7 @@ export async function proxy(req: NextRequest) {
     '/account',
     '/cad-generator',
     '/cad-analyzer',
+    '/product-recommender',
     '/rfq',
     '/reports',
   ];

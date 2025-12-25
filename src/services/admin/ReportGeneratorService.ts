@@ -126,11 +126,11 @@ class ReportGeneratorService {
   }
 
   private async generateRFQReport(reportId: string, report: any): Promise<string> {
-    const { period } = report.parameters as { period: string };
+    const { month, year } = report.parameters as { month: number; year: number };
 
     try {
       // Generate RFQ report data
-      const reportData = await RFQReportService.generateRFQReport(period);
+      const reportData = await RFQReportService.generateRFQReport(month, year);
 
       // Generate PDF content
       const reportBuffer = await RFQReportService.generateRFQReportPDF(reportData);
