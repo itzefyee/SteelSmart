@@ -17,9 +17,11 @@ export interface CADGenerationRequest {
  */
 export interface CADGenerationResult {
   id: string;
-  status: 'completed' | 'failed';
-  model_data: string; // base64 encoded
-  parameters: Record<string, any>;
+  status: 'completed' | 'failed' | 'processing';
+  model_data?: string; // base64 encoded
+  preview_image?: string;
+  parameters?: Record<string, any>;
+  error?: string;
 }
 
 /**

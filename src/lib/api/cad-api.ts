@@ -80,6 +80,22 @@ export interface CADHistoryResponse {
   error?: string;
 }
 
+export interface CADGenerationRequest {
+  description: string;
+  category?: string;
+  format?: string;
+  units?: string;
+}
+
+export interface CADGenerationResult {
+  id: string;
+  status: 'completed' | 'failed' | 'processing';
+  model_data?: string;
+  preview_image?: string;
+  parameters?: Record<string, any>;
+  error?: string;
+}
+
 /**
  * CAD Analysis API Client
  * 
@@ -237,9 +253,14 @@ export class CADAPI {
    * 
    * @param request - CAD generation request with description and parameters
    * @returns CAD generation result with model data
-   * @throws Error if generation fails
+   * @throws Error if generation fails or description is empty
    */
-  static async generateCAD(request: any): Promise<any> {
+  static async generateCAD(request: CADGenerationRequest): Promise<CADGenerationResult> {
+    // Validate description before making API call
+    if (!request.description || request.description.trim().length === 0) {
+      throw new Error('Description is required for CAD generation');
+    }
+    
     const response = await fetch('/api/generate-cad', {
       method: 'POST',
       headers: {

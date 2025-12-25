@@ -112,6 +112,7 @@ export async function proxy(req: NextRequest) {
     '/api/products',
     '/api/categories',
     '/api/webhooks',
+    '/api/recommendations',
   ];
 
   const isPublicApiRoute = publicApiRoutes.some((route) =>
