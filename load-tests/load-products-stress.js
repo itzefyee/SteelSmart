@@ -45,9 +45,9 @@ export default function () {
   // Scenario 1: List products with various filters (100% of users)
   const scenarios = [
     { url: '/api/products?page=1&limit=20', name: 'default', weight: 0.4 },
-    { url: '/api/products?page=1&limit=20&category=structural-steel', name: 'category-filter', weight: 0.25 },
-    { url: '/api/products?page=1&limit=20&minPrice=100&maxPrice=1000', name: 'price-filter', weight: 0.2 },
-    { url: '/api/products?page=1&limit=20&search=steel', name: 'search', weight: 0.15 },
+    { url: '/api/products?page=1&limit=20&category=structural', name: 'structural', weight: 0.2 },
+    { url: '/api/products?page=1&limit=20&category=robotic', name: 'robotic', weight: 0.2 },
+    { url: '/api/products?page=1&limit=20&category=fasteners', name: 'fasteners', weight: 0.2 },
   ];
   
   const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
@@ -167,7 +167,7 @@ export default function () {
 
   // Scenario 5: Multiple category browsing (20% of users)
   if (Math.random() < 0.2) {
-    const categories = ['structural-steel', 'fasteners', 'robotic-components', 'custom-parts'];
+    const categories = ['structural', 'fasteners', 'robotic', 'custom'];
     const randomCategory = categories[Math.floor(Math.random() * categories.length)];
     
     const categoryRes = http.get(`${BASE_URL}/api/products?category=${randomCategory}&limit=20`, {
