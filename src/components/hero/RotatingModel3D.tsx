@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
+import React, { useState, useEffect, useCallback } from 'react';
 
 interface RotatingModel3DProps {
   modelName?: string;
@@ -13,49 +12,51 @@ interface RotatingModel3DProps {
 // Module-level cache for preloaded images
 interface ImageCacheEntry {
   frameSources: string[];
-  imagesLoaded: boolean;
+  minFramesLoaded: boolean;
 }
 
 const imageCache = new Map<string, ImageCacheEntry>();
 
+// Minimum frames needed to start animation (progressive loading)
+const MIN_FRAMES_TO_START = 8;
+
 const RotatingModel3D: React.FC<RotatingModel3DProps> = ({
   modelName = 'brake-rotor',
   totalFrames = 36,
-  frameRate = 33, // milliseconds per frame
+  frameRate = 33,
   useSupabase = false,
 }) => {
   const [currentFrame, setCurrentFrame] = useState(0);
-  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [canAnimate, setCanAnimate] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(0);
   const [frameSources, setFrameSources] = useState<string[]>([]);
   const [isHovered, setIsHovered] = useState(false);
 
   // Base path for images (PNG sequence)
-  const getImagePath = (frameIndex: number) => {
+  const getImagePath = useCallback((frameIndex: number) => {
     const frameNumber = frameIndex.toString().padStart(3, '0');
     if (useSupabase) {
-      // Supabase storage URL
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       return `${supabaseUrl}/storage/v1/object/public/model-frames/${modelName}/${modelName}-${frameNumber}.png`;
     }
     return `/model-frames/${modelName}/${modelName}-${frameNumber}.png`;
-  };
+  }, [modelName, useSupabase]);
 
-  // Preload all images for smooth animation with caching
+  // Progressive image loading - prioritize first frames, then load rest in background
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Create cache key based on model configuration
     const cacheKey = `${modelName}-${totalFrames}-${useSupabase}`;
-    
-    // Check cache first - if images were already loaded, use cached data immediately
     const cached = imageCache.get(cacheKey);
-    if (cached && cached.imagesLoaded) {
+    
+    // Use cached data if available
+    if (cached && cached.minFramesLoaded) {
       setFrameSources(cached.frameSources);
-      setImagesLoaded(true);
+      setCanAnimate(true);
+      setLoadProgress(100);
       return;
     }
 
-    // If not fully cached, load images
     const sources = Array.from({ length: totalFrames }, (_, i) => getImagePath(i));
     setFrameSources(sources);
 
@@ -63,58 +64,92 @@ const RotatingModel3D: React.FC<RotatingModel3DProps> = ({
     if (!cached) {
       imageCache.set(cacheKey, {
         frameSources: sources,
-        imagesLoaded: false,
+        minFramesLoaded: false,
       });
     }
 
-    let loadedCount = 0;
     let cancelled = false;
+    let loadedCount = 0;
 
-    // Load all images in parallel (browser cache will handle actual caching)
-    sources.forEach((src) => {
-      const img = new window.Image();
-      img.src = src;
-      img.onload = () => {
-        loadedCount++;
-        if (!cancelled && loadedCount === sources.length) {
-          // Update cache when all images are loaded
-          const cacheEntry = imageCache.get(cacheKey);
-          if (cacheEntry) {
-            cacheEntry.imagesLoaded = true;
-          }
-          setImagesLoaded(true);
+    // Priority order: load evenly distributed frames first for smooth initial animation
+    const priorityFrames = Array.from({ length: MIN_FRAMES_TO_START }, (_, i) => 
+      Math.floor(i * totalFrames / MIN_FRAMES_TO_START)
+    );
+    const remainingFrames = Array.from({ length: totalFrames }, (_, i) => i)
+      .filter(i => !priorityFrames.includes(i));
+
+    const loadImage = (frameIndex: number): Promise<void> => {
+      return new Promise((resolve) => {
+        if (cancelled) {
+          resolve();
+          return;
         }
-      };
-      img.onerror = () => {
-        loadedCount++;
-        if (!cancelled && loadedCount === sources.length) {
-          // Even if some images fail, mark as loaded to prevent infinite loading
-          const cacheEntry = imageCache.get(cacheKey);
-          if (cacheEntry) {
-            cacheEntry.imagesLoaded = true;
+
+        const img = new window.Image();
+        
+        img.onload = () => {
+          if (!cancelled) {
+            loadedCount++;
+            setLoadProgress(Math.round((loadedCount / totalFrames) * 100));
+
+            // Start animation once minimum frames are loaded
+            if (loadedCount >= MIN_FRAMES_TO_START) {
+              const cacheEntry = imageCache.get(cacheKey);
+              if (cacheEntry) {
+                cacheEntry.minFramesLoaded = true;
+              }
+              setCanAnimate(true);
+            }
           }
-          setImagesLoaded(true);
-        }
-      };
-    });
+          resolve();
+        };
+
+        img.onerror = () => {
+          loadedCount++;
+          setLoadProgress(Math.round((loadedCount / totalFrames) * 100));
+          if (loadedCount >= MIN_FRAMES_TO_START) {
+            setCanAnimate(true);
+          }
+          resolve();
+        };
+
+        img.src = sources[frameIndex];
+      });
+    };
+
+    // Load priority frames first (in parallel), then remaining frames
+    const loadAllImages = async () => {
+      // Load priority frames in parallel
+      await Promise.all(priorityFrames.map(loadImage));
+      
+      // Load remaining frames in batches to avoid overwhelming the browser
+      const batchSize = 4;
+      for (let i = 0; i < remainingFrames.length; i += batchSize) {
+        if (cancelled) break;
+        const batch = remainingFrames.slice(i, i + batchSize);
+        await Promise.all(batch.map(loadImage));
+      }
+    };
+
+    loadAllImages();
 
     return () => {
       cancelled = true;
     };
-  }, [totalFrames, modelName, useSupabase]);
+  }, [totalFrames, modelName, useSupabase, getImagePath]);
 
   // Rotate through frames with hover acceleration
-  const currentFrameRate = isHovered ? frameRate * 0.6 : frameRate; // 2.5x faster on hover
+  const currentFrameRate = isHovered ? frameRate * 0.6 : frameRate;
 
   useEffect(() => {
-    if (!imagesLoaded) return;
+    if (!canAnimate) return;
 
     const interval = setInterval(() => {
       setCurrentFrame((prev) => (prev + 1) % totalFrames);
     }, currentFrameRate);
 
     return () => clearInterval(interval);
-  }, [imagesLoaded, totalFrames, currentFrameRate]);
+  }, [canAnimate, totalFrames, currentFrameRate]);
 
   return (
     <div 
@@ -124,40 +159,32 @@ const RotatingModel3D: React.FC<RotatingModel3DProps> = ({
       style={{ minHeight: '400px', maxHeight: '450px' }}
     >
       {/* Loading State */}
-      {!imagesLoaded && (
+      {!canAnimate && (
         <div className="relative z-10 flex flex-col items-center justify-center space-y-4">
           <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-          <p className="text-white font-medium text-sm">Loading 3D Model...</p>
+          <p className="text-white font-medium text-sm">Loading 3D Model... {loadProgress}%</p>
         </div>
       )}
 
-      {/* Render Current Frame */}
-      {imagesLoaded && frameSources.length > 0 && (
+      {/* Render Current Frame using img tag */}
+      {canAnimate && frameSources.length > 0 && (
         <div className="relative z-10 flex items-center justify-center w-full h-full">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={frameSources[currentFrame]}
             alt="Rotating brake rotor 3D model"
-            width={450}
-            height={450}
             className="drop-shadow-2xl object-contain"
-            style={{ width: '450px', height: '450px', maxWidth: '100%', maxHeight: '100%' }}
-            priority={currentFrame === 0}
-            unoptimized={useSupabase}
+            style={{ 
+              width: '450px', 
+              height: '450px', 
+              maxWidth: '100%', 
+              maxHeight: '100%'
+            }}
           />
         </div>
       )}
-
-      {/* Model Label
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl px-6 py-3 shadow-lg z-20">
-        <p className="text-sm font-mono text-gray-700">
-          A 320mm vented brake rotor with 5 M12 holes on 114.3mm PCD
-        </p>
-      </div> */}
-
     </div>
   );
 };
 
 export default RotatingModel3D;
-
-
