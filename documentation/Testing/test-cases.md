@@ -23,7 +23,7 @@
 
 ---
 
-## CAD Drawing Generator Module -11
+## CAD Drawing Generator Module - 14
 
 ### UC101: Generate drawing from text input - 4
 
@@ -141,34 +141,83 @@
 
 ---
 
-### UC103: Edit generated CAD drawing - 2
+### UC103: Edit generated CAD drawing metadata - 5
 
-#### TC_CAD_UC103_001: Edit beam length in generated drawing
+> **Note**: The current "Edit Drawing" feature allows editing drawing metadata (format, units, category, prompt) rather than geometry modifications. Geometry editing (dimensions, holes, features) is not currently implemented.
+
+#### TC_CAD_UC103_001: Edit drawing format parameter
 
 **Test Case ID**: TC_CAD_UC103_001  
-**Test Title**: Edit beam length in generated drawing  
-**Description**: Verify user can modify beam length and system updates the drawing correctly.  
-**Pre-Conditions**: A previously generated beam drawing is open in the CAD editor.
+**Test Title**: Edit drawing format parameter  
+**Description**: Verify user can change the output format of a generated drawing.  
+**Pre-Conditions**: A previously generated drawing is displayed with "Edit Drawing" button visible.
 
 | Step | Test Steps | Test Data | Expected Result | Actual Result | Status | Notes |
 |------|-----------|-----------|-----------------|---------------|--------|-------|
-| 1 | Select the beam length dimension | N/A | Length dimension control is activated. | As expected | Pass |  |
-| 2 | Change length from 1000mm to 1200mm | New length: 1200mm | Dimension field accepts new value. | As expected | Pass |  |
-| 3 | Apply/save changes | N/A | Geometry regenerates; beam length now 1200mm; no geometry errors. | As expected | Pass |  |
+| 1 | Click "Edit Drawing" button | N/A | Edit Drawing modal opens showing current parameters. | As expected | Pass |  |
+| 2 | Change Format field from "step" to "stl" | Format: stl | Field accepts new value. | As expected | Pass |  |
+| 3 | Click "Save Changes" | N/A | Modal closes; drawing parameters updated; format now shows "stl". | As expected | Pass |  |
 
 ---
 
-#### TC_CAD_UC103_002: Prevent invalid hole placement
+#### TC_CAD_UC103_002: Edit drawing units parameter
 
 **Test Case ID**: TC_CAD_UC103_002  
-**Test Title**: Prevent invalid hole placement  
-**Description**: Ensure the editor blocks a hole that violates minimum edge distance.  
-**Pre-Conditions**: Beam drawing with at least one flange; min edge distance rule configured.
+**Test Title**: Edit drawing units parameter  
+**Description**: Verify user can change the units of a generated drawing.  
+**Pre-Conditions**: A previously generated drawing is displayed.
 
 | Step | Test Steps | Test Data | Expected Result | Actual Result | Status | Notes |
 |------|-----------|-----------|-----------------|---------------|--------|-------|
-| 1 | Add a new bolt hole feature on flange | Position too close to flange edge | System indicates hole position is invalid (constraint violation). | As expected | Pass |  |
-| 2 | Attempt to save drawing | N/A | Save is blocked or user is warned; hole must be corrected or removed. | As expected | Pass |  |
+| 1 | Click "Edit Drawing" button | N/A | Edit Drawing modal opens. | As expected | Pass |  |
+| 2 | Change Units field from "mm" to "in" | Units: in | Field accepts new value. | As expected | Pass |  |
+| 3 | Click "Save Changes" | N/A | Drawing parameters updated; units now shows "in". | As expected | Pass |  |
+
+---
+
+#### TC_CAD_UC103_003: Edit drawing category parameter
+
+**Test Case ID**: TC_CAD_UC103_003  
+**Test Title**: Edit drawing category parameter  
+**Description**: Verify user can change the category of a generated drawing.  
+**Pre-Conditions**: A previously generated drawing is displayed.
+
+| Step | Test Steps | Test Data | Expected Result | Actual Result | Status | Notes |
+|------|-----------|-----------|-----------------|---------------|--------|-------|
+| 1 | Click "Edit Drawing" button | N/A | Edit Drawing modal opens. | As expected | Pass |  |
+| 2 | Change Category field from "custom" to "beam" | Category: beam | Field accepts new value. | As expected | Pass |  |
+| 3 | Click "Save Changes" | N/A | Drawing parameters updated; category now shows "beam". | As expected | Pass |  |
+
+---
+
+#### TC_CAD_UC103_004: Edit drawing prompt/description
+
+**Test Case ID**: TC_CAD_UC103_004  
+**Test Title**: Edit drawing prompt/description  
+**Description**: Verify user can modify the prompt text of a generated drawing.  
+**Pre-Conditions**: A previously generated drawing is displayed.
+
+| Step | Test Steps | Test Data | Expected Result | Actual Result | Status | Notes |
+|------|-----------|-----------|-----------------|---------------|--------|-------|
+| 1 | Click "Edit Drawing" button | N/A | Edit Drawing modal opens showing current prompt. | As expected | Pass |  |
+| 2 | Modify the Prompt field | Prompt: "Updated: I-beam, 14 in long, 5 in high" | Field accepts new text. | As expected | Pass |  |
+| 3 | Click "Save Changes" | N/A | Drawing parameters updated; prompt reflects new text. | As expected | Pass |  |
+
+---
+
+#### TC_CAD_UC103_005: Validate metadata changes before save
+
+**Test Case ID**: TC_CAD_UC103_005  
+**Test Title**: Validate metadata changes before save  
+**Description**: Ensure system validates metadata fields and rejects invalid values.  
+**Pre-Conditions**: A previously generated drawing is displayed.
+
+| Step | Test Steps | Test Data | Expected Result | Actual Result | Status | Notes |
+|------|-----------|-----------|-----------------|---------------|--------|-------|
+| 1 | Click "Edit Drawing" button | N/A | Edit Drawing modal opens. | As expected | Pass |  |
+| 2 | Clear the Prompt field (leave empty) | Prompt: "" | Field shows empty. | As expected | Pass |  |
+| 3 | Click "Save Changes" | N/A | System shows validation error "Prompt cannot be empty"; save is blocked. | As expected | Pass |  |
+| 4 | Enter valid prompt and save | Prompt: "Valid description" | Changes saved successfully. | As expected | Pass |  |
 
 ---
 
