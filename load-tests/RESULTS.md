@@ -12,7 +12,7 @@
 ## Smoke Test Results (10 Concurrent Users)
 
 ### Summary
-- **Duration**: 3 minutes
+- **Duration**: 3 minute
 - **Total Requests**: 1,016
 - **Requests/sec**: 5.6/s
 - **Iterations**: 526
