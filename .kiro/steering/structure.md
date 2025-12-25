@@ -21,65 +21,105 @@ src/
 │   │   ├── products/          # Product CRUD endpoints
 │   │   ├── recommendations/   # Product recommendations
 │   │   └── submit-rfq/        # RFQ submission
+│   ├── account/           # User account management
+│   ├── admin/             # Admin dashboard
 │   ├── cad-analyzer/      # CAD analysis page
 │   ├── cad-generator/     # CAD generation page
 │   ├── catalog/           # Product catalog with [id] dynamic routes
 │   ├── login/             # Authentication pages
 │   ├── signup/
+│   ├── product-recommender/ # AI product recommendations
 │   ├── rfq/              # Request for Quote
 │   ├── reports/          # User reports/history
-│   ├── account/          # User account management
 │   ├── providers.tsx     # React Query & context providers
 │   ├── layout.tsx        # Root layout with metadata
-│   ├── page.tsx          # Homepage
-│   └── globals.css       # Global styles + Tailwind
-├── components/           # React components
-│   ├── ui/              # Reusable UI primitives
-│   ├── auth/            # Authentication components
-│   ├── cad/             # CAD-related components
-│   ├── products/        # Product components
-│   ├── rfq/             # RFQ components
-│   └── layout/          # Layout components
-├── services/            # Business logic layer (NEW)
-│   ├── product.service.ts
+│   ├── page.tsx          # Homepage with 3D hero
+│   └── globals.css       # Global styles + Tailwind + Liquid Glass
+├── components/           # React components (organized by domain)
+│   ├── ui/              # Reusable UI primitives (Button, Input, Modal)
+│   ├── auth/            # Authentication components (AuthProvider)
+│   ├── account/         # Account page components (ProfileSection, CADHistorySection)
+│   ├── cad/             # CAD-related components (CADGenerator, CADAnalyzer, CADPreview3D)
+│   │   ├── analyzer/    # CAD analyzer sub-components
+│   │   └── generator/   # CAD generator sub-components
+│   ├── chatbot/         # AI chatbot components
+│   ├── hero/            # Homepage hero components (AnimatedTextPrompt, RotatingModel3D)
+│   ├── layout/          # Layout components (Header, Footer, Hero, CategoryShowcase)
+│   ├── performance/     # Performance monitoring components
+│   ├── products/        # Product components (ProductCard, ProductRecommender)
+│   │   └── recommender/ # Product recommender sub-components
+│   ├── reports/         # Reports components (ReportsManager)
+│   └── rfq/             # RFQ components (RFQForm, RFQTracking)
+├── services/            # Business logic layer
+│   ├── admin/           # Admin-specific services
+│   ├── auth.service.ts
 │   ├── cad-analysis.service.ts
 │   ├── cad-generation.service.ts
+│   ├── interaction-tracking.service.ts
+│   ├── pdf-generator.service.ts
+│   ├── product.service.ts
 │   ├── recommendation.service.ts
 │   ├── rfq.service.ts
 │   └── user.service.ts
-├── repositories/        # Data access layer (NEW)
-│   ├── product.repository.ts
-│   ├── technical-drawing.repository.ts
+├── repositories/        # Data access layer
+│   ├── admin/           # Admin-specific repositories
 │   ├── cad-history.repository.ts
+│   ├── product.repository.ts
 │   ├── rfq.repository.ts
+│   ├── technical-drawing.repository.ts
 │   └── user.repository.ts
-├── stores/              # Zustand state stores (NEW)
-│   ├── ui.store.ts
-│   └── cad.store.ts
+├── stores/              # Zustand state stores
+│   ├── cad.store.ts     # CAD preferences (format, units, recent prompts)
+│   ├── ui.store.ts      # UI state (theme, sidebar)
+│   └── index.ts
 ├── hooks/               # Custom React hooks (with React Query)
-│   ├── useProducts.ts
+│   ├── admin/           # Admin-specific hooks
 │   ├── useCADAnalysis.ts
 │   ├── useCADGeneration.ts
-│   └── useFileUpload.ts
+│   ├── useCADHistory.ts
+│   ├── useCategories.ts
+│   ├── useFileUpload.ts
+│   ├── useProducts.ts
+│   ├── useRecommendations.ts
+│   ├── useReports.ts
+│   ├── useRFQ.ts
+│   └── index.ts
 ├── lib/                 # Utility libraries & clients
 │   ├── api/            # Client-side API wrappers
-│   │   ├── product-api.ts
-│   │   └── cad-api.ts
 │   ├── cache/          # Redis caching utilities
-│   │   ├── redis-cache.ts
-│   │   └── cache-keys.ts
-│   ├── supabase.ts     # Client-side Supabase
-│   ├── supabase-server.ts  # Server-side Supabase
-│   ├── gemini-client.ts    # Google Gemini AI client
-│   ├── zoo-client.ts       # Zoo Dev API client
+│   ├── chatbot-flow/   # Chatbot flow logic
+│   ├── errors/         # Error handling utilities
+│   ├── performance/    # Performance monitoring
+│   ├── utils/          # General utilities
+│   ├── validation/     # Input validation
+│   ├── alternative-product-suggester.ts  # AI product alternatives
+│   ├── cad-manufacturing-analyzer.ts     # Manufacturing analysis
+│   ├── cad-parser.ts                     # CAD file parsing
+│   ├── compliance-checker.ts             # Standards compliance
+│   ├── gemini-client.ts                  # Google Gemini AI client
+│   ├── product-matcher.ts                # Product matching algorithm
+│   ├── standards-database.ts             # Manufacturing standards
+│   ├── supabase.ts                       # Client-side Supabase
+│   ├── supabase-server.ts                # Server-side Supabase
+│   ├── zoo-client.ts                     # Zoo Dev API client
 │   └── utils.ts
 ├── types/               # TypeScript type definitions
 │   └── index.ts
-├── data/                # Static JSON data (legacy)
-└── __tests__/           # Test files
-    ├── components/
+├── data/                # Static data files
+│   ├── products.json    # Product catalog data
+│   ├── categories.json  # Category definitions
+│   └── sample-data.ts   # ML prompt templates & sample data
+└── __tests__/           # Test files (organized by feature)
+    ├── admin-product/
+    ├── admin-report/
+    ├── analysis/
     ├── cad/
-    └── lib/
+    ├── components/
+    ├── lib/
+    ├── login-register/
+    ├── recommendations/
+    ├── rfq/
+    └── user-product/
 ```
 
 ## Key Conventions
@@ -190,7 +230,8 @@ export class ProductRepository {
 
 - `products.json`: Product catalog (20+ items)
 - `categories.json`: Category definitions
-- `sample-data.ts`: Mock data for development
+- `sample-data.ts`: ML prompt templates from Zoo Dev API & sample data
+- `sample-analysis-cache.ts`: Cached analysis results for demos
 
 ### Hooks (`src/hooks/`) - React Query Integration
 
@@ -344,13 +385,20 @@ export async function GET() {
 
 ```
 src/__tests__/
-├── components/        # Component tests
-│   └── ProductCard.test.tsx
+├── admin-product/     # Admin product management tests
+├── admin-report/      # Admin reporting tests
+├── analysis/          # CAD analysis tests
 ├── cad/              # CAD feature tests
 │   ├── cad-generator-uc101.test.ts
 │   ├── cad-generator-uc102.test.ts
 │   └── cad-generator-uc104.test.ts
-└── lib/              # Utility function tests
+├── components/        # Component tests
+│   └── ProductCard.test.tsx
+├── lib/              # Utility function tests
+├── login-register/   # Authentication tests
+├── recommendations/  # Product recommendation tests
+├── rfq/              # RFQ submission tests
+└── user-product/     # User product interaction tests
 ```
 
 **Testing Tools:**

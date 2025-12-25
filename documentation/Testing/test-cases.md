@@ -23,9 +23,9 @@
 
 ---
 
-## CAD Drawing Generator Module
+## CAD Drawing Generator Module -11
 
-### UC101: Generate drawing from text input
+### UC101: Generate drawing from text input - 4
 
 #### TC_CAD_UC101_001: Generate drawing from valid text description
 
@@ -94,7 +94,7 @@
 
 ---
 
-### UC102: Generate drawing from template
+### UC102: Generate drawing from template - 3
 
 #### TC_CAD_UC102_001: Generate drawing from standard template
 
@@ -141,7 +141,7 @@
 
 ---
 
-### UC103: Edit generated CAD drawing
+### UC103: Edit generated CAD drawing - 2
 
 #### TC_CAD_UC103_001: Edit beam length in generated drawing
 
@@ -172,7 +172,7 @@
 
 ---
 
-### UC104: Download CAD drawing
+### UC104: Download CAD drawing - 2
 
 #### TC_CAD_UC104_001: Download valid drawing as STEP
 
@@ -204,11 +204,11 @@
 
 ---
 
-## CAD Drawing Analyser Module
+## CAD Drawing Analyser Module - 6
 
-### UC201: Validate drawing manufacturability
+### UC201: Validate drawing manufacturability - 2
 
-#### TC_ANA_UC201_001: Manufacturability check passes for compliant drawing
+#### TC_ANA_UC201_001: Manufacturability check passes for compliant drawing 
 
 **Test Case ID**: TC_ANA_UC201_001  
 **Test Title**: Manufacturability check passes for compliant drawing  
@@ -237,9 +237,9 @@
 
 ---
 
-### UC202: Verify drawing specifications
+### UC202: Verify drawing specifications - 2
 
-#### TC_ANA_UC202_001: Dimensions within tolerance pass spec check
+#### TC_ANA_UC202_001: Dimensions within tolerance pass spec check 
 
 **Test Case ID**: TC_ANA_UC202_001  
 **Test Title**: Dimensions within tolerance pass spec check  
@@ -268,9 +268,9 @@
 
 ---
 
-### UC203: Generate analysis report
+### UC203: Generate analysis report - 2
 
-#### TC_ANA_UC203_001: Generate PDF report after analysis
+#### TC_ANA_UC203_001: Generate PDF report after analysis 
 
 **Test Case ID**: TC_ANA_UC203_001  
 **Test Title**: Generate PDF report after analysis  
@@ -298,11 +298,11 @@
 
 ---
 
-## Product Recommender Module
+## Product Recommender Module - 4
 
-### UC301: Match similar components
+### UC301: Match similar components - 2
 
-#### TC_REC_UC301_001: Find catalog matches from drawing
+#### TC_REC_UC301_001: Find catalog matches from drawing  
 
 **Test Case ID**: TC_REC_UC301_001  
 **Test Title**: Find catalog matches from drawing  
@@ -330,9 +330,9 @@
 
 ---
 
-### UC302: Recommend alternative products
+### UC302: Recommend alternative products - 1
 
-#### TC_REC_UC302_001: Recommend alternatives for out-of-stock component
+#### TC_REC_UC302_001: Recommend alternatives for out-of-stock component 
 
 **Test Case ID**: TC_REC_UC302_001  
 **Test Title**: Recommend alternatives for out-of-stock component  
@@ -346,7 +346,7 @@
 
 ---
 
-### UC303: Display ranked recommendations
+### UC303: Display ranked recommendations - 1
 
 #### TC_REC_UC303_001: Rank recommendations by compatibility
 
@@ -362,9 +362,9 @@
 
 ---
 
-## RFQ Module
-
-### UC401: Create RFQ request
+## RFQ Module - 4
+ 
+### UC401: Create RFQ request - 1
 
 #### TC_RFQ_UC401_001: Create RFQ from selected component
 
@@ -381,7 +381,7 @@
 
 ---
 
-### UC402: Auto-fill RFQ details
+### UC402: Auto-fill RFQ details - 1
 
 #### TC_RFQ_UC402_001: Auto-fill RFQ from CAD drawing
 
@@ -397,7 +397,7 @@
 
 ---
 
-### UC403: Submit RFQ form
+### UC403: Submit RFQ form - 1
 
 #### TC_RFQ_UC403_001: Submit valid RFQ successfully
 
@@ -414,7 +414,7 @@
 
 ---
 
-### UC404: Track RFQ status
+### UC404: Track RFQ status - 1
 
 #### TC_RFQ_UC404_001: View RFQ status history
 

@@ -12,11 +12,17 @@
 - **Tailwind CSS 3.4.17**: Utility-first CSS framework
 - **Framer Motion 12.23**: Animation library for smooth transitions
 - **Lucide React 0.554**: Modern icon library
+- **Liquid Glass Design System**: Glass morphism aesthetic with:
+  - `.glass-card`: Individual card components with blur and transparency
+  - `.glass-container`: Large section containers
+  - `.glass-card-compact`: Smaller card variants
+  - Hover effects with elevation and glow
 - **Custom Design System**: 
   - Primary: `#2563eb` (blue)
   - Secondary: `#64748b` (slate)
   - Accent: `#f59e0b` (amber)
   - Background: `#f8fafc`
+  - Blueprint theme: `#0066CC` primary, `#00D4FF` accent
 - **Inter Font**: Default sans-serif font family
 
 ## Backend & Data
@@ -59,6 +65,9 @@ Supabase Database
 - **@react-three/fiber 9.4**: React renderer for Three.js
 - **@react-three/drei 10.7**: Useful helpers for Three.js
 - **@types/three**: TypeScript definitions
+- **Blueprint 3D Hero**: Homepage features rotating 3D model with wireframe/blueprint aesthetic
+- **Interactive Controls**: Orbit, zoom, pan with reset camera functionality
+- **Lazy Loading**: Dynamic imports for Three.js to optimize bundle size
 
 ## File Handling
 
@@ -76,6 +85,10 @@ Supabase Database
 - Component tests: `src/__tests__/components/`
 - CAD feature tests: `src/__tests__/cad/` (UC101, UC102, UC104)
 - Utility tests: `src/__tests__/lib/`
+- Authentication tests: `src/__tests__/login-register/`
+- Recommendation tests: `src/__tests__/recommendations/`
+- RFQ tests: `src/__tests__/rfq/`
+- Admin tests: `src/__tests__/admin-product/`, `src/__tests__/admin-report/`
 
 ## Development Tools
 
@@ -109,9 +122,12 @@ import { Button } from '@/components/ui/Button';
 
 // Hooks (with React Query)
 import { useProducts } from '@/hooks/useProducts';
+import { useCADHistory } from '@/hooks/useCADHistory';
+import { useRecommendations } from '@/hooks/useRecommendations';
 
 // Stores (Zustand)
 import { useUIStore } from '@/stores/ui.store';
+import { useCADStore } from '@/stores/cad.store';
 ```
 
 ## Common Commands

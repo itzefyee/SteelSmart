@@ -15,8 +15,10 @@ SteelSmart is an AI-enhanced metal & steel parts marketplace built for engineers
 
 ### 🎨 CAD Generation & 3D Visualization
 - **Text-to-CAD**: Generate 3D CAD models from natural language descriptions using Zoo Dev API
+- **ML Prompt Templates**: Pre-built best-practice prompts from Zoo Dev API for optimal generation
 - **Multiple Formats**: Export to STEP, STL, OBJ, DXF, glTF formats
 - **3D Preview**: Interactive Three.js-based model viewer with rotation, zoom, pan
+- **Blueprint Hero**: Homepage features animated 3D model with blueprint aesthetic
 - **OpenCascade.js**: WASM-based STEP file parsing and analysis
 - **Generation History**: Track and manage all generated models with metadata
 - **Download Management**: Easy access to generated files in multiple formats
@@ -28,6 +30,7 @@ SteelSmart is an AI-enhanced metal & steel parts marketplace built for engineers
 - **Rich Product Data**: Specifications, pricing, compatibility, lead times
 - **Visual Design**: Custom SVG product illustrations
 - **Advanced Filtering**: Category, material, price range, text search
+- **Liquid Glass UI**: Modern glass morphism design across all cards
 
 ### 💡 Smart Recommendation System
 - **AI-Driven Matching**: Intelligent product suggestions based on extracted specs
@@ -71,7 +74,7 @@ User can create RFQ or view product details
 
 ### 2. CAD Generation Workflow
 ```
-User enters text description
+User enters text description OR selects ML prompt template
     ↓
 Zoo Dev API generates 3D model
     ↓

@@ -41,7 +41,7 @@
   - Style with Tailwind CSS consistent with existing design system
   - _Requirements: 1.2, 1.3, 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 4. Update CADGenerator component to integrate templates
+- [x] 4. Update CADGenerator component to integrate templates
   - Import `mlPromptTemplates` from `@/data/sample-data`
   - Add state for input mode toggle (`'templates' | 'custom'`)
   - Add state for selected ML template
@@ -53,7 +53,7 @@
   - Ensure custom input mode remains the default to preserve existing UX
   - _Requirements: 1.3, 2.1, 2.4, 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 5. Add keyboard navigation and accessibility features
+- [x] 5. Add keyboard navigation and accessibility features
   - Implement keyboard navigation for template cards (Tab, Enter, Space)
   - Add proper ARIA labels to template cards and interactive elements
   - Ensure focus indicators are visible on all interactive elements
@@ -62,7 +62,7 @@
   - Test with screen reader
   - _Requirements: 2.1, 2.2_
 
-- [ ] 6. Verify CAD generation works with template prompts
+- [x] 6. Verify CAD generation works with template prompts
   - Test selecting a template and generating a CAD model
   - Verify template prompt is passed correctly to generation API
   - Confirm generated models are saved to history with template metadata
