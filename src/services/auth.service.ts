@@ -46,9 +46,9 @@ export class AuthService {
   }
 
   async signIn(data: SignInData): Promise<AuthResult> {
-    // Validate input
+    // Only validate email format for login
     this.validateEmail(data.email);
-    this.validatePassword(data.password);
+    // Note: Password format validation removed for login - only verify credentials
 
     const { data: result, error } = await supabase.auth.signInWithPassword({
       email: data.email.trim(),

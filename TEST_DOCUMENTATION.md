@@ -44,19 +44,6 @@ This document provides comprehensive test documentation for the SteelSmart appli
 - **Actual Result**: ✅ Pass
 - **Post Conditions**: No user account created
 
-#### TC_LR_UC201_003: Handle Duplicate Email Registration
-- **Description**: Test handling of duplicate email registration attempts
-- **Preconditions**: User with email already exists
-- **Test Steps**:
-  1. Attempt to register with existing email
-  2. Provide valid password and company
-- **Test Data**:
-  - Email: `existing@example.com`
-  - Password: `SecurePass123!`
-- **Expected Result**: Error "User already registered" thrown
-- **Actual Result**: ✅ Pass
-- **Post Conditions**: No duplicate account created
-
 ### UC202: User Login
 
 #### TC_LR_UC202_001: Login User Successfully
@@ -157,17 +144,6 @@ This document provides comprehensive test documentation for the SteelSmart appli
 - **Actual Result**: ✅ Pass
 - **Post Conditions**: Product data displayed to user
 
-#### TC_UP_UC101_002: Throw Error for Non-existent Product ID
-- **Description**: Test error handling for invalid product ID
-- **Preconditions**: Product ID does not exist in database
-- **Test Steps**:
-  1. Request product details with non-existent ID
-- **Test Data**:
-  - Product ID: `non-existent-id`
-- **Expected Result**: Error "Product with ID non-existent-id not found" thrown
-- **Actual Result**: ✅ Pass
-- **Post Conditions**: Error message displayed to user
-
 ### UC102: Search Products
 
 #### TC_UP_UC102_001: Search Products by Name Successfully
@@ -251,17 +227,6 @@ This document provides comprehensive test documentation for the SteelSmart appli
   - All images and technical details included
 - **Actual Result**: ✅ Pass
 - **Post Conditions**: Admin can view all product information
-
-#### TC_AP_UC301_002: Throw NotFoundError for Non-existent Product
-- **Description**: Test error handling for invalid product ID in admin context
-- **Preconditions**: Admin is authenticated
-- **Test Steps**:
-  1. Request product with non-existent ID
-- **Test Data**:
-  - Product ID: `non-existent-id`
-- **Expected Result**: NotFoundError thrown
-- **Actual Result**: ✅ Pass
-- **Post Conditions**: Error displayed to admin
 
 ### UC302: Create Product (Admin)
 

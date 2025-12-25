@@ -81,6 +81,7 @@ describe('UC303: Edit Product (Admin)', () => {
   it('TC_AP_UC303_001: update product successfully', async () => {
     const updateData = {
       name: 'Updated Industrial Pressure Sensor 0-150 Bar',
+      sku: 'pressure-sensor-002',
       price: 99.95,
       description: 'Updated high-accuracy pressure sensor for industrial automation.'
     };

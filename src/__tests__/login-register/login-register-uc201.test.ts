@@ -48,7 +48,7 @@ describe('UC201: User Registration', () => {
 
     const result = await authService.signUp({
       email: 'test@example.com',
-      password: 'SecurePass123!',
+      password: 'SecureP123!',
       company: 'Test Company'
     });
 
@@ -56,7 +56,7 @@ describe('UC201: User Registration', () => {
     expect(result.user.email).toBe('test@example.com');
     expect(mockAuth.signUp).toHaveBeenCalledWith({
       email: 'test@example.com',
-      password: 'SecurePass123!',
+      password: 'SecureP123!',
       options: {
         data: {
           company: 'Test Company'
@@ -69,7 +69,7 @@ describe('UC201: User Registration', () => {
     // Invalid email format
     await expect(authService.signUp({
       email: 'invalid-email',
-      password: 'SecurePass123!',
+      password: 'SecureP123!',
       company: 'Test Company'
     })).rejects.toThrow(ValidationError);
 

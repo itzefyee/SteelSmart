@@ -40,6 +40,7 @@ vi.mock('@/services/admin/audit/audit-log.service', () => ({
 // Input type that matches what the service expects (includes id as required by CreateProductInput)
 const validProductInput: CreateProductInput = {
   id: '052df8db-b0a1-4c2e-8fc5-28297362802d', // Service will override this
+  sku: 'pressure-sensor-001',
   name: 'Industrial Pressure Sensor 0-200 Bar',
   category: 'robotic',
   material: 'Stainless Steel',
