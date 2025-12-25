@@ -1,7 +1,5 @@
-import PDFDocument from 'pdfkit';
-
 export class PDFGeneratorService {
-  static async generatePDFFromStream(doc: PDFKit.PDFDocument): Promise<Buffer> {
+  static async generatePDFFromStream(doc: any): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
       
@@ -16,8 +14,11 @@ export class PDFGeneratorService {
   static createDocument(options?: {
     size?: 'A4' | 'LETTER';
     margins?: { top: number; bottom: number; left: number; right: number };
-  }): PDFKit.PDFDocument {
+  }): any {
     try {
+      // Import PDFDocument dynamically to avoid font file issues
+      const PDFDocument = require('pdfkit');
+      
       const doc = new PDFDocument({
         size: options?.size || 'A4',
         margins: options?.margins || {
@@ -39,7 +40,7 @@ export class PDFGeneratorService {
 
   // Helper methods for consistent styling
   static addHeader(
-    doc: PDFKit.PDFDocument,
+    doc: any,
     title: string,
     reportMeta: { date: string; id: string; period: string }
   ) {
@@ -79,7 +80,7 @@ export class PDFGeneratorService {
     return 130; // Return Y position after header
   }
 
-  static addSectionTitle(doc: PDFKit.PDFDocument, title: string, y: number): number {
+  static addSectionTitle(doc: any, title: string, y: number): number {
     doc.fontSize(14)
        .fillColor('#1e293b')
        .text(title, doc.page.margins.left, y);
@@ -96,7 +97,7 @@ export class PDFGeneratorService {
   }
 
   static addSummaryCard(
-    doc: PDFKit.PDFDocument,
+    doc: any,
     x: number,
     y: number,
     width: number,
@@ -120,7 +121,7 @@ export class PDFGeneratorService {
   }
 
   static addTable(
-    doc: PDFKit.PDFDocument,
+    doc: any,
     y: number,
     headers: string[],
     rows: string[][],
@@ -181,7 +182,7 @@ export class PDFGeneratorService {
     return currentY + 10;
   }
 
-  static addFooter(doc: PDFKit.PDFDocument, reportId: string, date: string) {
+  static addFooter(doc: any, reportId: string, date: string) {
     const pageCount = doc.bufferedPageRange().count;
     
     for (let i = 0; i < pageCount; i++) {

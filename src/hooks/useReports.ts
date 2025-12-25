@@ -18,7 +18,12 @@ export const useReports = (page: number = 1, limit: number = 10) => {
       if (result.error) throw new Error(result.error);
       return result.data!;
     },
-    staleTime: 30000, // 30 seconds
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache data in memory
+    refetchOnMount: 'always', // Always refetch when component mounts (even if data exists)
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnReconnect: true, // Refetch when network reconnects
+    retry: false, // Don't retry failed requests to avoid stale data
   });
 };
 
@@ -31,6 +36,12 @@ export const useReport = (reportId: string) => {
       return result.data!;
     },
     enabled: !!reportId,
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache data in memory
+    refetchOnMount: 'always', // Always refetch when component mounts (even if data exists)
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnReconnect: true, // Refetch when network reconnects
+    retry: false, // Don't retry failed requests to avoid stale data
     refetchInterval: (query) => {
       // Auto-refresh if report is still processing
       const data = query.state.data;
@@ -122,6 +133,11 @@ export const useReportStatistics = () => {
       if (result.error) throw new Error(result.error);
       return result.data!;
     },
-    staleTime: 60000, // 1 minute
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache data in memory
+    refetchOnMount: 'always', // Always refetch when component mounts (even if data exists)
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnReconnect: true, // Refetch when network reconnects
+    retry: false, // Don't retry failed requests to avoid stale data
   });
 };

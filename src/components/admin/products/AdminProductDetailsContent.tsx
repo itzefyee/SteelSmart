@@ -33,26 +33,8 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
   const queryClient = useQueryClient();
   const [selectedImage, setSelectedImage] = useState(0);
 
-  // Clear cache and force fresh fetch when component mounts
-  useEffect(() => {
-    // Clear any existing cache for this product
-    queryClient.removeQueries({ queryKey: ['admin', 'products', 'detail', productId] });
-  }, [productId, queryClient]);
-
-  // Use React Query hook with fresh data fetching
-  const { data: product, isLoading, error, refetch } = useAdminProduct(productId, {
-    refetchOnMount: true,
-    staleTime: 0 // Always fetch fresh data
-  });
-  
-  // Force refetch when component mounts
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      refetch();
-    }, 100);
-    
-    return () => clearTimeout(timeoutId);
-  }, [productId, refetch]);
+  // Use React Query hook for data fetching
+  const { data: product, isLoading, error } = useAdminProduct(productId);
 
   const deleteProductMutation = useDeleteAdminProduct();
 
@@ -109,9 +91,9 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Link href="/admin/products">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              Back to Products
             </Button>
           </Link>
         </div>
@@ -130,9 +112,9 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Link href="/admin/products">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              Back to Products
             </Button>
           </Link>
         </div>
@@ -151,9 +133,9 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Link href="/admin/products">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              Back to Products
             </Button>
           </Link>
         </div>
@@ -171,9 +153,9 @@ export function AdminProductDetailsContent({ productId }: AdminProductDetailsCon
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Link href="/admin/products">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              Back to Products
             </Button>
           </Link>
         </div>

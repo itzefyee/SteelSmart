@@ -203,6 +203,7 @@ export default function AdminGenerateReportContent() {
                 placeholder="e.g., December 2024 Audit Log Report"
                 value={formData.reportName}
                 onChange={(e) => setFormData({ ...formData, reportName: e.target.value })}
+                className={formData.reportName ? 'bg-blue-50' : ''}
               />
             </div>
 
@@ -214,6 +215,7 @@ export default function AdminGenerateReportContent() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
+                className={formData.description ? 'bg-blue-50' : ''}
               />
             </div>
           </CardContent>
@@ -236,7 +238,7 @@ export default function AdminGenerateReportContent() {
                   value={formData.month.toString()}
                   onValueChange={(value) => setFormData({ ...formData, month: parseInt(value) })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={formData.month ? 'bg-blue-50' : ''}>
                     <SelectValue placeholder="Select month" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
@@ -255,7 +257,7 @@ export default function AdminGenerateReportContent() {
                   value={formData.year.toString()}
                   onValueChange={(value) => setFormData({ ...formData, year: parseInt(value) })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={formData.year ? 'bg-blue-50' : ''}>
                     <SelectValue placeholder="Select year" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">

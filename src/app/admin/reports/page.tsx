@@ -1,19 +1,7 @@
-import React, { Suspense } from 'react';
-import AdminReportsContent from '@/components/admin/reports/AdminReportsContent';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+'use client';
 
-function AdminReportsFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <LoadingSpinner size="lg" />
-    </div>
-  );
-}
+import AdminReportsContent from '@/components/admin/reports/AdminReportsContent';
 
 export default function ReportsPage() {
-  return (
-    <Suspense fallback={<AdminReportsFallback />}>
-      <AdminReportsContent />
-    </Suspense>
-  );
+  return <AdminReportsContent />;
 }

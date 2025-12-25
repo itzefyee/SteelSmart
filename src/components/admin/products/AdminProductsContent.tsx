@@ -32,10 +32,6 @@ export default function AdminProductsContent() {
   const { addToast } = useToast();
   const queryClient = useQueryClient();
   
-  // Clear cache when component mounts to ensure fresh data
-  useEffect(() => {
-    queryClient.removeQueries({ queryKey: ['admin', 'products'] });
-  }, [queryClient]);
   
   // Debounce search term to avoid excessive API calls
   useEffect(() => {
@@ -48,7 +44,7 @@ export default function AdminProductsContent() {
     };
   }, [searchTerm]);
   
-  // Use React Query for data fetching with search filters - always fetch fresh data
+  // Use React Query for data fetching with search filters
   const { data: products = [], isLoading: loading, error } = useAdminProducts({
     search: debouncedSearchTerm || undefined,
   });

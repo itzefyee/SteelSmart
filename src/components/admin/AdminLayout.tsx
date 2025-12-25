@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Package, 
@@ -14,7 +14,6 @@ import {
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { AdminPrefetch } from '@/components/admin/AdminPrefetch';
 import { AuditClient } from '@/lib/audit-client';
 
 const navigation = [
@@ -31,12 +30,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
   const { signOut, user } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
-      <AdminPrefetch />
       {/* Sidebar */}
       <aside
         className={cn(

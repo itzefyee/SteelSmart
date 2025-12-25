@@ -68,10 +68,12 @@ export function useAdminReports(page = 1, limit = 10, filters?: ReportFilters) {
   return useQuery({
     queryKey: adminReportsKeys.list(page, limit, filters),
     queryFn: () => adminReportsApi.getAll(page, limit, filters),
-    staleTime: 2 * 60 * 1000, // 2 minutes cache for admin data
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-    refetchOnMount: false, // Use cache if available
-    refetchOnWindowFocus: false, // Don't refetch on focus
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache data in memory
+    refetchOnMount: 'always', // Always refetch when component mounts (even if data exists)
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnReconnect: true, // Refetch when network reconnects
+    retry: false, // Don't retry failed requests to avoid stale data
   });
 }
 
@@ -79,10 +81,12 @@ export function useAdminReport(id: string) {
   return useQuery({
     queryKey: adminReportsKeys.detail(id),
     queryFn: () => adminReportsApi.getById(id),
-    staleTime: 2 * 60 * 1000, // 2 minutes cache for admin data
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-    refetchOnMount: false, // Use cache if available
-    refetchOnWindowFocus: false, // Don't refetch on focus
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache data in memory
+    refetchOnMount: 'always', // Always refetch when component mounts (even if data exists)
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnReconnect: true, // Refetch when network reconnects
+    retry: false, // Don't retry failed requests to avoid stale data
     enabled: !!id,
   });
 }
@@ -91,10 +95,12 @@ export function useAdminReportStatistics() {
   return useQuery({
     queryKey: adminReportsKeys.statistics(),
     queryFn: adminReportsApi.getStatistics,
-    staleTime: 5 * 60 * 1000, // 5 minutes cache for statistics
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-    refetchOnMount: false, // Use cache if available
-    refetchOnWindowFocus: false, // Don't refetch on focus
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache data in memory
+    refetchOnMount: 'always', // Always refetch when component mounts (even if data exists)
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchOnReconnect: true, // Refetch when network reconnects
+    retry: false, // Don't retry failed requests to avoid stale data
   });
 }
 
@@ -109,29 +115,17 @@ export function useDeleteAdminReport() {
         queryKey: adminReportsKeys.detail(deletedId) 
       });
       
-      // Invalidate list queries to trigger background refetch
+      // Immediately refetch list queries to get fresh data
       queryClient.invalidateQueries({ 
         queryKey: adminReportsKeys.lists(),
-        refetchType: 'none' // Don't refetch immediately
+        refetchType: 'active' // Immediately refetch active queries
       });
       
-      // Invalidate statistics
+      // Immediately refetch statistics
       queryClient.invalidateQueries({ 
         queryKey: adminReportsKeys.statistics(),
-        refetchType: 'none'
+        refetchType: 'active' // Immediately refetch active queries
       });
-      
-      // Trigger background refetch after a short delay
-      setTimeout(() => {
-        queryClient.refetchQueries({ 
-          queryKey: adminReportsKeys.lists(),
-          type: 'active'
-        });
-        queryClient.refetchQueries({ 
-          queryKey: adminReportsKeys.statistics(),
-          type: 'active'
-        });
-      }, 100);
     },
   });
 }

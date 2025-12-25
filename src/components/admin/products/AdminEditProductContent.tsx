@@ -427,9 +427,9 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Link href="/admin/products">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              Back to Products
             </Button>
           </Link>
         </div>
@@ -448,9 +448,9 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Link href="/admin/products">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              Back to Products
             </Button>
           </Link>
         </div>

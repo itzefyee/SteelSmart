@@ -16,15 +16,21 @@ export default function Loading() {
     isLoggingOut = false;
   }
 
-  // Try to get pathname to determine if we're loading a catalog page
-  let isCatalogPage = false;
+  // Try to get pathname to determine the page type
+  let pathname = '';
   try {
-    const pathname = usePathname();
-    isCatalogPage = pathname?.startsWith('/catalog') || false;
+    pathname = usePathname() || '';
   } catch {
     // usePathname might not be available in some contexts
-    isCatalogPage = false;
+    pathname = '';
   }
+
+  // Skip loading screen for admin routes - they should load instantly
+  if (pathname.startsWith('/admin')) {
+    return null;
+  }
+
+  const isCatalogPage = pathname.startsWith('/catalog');
 
   // If it's a catalog page, use the catalog design
   if (isCatalogPage) {

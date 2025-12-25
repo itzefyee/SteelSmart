@@ -1,19 +1,7 @@
-import React, { Suspense } from 'react';
-import AdminProductsContent from '@/components/admin/products/AdminProductsContent';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+'use client';
 
-function AdminProductsFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <LoadingSpinner size="lg" />
-    </div>
-  );
-}
+import AdminProductsContent from '@/components/admin/products/AdminProductsContent';
 
 export default function ProductsPage() {
-  return (
-    <Suspense fallback={<AdminProductsFallback />}>
-      <AdminProductsContent />
-    </Suspense>
-  );
+  return <AdminProductsContent />;
 }

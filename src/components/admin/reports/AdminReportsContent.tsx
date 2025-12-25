@@ -1,21 +1,28 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Download, Trash2, Search, FileText, Calendar, FilePlus } from 'lucide-react';
+import { Eye, Download, Trash2, Search, FileText, FilePlus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import type { Report } from '@/types';
 import { useToast } from '@/components/ui/ToastProvider';
-import { useAdminReports, useAdminReportStatistics, useDeleteAdminReport } from '@/hooks/admin/useAdminReports';
+import { useAdminReports, useAdminReportStatistics, useDeleteAdminReport, adminReportsKeys } from '@/hooks/admin/useAdminReports';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function AdminReportsContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const { addToast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Clear all report-related cache when component mounts to ensure fresh data
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: adminReportsKeys.all });
+  }, [queryClient]);
 
   // Use React Query hooks instead of manual state management
   const { data: reportsData, isLoading, error } = useAdminReports(currentPage, 10);
@@ -66,10 +73,12 @@ export default function AdminReportsContent() {
       return;
     }
 
+    const fileType = report.file_url.endsWith('.html') ? 'HTML Report' : 'PDF Report';
+
     window.open(report.file_url, '_blank');
     addToast({
       title: 'Download Started',
-      description: `Downloading ${report.title}...`,
+      description: `Downloading ${fileType}: ${report.title}`,
       type: 'info',
     });
   };
@@ -234,16 +243,26 @@ export default function AdminReportsContent() {
                         {report.report_type.replace(/_/g, ' ')}
                       </Badge>
                       {getStatusBadge(report.status)}
-                      <Badge variant="outline">PDF</Badge>
+                      <Badge variant="outline">
+                        {report.file_url ? 
+                          (report.file_url.endsWith('.html') ? 'HTML' : 'PDF') 
+                          : 'PDF'}
+                      </Badge>
                     </div>
 
                     <div className="space-y-2 text-sm text-muted-foreground">
-                      {report.file_url && (
-                        <div className="flex justify-between">
-                          <span>Status:</span>
+                      <div className="flex justify-between">
+                        <span>Status:</span>
+                        {report.status === 'COMPLETED' && report.file_url ? (
                           <span className="font-medium text-green-600">Ready for download</span>
-                        </div>
-                      )}
+                        ) : report.status === 'FAILED' ? (
+                          <span className="font-medium text-red-600">Generation failed</span>
+                        ) : report.status === 'PROCESSING' ? (
+                          <span className="font-medium text-blue-600">Processing...</span>
+                        ) : (
+                          <span className="font-medium text-yellow-600">Pending</span>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                   <CardFooter className="flex gap-2 pt-3">

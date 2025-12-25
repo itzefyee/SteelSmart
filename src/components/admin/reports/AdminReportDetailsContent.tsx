@@ -92,15 +92,17 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
   if (error) {
     return (
       <div className="min-h-screen bg-background">
+        {/* Back Button - Close to Sidebar */}
+        <div className="p-6 pb-0">
+          <Link href="/admin/reports">
+            <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Reports
+            </Button>
+          </Link>
+        </div>
+
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="flex items-center gap-4 mb-6">
-            <Link href="/admin/reports">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-            </Link>
-          </div>
           <Card>
             <CardContent className="p-8 text-center">
               <div className="text-muted-foreground">Failed to load report</div>
@@ -115,25 +117,21 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
   if (!isLoading && !report) {
     return (
       <div className="min-h-screen bg-background">
+        {/* Back Button - Close to Sidebar */}
+        <div className="p-6 pb-0">
+          <Link href="/admin/reports">
+            <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Reports
+            </Button>
+          </Link>
+        </div>
+
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="flex items-center gap-4 mb-6">
-            <Link href="/admin/reports">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-            </Link>
-          </div>
           <div className="flex flex-col items-center justify-center min-h-[60vh]">
             <FileText className="w-16 h-16 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold text-foreground mb-2">Report Not Found</h2>
             <p className="text-muted-foreground mb-6">The report you're looking for doesn't exist.</p>
-            <Link href="/admin/reports">
-              <Button variant="outline">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Reports
-              </Button>
-            </Link>
           </div>
         </div>
       </div>
@@ -144,15 +142,17 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
   if (isLoading && !report) {
     return (
       <div className="min-h-screen bg-background">
+        {/* Back Button - Close to Sidebar */}
+        <div className="p-6 pb-0">
+          <Link href="/admin/reports">
+            <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Reports
+            </Button>
+          </Link>
+        </div>
+
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="flex items-center gap-4 mb-6">
-            <Link href="/admin/reports">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-            </Link>
-          </div>
           {/* Minimal loading - should rarely show due to React Query caching */}
           <div className="min-h-[200px] flex items-center justify-center">
             <div className="text-muted-foreground">Loading...</div>
@@ -166,25 +166,21 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
   if (!report) {
     return (
       <div className="min-h-screen bg-background">
+        {/* Back Button - Close to Sidebar */}
+        <div className="p-6 pb-0">
+          <Link href="/admin/reports">
+            <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Reports
+            </Button>
+          </Link>
+        </div>
+
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="flex items-center gap-4 mb-6">
-            <Link href="/admin/reports">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-            </Link>
-          </div>
           <div className="flex flex-col items-center justify-center min-h-[60vh]">
             <FileText className="w-16 h-16 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold text-foreground mb-2">Report Not Found</h2>
             <p className="text-muted-foreground mb-6">The report you're looking for doesn't exist.</p>
-            <Link href="/admin/reports">
-              <Button variant="outline">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Reports
-              </Button>
-            </Link>
           </div>
         </div>
       </div>
@@ -208,24 +204,17 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Back Button */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Link href="/admin/reports">
-            <Button
-              variant="outline"
-              className="mb-6 text-muted-foreground hover:text-foreground -ml-2"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Reports
-            </Button>
-          </Link>
-        </motion.div>
+      {/* Back Button - Close to Sidebar */}
+      <div className="p-6 pb-0">
+        <Link href="/admin/reports">
+          <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Reports
+          </Button>
+        </Link>
+      </div>
 
+      <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

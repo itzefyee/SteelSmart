@@ -803,6 +803,7 @@ This document provides comprehensive test documentation for the SteelSmart appli
 ```json
 {
   "id": "052df8db-b0a1-4c2e-8fc5-28297362802d",
+  "sku": "pressure-sensor-002",
   "name": "Industrial Pressure Sensor 0-200 Bar",
   "category": "robotic",
   "material": "Stainless Steel",
@@ -823,7 +824,9 @@ This document provides comprehensive test documentation for the SteelSmart appli
   ],
   "compatible_with": ["linear-actuator-001", "control-module-001"],
   "in_stock": true,
-  "lead_time": "3-5 business days"
+  "lead_time": "3-5 business days",
+  "created_at": "2025-12-23T10:19:54.486863+00:00",
+  "updated_at": "2025-12-23T10:19:54.486863+00:00"
 }
 ```
 

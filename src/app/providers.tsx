@@ -24,12 +24,20 @@ export function Providers({ children }: ProvidersProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Customer queries: Use caching for better performance
-            staleTime: 5 * 60 * 1000, // 5 minutes
-            gcTime: 5 * 60 * 1000, // 5 minutes
-            refetchOnMount: false, // Don't always refetch
-            refetchOnWindowFocus: false, // Don't refetch on focus
-            retry: 1,
+            // Simple, reliable caching for both user and admin
+            staleTime: 2 * 60 * 1000, // 2 minutes - fresh enough for admin
+            gcTime: 5 * 60 * 1000, // 5 minutes - reasonable cleanup
+            refetchOnMount: true, // Always get fresh data when component mounts
+            refetchOnWindowFocus: false, // Don't refetch on focus (annoying for admin)
+            retry: (failureCount, error) => {
+              // Don't retry on 4xx errors (client errors)
+              if (error && typeof error === 'object' && 'status' in error) {
+                const status = (error as any).status;
+                if (status >= 400 && status < 500) return false;
+              }
+              return failureCount < 1; // Only retry once for server errors
+            },
+            retryDelay: 1000, // Simple 1 second delay
           },
         },
       })
