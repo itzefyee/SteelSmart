@@ -5,7 +5,6 @@ import {
   generateReport, 
   deleteReport as deleteReportApi, 
   retryReport as retryReportApi,
-  createMonthlyMostQuotedReport as createMonthlyReportApi,
   getReportStatistics,
   type ReportGenerateParams 
 } from '@/lib/api/admin-reports';
@@ -102,25 +101,6 @@ export const useRetryReport = () => {
     },
     onError: (error: Error) => {
       console.error(`Failed to retry report: ${error.message}`);
-    },
-  });
-};
-
-export const useCreateMonthlyMostQuotedReport = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ month, year }: { month: number; year: number }) => {
-      const result = await createMonthlyReportApi(month, year);
-      if (result.error) throw new Error(result.error);
-      return result.data!.reportId;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reports'] });
-      console.log('Monthly report generation started');
-    },
-    onError: (error: Error) => {
-      console.error(`Failed to create monthly report: ${error.message}`);
     },
   });
 };
