@@ -332,17 +332,6 @@ This document provides comprehensive test documentation for the SteelSmart appli
 - **Actual Result**: ✅ Pass
 - **Post Conditions**: Report details displayed to admin
 
-#### TC_AR_UC401_002: Throw NotFoundError for Non-existent Report
-- **Description**: Test error handling for invalid report ID
-- **Preconditions**: Admin is authenticated
-- **Test Steps**:
-  1. Request non-existent report
-- **Test Data**:
-  - Report ID: `non-existent-id`
-- **Expected Result**: NotFoundError thrown
-- **Actual Result**: ✅ Pass
-- **Post Conditions**: Error message displayed
-
 ### UC402: Download Report (Admin)
 
 #### TC_AR_UC402_001: Download Report Successfully
@@ -358,17 +347,6 @@ This document provides comprehensive test documentation for the SteelSmart appli
 - **Expected Result**: Valid file URL returned
 - **Actual Result**: ✅ Pass
 - **Post Conditions**: Admin can download report file
-
-#### TC_AR_UC402_002: Return Null for Report Without File
-- **Description**: Test handling of reports without generated files
-- **Preconditions**: Report exists but has no file URL
-- **Test Steps**:
-  1. Request download for report without file
-- **Test Data**:
-  - Report without file URL
-- **Expected Result**: Null returned
-- **Actual Result**: ✅ Pass
-- **Post Conditions**: Admin notified that file is not available
 
 ### UC403: Delete Report (Admin)
 

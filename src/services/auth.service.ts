@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getSupabaseServer } from '@/lib/supabase-server';
 import { ValidationError } from '@/lib/errors/app-errors';
 
 export interface SignUpData {
@@ -27,6 +27,7 @@ export class AuthService {
     this.validateEmail(data.email);
     this.validatePassword(data.password);
 
+    const supabase = await getSupabaseServer();
     const { data: result, error } = await supabase.auth.signUp({
       email: data.email.trim(),
       password: data.password,
@@ -50,6 +51,7 @@ export class AuthService {
     this.validateEmail(data.email);
     // Note: Password format validation removed for login - only verify credentials
 
+    const supabase = await getSupabaseServer();
     const { data: result, error } = await supabase.auth.signInWithPassword({
       email: data.email.trim(),
       password: data.password
@@ -66,6 +68,7 @@ export class AuthService {
   }
 
   async signOut(): Promise<SignOutResult> {
+    const supabase = await getSupabaseServer();
     const { error } = await supabase.auth.signOut();
 
     if (error) {
