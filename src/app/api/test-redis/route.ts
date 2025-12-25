@@ -11,7 +11,7 @@ import { getCached, setCached } from '@/lib/cache/redis-cache';
  * 
  * Used by the test-setup page to verify Redis configuration
  */
-export async function GET() {
+export async function GET(): Promise<NextResponse> {
   try {
     const testKey = 'test:connection';
     const testValue = {

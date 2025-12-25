@@ -5,7 +5,7 @@ import { RFQRepository } from '@/repositories/rfq.repository';
 import { RFQService } from '@/services/rfq.service';
 import { handleApiError } from '@/lib/api/error-handler';
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const supabase = await getSupabaseServer();
 

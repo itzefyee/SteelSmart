@@ -3,7 +3,7 @@ import { APIResponse, DrawingAnalysis } from '@/types';
 import { CADAnalysisService } from '@/services/cad-analysis.service';
 import { getSupabaseServer } from '@/lib/supabase-server';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   console.log('========================================');
   console.log('📥 API Route: /api/analyze-drawing called');
   console.log('========================================');

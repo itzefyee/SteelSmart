@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic';
  * - limit: Items per page (default: 20, max: 100)
  * - search: Search in name and description
  */
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
     

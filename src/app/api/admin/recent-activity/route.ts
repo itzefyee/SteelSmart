@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { RecentActivityService } from '@/services/admin/audit/recent-activity.service';
 
-export async function GET() {
+export async function GET(): Promise<NextResponse> {
   try {
     const recentActivity = await RecentActivityService.getRecentActivity();
     

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
  * Fetches all categories from Supabase
  * Public endpoint - no authentication required
  */
-export async function GET() {
+export async function GET(): Promise<NextResponse> {
   try {
     const supabase = getSupabaseServerClient();
     

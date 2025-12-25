@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { APIResponse, RecommendationScore } from '@/types';
 import { RecommendationService } from '@/services/recommendation.service';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Controller responsibility: Parse request
     const { productId } = await request.json();
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Controller responsibility: Parse request
     const { searchParams } = new URL(request.url);

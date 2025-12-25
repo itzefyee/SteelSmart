@@ -1,5 +1,6 @@
 import { ReportRepository } from '@/repositories/admin/report.repository';
 import { AuditReportService } from '@/services/admin/audit/audit-report.service';
+import { RFQReportService } from '@/services/admin/rfq/rfq-report.service';
 import { createClient } from '@supabase/supabase-js';
 
 class ReportGeneratorService {
@@ -41,8 +42,9 @@ class ReportGeneratorService {
       const reportType = report.report_type as string;
       
       if (reportType === 'AUDIT_LOG') {
-        // This will throw an error if PDF generation fails
         fileUrl = await this.generateAuditLogReport(reportId, report);
+      } else if (reportType === 'RFQ_REPORT') {
+        fileUrl = await this.generateRFQReport(reportId, report);
       } else {
         // Legacy report types - simulate generation
         await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -116,6 +118,58 @@ class ReportGeneratorService {
       await this.repository.update(reportId, {
         status: 'FAILED',
         error_message: error instanceof Error ? error.message : 'Report generation failed',
+      });
+      
+      // Re-throw the error to be caught by the main processReport method
+      throw error;
+    }
+  }
+
+  private async generateRFQReport(reportId: string, report: any): Promise<string> {
+    const { period } = report.parameters as { period: string };
+
+    try {
+      // Generate RFQ report data
+      const reportData = await RFQReportService.generateRFQReport(period);
+
+      // Generate PDF content
+      const reportBuffer = await RFQReportService.generateRFQReportPDF(reportData);
+
+      // Upload to Supabase Storage in rfq folder with UUID filename
+      const supabase = this.getSupabaseAdmin();
+      const fileUuid = crypto.randomUUID();
+      
+      // Determine file extension based on content type
+      const contentString = reportBuffer.toString('utf-8').trim();
+      const isHTML = contentString.startsWith('<!DOCTYPE html>') || contentString.startsWith('<html');
+      const fileExtension = isHTML ? 'html' : 'pdf';
+      const contentType = isHTML ? 'text/html' : 'application/pdf';
+      const fileName = `rfq/${fileUuid}.${fileExtension}`;
+      
+      const { error } = await supabase.storage
+        .from('admin-reports')
+        .upload(fileName, reportBuffer, {
+          contentType: contentType,
+          upsert: true
+        });
+
+      if (error) {
+        throw new Error(`Failed to upload report: ${error.message}`);
+      }
+
+      // Generate and return the full public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('admin-reports')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error(`RFQ report generation failed for report ${reportId}:`, error);
+      
+      // Update the report status to FAILED with error message
+      await this.repository.update(reportId, {
+        status: 'FAILED',
+        error_message: error instanceof Error ? error.message : 'RFQ report generation failed',
       });
       
       // Re-throw the error to be caught by the main processReport method

@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AuditLogService } from '@/services/admin/audit/audit-log.service';
 import { getSupabaseServer } from '@/lib/supabase-server';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Add timeout to prevent hanging
-    const timeoutPromise = new Promise((_, reject) => {
+    const timeoutPromise = new Promise<NextResponse>((_, reject) => {
       setTimeout(() => reject(new Error('Audit log timeout')), 3000); // 3 second timeout
     });
 
-    const auditLogPromise = (async () => {
+    const auditLogPromise = (async (): Promise<NextResponse> => {
       const supabase = await getSupabaseServer();
       
       // Verify user is authenticated

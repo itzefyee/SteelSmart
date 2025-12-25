@@ -65,7 +65,7 @@ function parseDeadlineToDate(deadline: string | null): string | null {
   return null;
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const formData = await request.formData();
 
