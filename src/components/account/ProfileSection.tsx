@@ -10,13 +10,14 @@ interface ProfileSectionProps {
 }
 
 export default function ProfileSection({ profile, onUpdate }: ProfileSectionProps) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [company, setCompany] = useState(profile.company || '');
   const [phone, setPhone] = useState(profile.phone || '');
   const [errors, setErrors] = useState<{ company?: string; phone?: string }>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const validateForm = (): boolean => {
     const newErrors: { company?: string; phone?: string } = {};
@@ -54,6 +55,19 @@ export default function ProfileSection({ profile, onUpdate }: ProfileSectionProp
     setPhone(profile.phone || '');
     setErrors({});
     setIsEditing(false);
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshProfile();
+      // Force a page refresh to get the latest data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleLogout = async () => {

@@ -39,9 +39,13 @@ export class AuditReportService {
   static async generateMonthlyAuditReport(month: number, year: number): Promise<AuditLogReportData> {
     const supabase = await getSupabaseServer();
     
+    console.log(`🔍 Audit Report Input - Month: ${month}, Year: ${year}`);
+    
     // Calculate date range for the month
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
+    
+    console.log(`🔍 Audit Date Range - Start: ${startDate.toISOString()}, End: ${endDate.toISOString()}`);
     
     const startDateStr = startDate.toISOString();
     const endDateStr = endDate.toISOString();

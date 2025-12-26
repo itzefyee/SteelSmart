@@ -16,6 +16,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, metadata?: UserMetadata) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: Error | null }>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -29,6 +30,7 @@ const AuthContext = createContext<AuthContextType>({
   signUp: async () => ({ error: null }),
   signOut: async () => {},
   updateProfile: async () => ({ error: null }),
+  refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -64,6 +66,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error fetching profile:', error);
       return null;
     }
+  };
+
+  // Force refresh profile data (clears cache)
+  const refreshProfile = async (): Promise<void> => {
+    if (!user) return;
+    
+    console.log('🔄 Force refreshing profile data...');
+    const freshProfile = await fetchProfile(user.id);
+    setProfile(freshProfile);
   };
 
   useEffect(() => {
@@ -220,11 +231,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: error as Error };
       }
 
-      // Refresh profile data
-      const updatedProfile = await fetchProfile(user.id);
-      if (updatedProfile) {
-        setProfile(updatedProfile);
-      }
+      // Force refresh profile data after update
+      await refreshProfile();
 
       return { error: null };
     } catch (error) {
@@ -243,6 +251,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     updateProfile,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
