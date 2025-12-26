@@ -69,12 +69,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const formData = await request.formData();
 
-    // Debug: Log all form data entries
-    console.log('RFQ Form Data received:');
-    for (const [key, value] of formData.entries()) {
-      console.log(`  ${key}: ${typeof value === 'string' ? value.substring(0, 100) : '[File]'}`);
-    }
-
     // Extract form data - handle null values from formData.get()
     const contactInfo = {
       name: (formData.get('name') as string) || '',

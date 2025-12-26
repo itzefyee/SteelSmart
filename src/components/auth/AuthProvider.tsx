@@ -155,24 +155,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    console.log('🔓 Starting logout process...');
     try {
       // Set logging out state
       setIsLoggingOut(true);
       
       // Sign out from Supabase and wait for completion
-      console.log('🔓 Calling Supabase signOut...');
       const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Supabase signOut error:', error);
         // Even if signOut fails, clear local state and redirect
-      } else {
-        console.log('🔓 Supabase signOut successful');
       }
       
       // Clear local state immediately
-      console.log('🔓 Clearing local auth state...');
       setUser(null);
       setProfile(null);
       setSession(null);
@@ -182,7 +177,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await new Promise(resolve => setTimeout(resolve, 200));
       
       // Redirect to homepage with stay parameter to prevent admin redirect
-      console.log('🔓 Redirecting to homepage...');
       window.location.replace('/?stay=true');
     } catch (error) {
       console.error('SignOut error:', error);

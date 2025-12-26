@@ -85,21 +85,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             className="w-full justify-start" 
             size="sm"
             onClick={async () => {
-              console.log('🔴 Admin logout button clicked');
               setIsLoggingOut(true);
               try {
-                console.log('🔴 Calling AuthProvider signOut...');
                 // Perform logout - AuthProvider handles redirect
                 await signOut();
                 
-                console.log('🔴 SignOut completed, logging audit...');
                 // Log audit in background (non-blocking)
                 AuditClient.logAuth('LOGOUT').catch(error => {
                   console.warn('Audit logging failed (non-critical):', error);
                 });
                 // No need to reset loading state as page will be replaced
               } catch (error) {
-                console.error('🔴 Logout error in AdminLayout:', error);
+                console.error('Logout error:', error);
                 setIsLoggingOut(false);
               }
             }}

@@ -137,14 +137,6 @@ export class RFQAPI {
       });
     }
     
-    // Debug logging
-    console.log('Submitting RFQ with data:', {
-      name: data.contactInfo.name,
-      email: data.contactInfo.email,
-      projectDescription: data.requirements.projectDescription,
-      specifications: data.requirements.specifications,
-    });
-    
     const response = await fetch('/api/submit-rfq', {
       method: 'POST',
       body: formData,

@@ -1297,10 +1297,6 @@ export class CADParser {
     
     let modelData: CADModelData;
     
-    // Log first few bytes for debugging
-    const preview = new Uint8Array(arrayBuffer.slice(0, 100));
-    const previewText = new TextDecoder('utf-8', { fatal: false }).decode(preview);
-
     switch (detectedFormat) {
       case 'step':
       case 'stp':

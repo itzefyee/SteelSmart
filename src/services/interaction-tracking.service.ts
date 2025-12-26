@@ -47,8 +47,7 @@ export class InteractionTrackingService {
    */
   static async trackInteractionClient(data: InteractionData): Promise<void> {
     try {
-      // Temporarily disabled - table exists but not in TypeScript types
-      console.log('Interaction tracking temporarily disabled:', data);
+      // Interaction tracking temporarily disabled - table exists but not in TypeScript types
       return;
 
       /* 
@@ -85,8 +84,7 @@ export class InteractionTrackingService {
     data: InteractionData
   ): Promise<void> {
     try {
-      // Temporarily disabled - table exists but not in TypeScript types
-      console.log('Interaction tracking temporarily disabled:', { userId, ...data });
+      // Interaction tracking temporarily disabled - table exists but not in TypeScript types
       return;
 
       /* 
@@ -121,8 +119,7 @@ export class InteractionTrackingService {
     limit: number = 4
   ): Promise<FrequentlyBoughtTogether[]> {
     try {
-      // Temporarily disabled - RPC function exists but not in TypeScript types
-      console.log('Frequently bought together temporarily disabled for:', productId);
+      // Frequently bought together temporarily disabled - RPC function exists but not in TypeScript types
       return [];
 
       /* 
@@ -163,8 +160,7 @@ export class InteractionTrackingService {
     limit: number = 5
   ): Promise<SimilarSearchRecommendation[]> {
     try {
-      // Temporarily disabled - RPC function exists but not in TypeScript types
-      console.log('Similar search recommendations temporarily disabled for:', searchContext);
+      // Similar search recommendations temporarily disabled - RPC function exists but not in TypeScript types
       return [];
 
       /* 
