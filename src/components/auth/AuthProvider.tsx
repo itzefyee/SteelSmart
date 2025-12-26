@@ -166,21 +166,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) {
         console.error('Supabase signOut error:', error);
+        // Even if signOut fails, clear local state and redirect
       } else {
         console.log('🔓 Supabase signOut successful');
       }
       
-      // Clear local state immediately after Supabase signout
+      // Clear local state immediately
       console.log('🔓 Clearing local auth state...');
       setUser(null);
       setProfile(null);
       setSession(null);
       setIsLoggingOut(false);
       
-      // Force a complete page reload to ensure clean state
-      // This prevents any race conditions with middleware
+      // Wait a moment for auth state to propagate to cookies
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Redirect to homepage with stay parameter to prevent admin redirect
       console.log('🔓 Redirecting to homepage...');
-      window.location.replace('/');
+      window.location.replace('/?stay=true');
     } catch (error) {
       console.error('SignOut error:', error);
       // Still clear local state and redirect even if there's an error
@@ -189,8 +192,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(null);
       setIsLoggingOut(false);
       
-      // Force redirect even on error
-      window.location.replace('/');
+      // Wait and redirect even on error
+      await new Promise(resolve => setTimeout(resolve, 200));
+      window.location.replace('/?stay=true');
     }
   };
 
