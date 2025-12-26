@@ -49,21 +49,23 @@ export class ProductService {
         id: productId,
       });
 
-      // Temporarily disable audit logging to debug
-      /*
-      // Get current user for audit logging
-      const supabase = await getSupabaseServer();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        // Audit log: Product creation success
-        await AuditLogService.logProduct(
-          user.id,
-          'CREATE',
-          { id: product.id, name: product.name }
-        );
+      // Get current user for audit logging (non-blocking)
+      try {
+        const supabase = await getSupabaseServer();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Audit log: Product creation success
+          await AuditLogService.logProduct(
+            user.id,
+            'CREATE',
+            { id: product.id, name: product.name }
+          );
+        }
+      } catch (auditError) {
+        // Log audit error but don't fail the product creation
+        console.error('Failed to create audit log for product creation:', auditError);
       }
-      */
 
       return product;
     } catch (error) {
@@ -86,17 +88,22 @@ export class ProductService {
     try {
       const product = await this.repository.update(id, input);
 
-      // Get current user for audit logging
-      const supabase = await getSupabaseServer();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        // Audit log: Product update success
-        await AuditLogService.logProduct(
-          user.id,
-          'UPDATE',
-          { id: product.id, name: product.name }
-        );
+      // Get current user for audit logging (non-blocking)
+      try {
+        const supabase = await getSupabaseServer();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Audit log: Product update success
+          await AuditLogService.logProduct(
+            user.id,
+            'UPDATE',
+            { id: product.id, name: product.name }
+          );
+        }
+      } catch (auditError) {
+        // Log audit error but don't fail the product update
+        console.error('Failed to create audit log for product update:', auditError);
       }
 
       return product;
@@ -115,23 +122,24 @@ export class ProductService {
     try {
       await this.repository.delete(id);
 
-      // Get current user for audit logging
-      const supabase = await getSupabaseServer();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        // Audit log: Product deletion success
-        await AuditLogService.logProduct(
-          user.id,
-          'DELETE',
-          { id: existing.id, name: existing.name }
-        );
+      // Get current user for audit logging (non-blocking)
+      try {
+        const supabase = await getSupabaseServer();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Audit log: Product deletion success
+          await AuditLogService.logProduct(
+            user.id,
+            'DELETE',
+            { id: existing.id, name: existing.name }
+          );
+        }
+      } catch (auditError) {
+        // Log audit error but don't fail the product deletion
+        console.error('Failed to create audit log for product deletion:', auditError);
       }
     } catch (error) {
-      // Get current user for audit logging
-      const supabase = await getSupabaseServer();
-      const { data: { user } } = await supabase.auth.getUser();
-      
       throw error;
     }
   }
