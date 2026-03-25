@@ -98,3 +98,4 @@ export function convertBase64ToFileSync(base64Data: string, format: string, file
   }
 }
 
+

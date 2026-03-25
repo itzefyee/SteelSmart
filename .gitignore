@@ -36,7 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# kiro
+.kiro
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-img/SteelSmart FYP Demo - Efye, Ja Man.mp4
+img/*.mp4

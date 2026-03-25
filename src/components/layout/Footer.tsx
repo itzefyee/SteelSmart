@@ -115,9 +115,9 @@ const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <div className="text-gray-400 text-sm space-y-1">
-            <p>© 2025 SteelSmart. All rights reserved.</p>
+            <p>© 2026 SteelSmart. All rights reserved.</p>
             <p>
-              Designed by Efye Ching & Tan Ja Man, licensed under{' '}
+              Designed by SteelSmart Team, licensed under{' '}
               <a 
                 href="https://creativecommons.org/licenses/by-nc/4.0/deed.en" 
                 target="_blank" 

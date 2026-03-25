@@ -1,6 +1,14 @@
 # SteelSmart AI Marketplace
 
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
+
 An AI-enhanced metal & steel parts marketplace built with Next.js 16, featuring advanced CAD capabilities powered by Google Gemini AI and Zoo Dev API. A comprehensive platform for engineers and manufacturers to discover, analyze, generate, and source metal & steel components with intelligent AI assistance.
+
+> **Live Demo**: _Deploy to Vercel and add your URL here_
 
 ## Features
 
@@ -114,21 +122,19 @@ An AI-enhanced metal & steel parts marketplace built with Next.js 16, featuring 
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/itzefyee/SteelSmart.git
 cd SteelSmart
 ```
 
 2. Install dependencies:
 ```bash
 npm install
-# or
-yarn install
 ```
 
 3. Set up environment variables:
 ```bash
-# Create .env.local file (for local development only)
-# Copy from .env.example if available
+cp .env.example .env.local
+# Then edit .env.local and fill in your values
 ```
 
 **Required Environment Variables:**
@@ -157,12 +163,12 @@ UPSTASH_REDIS_REST_TOKEN=your_upstash_token_here
 
 **Getting API Keys:**
 - **Supabase**: Visit [supabase.com](https://supabase.com), create project, get keys from Settings > API
-- **Gemini**: Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+- **Gemini**: Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
 - **Zoo Dev**: Visit [zoo.dev](https://zoo.dev) and sign up for API access
 - **Upstash Redis**: Visit [upstash.com](https://upstash.com), create a Redis database, get REST URL and token from database details
 
 **Security Note**: 
-- Never commit `.env` files to version control
+- Never commit `.env.local` or any `.env` files to version control
 - For production, use dedicated secrets management (see Security section below)
 - The app works with fallbacks when optional API keys are not configured
 
@@ -277,21 +283,19 @@ SteelSmart/
 │   ├── migrate-products.ts         # Product migration
 │   └── fetch-ml-prompts.ts
 ├── documentation/                   # Project Documentation
-│   ├── Architecture/               # Architecture docs
-│   ├── CAD Generation/             # CAD generation docs
-│   ├── CAD Preview/                # 3D preview docs
-│   ├── Alternative Products/       # Alternative suggestions
+│   ├── AUTH_ARCHITECTURE.md
 │   ├── COMPONENTS.md               # Component documentation
 │   ├── PRD-CAD.md                  # Product requirements
+│   ├── PROJECT_STRUCTURE.md
 │   └── MIGRATION_GUIDE.md
+├── .env.example                     # Environment variable template
 └── Configuration Files
     ├── package.json                # Dependencies & scripts
     ├── tsconfig.json               # TypeScript config
     ├── tailwind.config.js          # Design system
     ├── next.config.js              # Next.js + WASM config
     ├── vitest.config.ts            # Test configuration
-    ├── vitest.setup.ts             # Test setup
-    └── .env.local                  # Environment variables
+    └── vitest.setup.ts             # Test setup
 ```
 
 ## 🔧 **Key Components & Systems**
@@ -426,7 +430,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ### **Security Best Practices**
 
-⚠️ **CRITICAL**: Never commit `.env` files to version control or read/modify them programmatically in production.
+⚠️ **CRITICAL**: Never commit `.env.local` or any `.env` files to version control.
 
 **Secrets Management:**
 - **Development**: Use `.env.local` for local development only (already in `.gitignore`)
@@ -486,7 +490,7 @@ npx tsx scripts/migrate-products.ts
 ## 🚀 **Deployment**
 
 ### **Vercel (Recommended)**
-1. **Connect Repository**: Link your GitHub/GitLab repo to Vercel
+1. **Connect Repository**: Link your GitHub repo to Vercel
 2. **Environment Variables**: Add all required environment variables in Vercel dashboard:
    - Supabase credentials (required)
    - API keys for Gemini and Zoo Dev (optional)
@@ -507,7 +511,7 @@ npx tsx scripts/migrate-products.ts
 
 ## 🤝 **Contributing**
 
-We welcome contributions! Here's how to get started:
+Contributions are welcome! Here's how to get started:
 
 1. **Fork the Repository**: Create your own copy
 2. **Create Feature Branch**: `git checkout -b feature/amazing-feature`
@@ -526,14 +530,13 @@ We welcome contributions! Here's how to get started:
 
 ## 📄 **License**
 
-This project is licensed under the **MIT License** - see the LICENSE file for details.
+This project is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** license — see the [LICENSE](LICENSE) file for details.
 
-## 📞 **Support & Contact**
+You are free to share and adapt this work for non-commercial purposes, provided you give appropriate credit. Commercial use is not permitted.
 
-**SteelSmart Team**
-- **Email**: [info@steelsmart.com](mailto:info@steelsmart.com)
-- **Website**: [steelsmart.com](https://steelsmart.com)
-- **Business Hours**: Monday-Friday, 9AM-6PM EST
+## 📞 **Support**
+
+For questions, bug reports, or feature requests, please [open an issue](https://github.com/itzefyee/SteelSmart/issues) on GitHub.
 
 ## 🗺️ **Roadmap**
 
@@ -642,11 +645,6 @@ function CADSettings() {
 - 🎯 Optimistic updates for instant feedback
 - 📊 Built-in performance monitoring
 
-For detailed documentation, see:
-- `documentation/STATE_MANAGEMENT_GUIDE.md` - Complete usage guide
-- `documentation/CACHING_STRATEGY.md` - Redis caching patterns
-- `documentation/MIGRATION_GUIDE_STATE.md` - Migrating existing hooks
-
 ## 📊 **Performance Monitoring**
 
 The application includes comprehensive performance monitoring for cache and query optimization:
@@ -683,35 +681,18 @@ Performance metrics are automatically logged to the console:
 - Cache miss response: <200ms
 - Database query reduction: 80-90%
 
-For detailed documentation, see `documentation/PERFORMANCE_MONITORING.md`
-
 ## 📚 **Documentation**
 
 Comprehensive documentation is available in the `/documentation` directory:
 
 ### **Architecture & Patterns**
-- **Architecture**: System design and patterns
-- **Components**: Component documentation and usage
-- **State Management Guide**: Complete guide to React Query and Zustand usage
-- **Caching Strategy**: Redis caching patterns and TTL guidelines
-- **Performance Monitoring**: Cache and query performance tracking
-
-### **Migration & Setup**
-- **Migration Guide (Database)**: Supabase database migration instructions
-- **Migration Guide (State)**: Converting existing hooks to React Query/Zustand
-- **Troubleshooting**: Common issues and solutions
+- [Auth Architecture](./documentation/AUTH_ARCHITECTURE.md) - Authentication flow and security
+- [Components](./documentation/COMPONENTS.md) - Component documentation and usage
+- [Project Structure](./documentation/PROJECT_STRUCTURE.md) - Codebase layout and conventions
 
 ### **Features**
-- **CAD Generation**: Text-to-CAD implementation details
-- **CAD Preview**: 3D visualization implementation
-- **Alternative Products**: Alternative suggestion system
-- **PRD**: Product requirements and specifications
-
-### **Quick Links**
-- [State Management Guide](./documentation/STATE_MANAGEMENT_GUIDE.md) - React Query & Zustand patterns
-- [Caching Strategy](./documentation/CACHING_STRATEGY.md) - Redis caching best practices
-- [Migration Guide](./documentation/MIGRATION_GUIDE_STATE.md) - Convert existing code
-- [Troubleshooting](./documentation/TROUBLESHOOTING.md) - Common issues and fixes
+- [CAD Generation](./documentation/PRD-CAD.md) - Text-to-CAD implementation details
+- [Migration Guide](./documentation/MIGRATION_GUIDE.md) - Database migration instructions
 
 ## 🌟 **Acknowledgments**
 

@@ -12,8 +12,10 @@ const inter = Inter({
   preload: true
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://github.com/itzefyee/SteelSmart';
+
 export const metadata: Metadata = {
-  metadataBase: new URL('http://localhost:3000'),
+  metadataBase: new URL(siteUrl),
   title: 'SteelSmart - AI-Powered Metal & Steel Parts Marketplace',
   description: 'Discover and source robotic components, structural steel, and custom fabricated parts with AI-powered CAD drawing analysis.',
   keywords: 'steel parts, robotic components, structural steel, CAD analysis, manufacturing, engineering',
@@ -33,14 +35,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'SteelSmart - AI-Powered Metal & Steel Parts Marketplace',
     description: 'Discover and source robotic components, structural steel, and custom fabricated parts with AI-powered CAD drawing analysis.',
-    url: 'https://steelsmart.com',
+    url: siteUrl,
     siteName: 'SteelSmart',
     images: [
       {
-        url: '/images/logo.svg',
-        width: 120,
-        height: 40,
-        alt: 'SteelSmart Logo'
+        url: '/images/hero-bg.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'SteelSmart — AI-Powered Metal & Steel Parts Marketplace'
       }
     ],
     locale: 'en_US',
@@ -50,7 +52,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'SteelSmart - AI-Powered Metal & Steel Parts Marketplace',
     description: 'Discover and source robotic components, structural steel, and custom fabricated parts with AI-powered CAD drawing analysis.',
-    images: ['/images/logo.svg']
+    images: ['/images/hero-bg.jpg']
   },
   robots: {
     index: true,
