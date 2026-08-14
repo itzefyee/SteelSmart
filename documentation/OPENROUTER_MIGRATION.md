@@ -16,7 +16,7 @@ Successfully migrated from Google Gemini API to OpenRouter API for all AI-powere
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
 const result = await model.generateContent([prompt, imagePart]);
 ```
 

@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     // Call Gemini with all images
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
 
     const result = await model.generateContent([
       fullPrompt,
