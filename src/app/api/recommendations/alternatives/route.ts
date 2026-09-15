@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { alternativeSuggester } from '@/lib/alternative-product-suggester';
+import { RecommendationService } from '@/services/recommendation.service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,28 +39,14 @@ export async function POST(request: NextRequest) {
       return String(dimensions);
     };
 
-    // Create a mock analysis object for the alternative suggester
-    const mockAnalysis = {
-      extractedSpecs: {
-        productName: specifications.productName || specifications.name || '',
-        dimensions: cleanDimensions(specifications.dimensions),
-        material: cleanMaterial(specifications.material),
-        loadRequirements: specifications.loadCapacity || '',
-        componentType: specifications.category || 'custom',
-        tolerance: specifications.tolerance || ''
-      },
-      recommendedProducts: [],
-      totalRecommendations: 0,
-      confidence: 0.8,
-      reasoning: 'User-provided specifications',
-      analysisId: `manual-${Date.now()}`
-    };
-
-    // Get alternative suggestions from AI
-    const suggestions = await alternativeSuggester.suggestAlternatives(
-      mockAnalysis.extractedSpecs,
-      mockAnalysis.reasoning
-    );
+    const suggestions = await RecommendationService.getAlternativeSuggestionResponse({
+      productName: specifications.productName || specifications.name || '',
+      dimensions: cleanDimensions(specifications.dimensions),
+      material: cleanMaterial(specifications.material),
+      loadCapacity: specifications.loadCapacity || '',
+      category: specifications.category || 'custom',
+      componentType: specifications.componentType,
+    });
 
     if (!suggestions || !suggestions.alternatives) {
       return NextResponse.json({

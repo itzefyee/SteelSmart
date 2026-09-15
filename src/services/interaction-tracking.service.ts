@@ -9,7 +9,7 @@
  */
 
 import { getSupabaseServer } from '@/lib/supabase-server';
-import { supabase as clientSupabase } from '@/lib/supabase';
+import { getSupabaseAdmin, supabase as clientSupabase } from '@/lib/supabase';
 
 export type InteractionAction = 'view' | 'click' | 'search' | 'rfq' | 'purchase' | 'add_to_cart';
 
@@ -43,30 +43,45 @@ export class InteractionTrackingService {
    * Track a user interaction (client-side)
    * Uses client Supabase instance with RLS
    * 
-   * TODO: Re-enable after regenerating Supabase types with user_product_interactions table
    */
   static async trackInteractionClient(data: InteractionData): Promise<void> {
     try {
-      // Interaction tracking temporarily disabled - table exists but not in TypeScript types
-      return;
-
-      /* 
       const { data: { user } } = await clientSupabase.auth.getUser();
-      
-      const { error } = await clientSupabase
-        .from('user_product_interactions')
-        .insert({
-          user_id: user?.id || null,
-          product_id: data.productId,
-          action: data.action,
-          search_context: data.searchContext || {},
-          session_id: data.sessionId || this.getSessionId(),
-        });
 
-      if (error) {
-        console.error('Failed to track interaction:', error);
+      const interaction = {
+        product_id: data.productId,
+        action: data.action,
+        search_context: data.searchContext || {},
+        session_id: data.sessionId || this.getSessionId(),
+      };
+
+      // Signed-in users can write directly under the table's RLS policy.
+      if (user) {
+        const { error } = await clientSupabase
+          .from('user_product_interactions')
+          .insert({ ...interaction, user_id: user.id });
+
+        if (error) {
+          console.error('Failed to track interaction:', error);
+        }
+        return;
       }
-      */
+
+      // Anonymous sessions use the server endpoint because RLS correctly
+      // prevents browsers from inserting a null user_id directly.
+      if (typeof window !== 'undefined') {
+        await fetch('/api/interactions/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productId: data.productId,
+            action: data.action,
+            searchContext: data.searchContext,
+            sessionId: interaction.session_id,
+          }),
+          keepalive: true,
+        });
+      }
     } catch (error) {
       // Silently fail - don't break user experience
       console.error('Interaction tracking error:', error);
@@ -77,18 +92,15 @@ export class InteractionTrackingService {
    * Track a user interaction (server-side)
    * Uses service role for admin operations
    * 
-   * TODO: Re-enable after regenerating Supabase types with user_product_interactions table
    */
   static async trackInteractionServer(
     userId: string | null,
     data: InteractionData
   ): Promise<void> {
     try {
-      // Interaction tracking temporarily disabled - table exists but not in TypeScript types
-      return;
-
-      /* 
-      const supabase = await getSupabaseServer();
+      // Server writes use the service role so anonymous sessions can be
+      // recorded without weakening the browser-side RLS policy.
+      const supabase = getSupabaseAdmin();
       
       const { error } = await supabase
         .from('user_product_interactions')
@@ -103,7 +115,6 @@ export class InteractionTrackingService {
       if (error) {
         console.error('Failed to track interaction:', error);
       }
-      */
     } catch (error) {
       console.error('Interaction tracking error:', error);
     }
@@ -112,17 +123,12 @@ export class InteractionTrackingService {
   /**
    * Get frequently bought/viewed together products
    * 
-   * TODO: Re-enable after regenerating Supabase types with RPC functions
    */
   static async getFrequentlyBoughtTogether(
     productId: string,
     limit: number = 4
   ): Promise<FrequentlyBoughtTogether[]> {
     try {
-      // Frequently bought together temporarily disabled - RPC function exists but not in TypeScript types
-      return [];
-
-      /* 
       const supabase = await getSupabaseServer();
       
       const { data, error } = await supabase.rpc('get_frequently_bought_together', {
@@ -137,10 +143,9 @@ export class InteractionTrackingService {
 
       return (data || []).map((item: any) => ({
         productId: item.product_id,
-        coOccurrenceCount: parseInt(item.co_occurrence_count),
+        coOccurrenceCount: Number(item.co_occurrence_count),
         interactionTypes: item.interaction_types || [],
       }));
-      */
     } catch (error) {
       console.error('Error getting frequently bought together:', error);
       return [];
@@ -150,7 +155,6 @@ export class InteractionTrackingService {
   /**
    * Get recommendations based on similar searches
    * 
-   * TODO: Re-enable after regenerating Supabase types with RPC functions
    */
   static async getSimilarSearchRecommendations(
     searchContext: {
@@ -160,10 +164,6 @@ export class InteractionTrackingService {
     limit: number = 5
   ): Promise<SimilarSearchRecommendation[]> {
     try {
-      // Similar search recommendations temporarily disabled - RPC function exists but not in TypeScript types
-      return [];
-
-      /* 
       const supabase = await getSupabaseServer();
       
       const { data, error } = await supabase.rpc('get_similar_search_recommendations', {
@@ -179,10 +179,9 @@ export class InteractionTrackingService {
 
       return (data || []).map((item: any) => ({
         productId: item.product_id,
-        interactionCount: parseInt(item.interaction_count),
-        avgConfidence: parseFloat(item.avg_confidence),
+        interactionCount: Number(item.interaction_count),
+        avgConfidence: Number(item.avg_confidence),
       }));
-      */
     } catch (error) {
       console.error('Error getting similar search recommendations:', error);
       return [];

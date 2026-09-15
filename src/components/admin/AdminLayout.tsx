@@ -48,6 +48,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             size="icon"
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden"
+            aria-label="Close admin navigation"
           >
             <X className="h-5 w-5" />
           </Button>
@@ -130,6 +131,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             variant="ghost"
             size="icon"
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={sidebarOpen ? 'Close admin navigation' : 'Open admin navigation'}
           >
             <Menu className="h-5 w-5" />
           </Button>

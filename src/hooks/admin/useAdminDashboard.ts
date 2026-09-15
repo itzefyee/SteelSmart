@@ -20,9 +20,9 @@ interface RecentActivity {
 
 const dashboardApi = {
   getStats: async (): Promise<DashboardStats> => {
-    // Fetch all data in parallel for better performance
+    // Fetch server-side inventory counts rather than the complete catalog.
     const [productsRes, reportsRes, activityRes] = await Promise.all([
-      fetch('/api/admin/products'),
+      fetch('/api/admin/products?summary=true'),
       fetch('/api/admin/reports/statistics'),
       fetch('/api/admin/recent-activity'),
     ]);
@@ -32,7 +32,7 @@ const dashboardApi = {
     }
 
     const productsData = await productsRes.json();
-    const products = productsData.data || [];
+    const productStats = productsData.data || { total: 0, inStock: 0 };
 
     // Handle reports statistics gracefully - don't fail if reports table doesn't exist
     let reportStats = { total: 0, completed: 0, processing: 0 };
@@ -61,8 +61,8 @@ const dashboardApi = {
     }
 
     return {
-      totalProducts: products.length,
-      inStockProducts: products.filter((p: any) => p.in_stock !== false).length,
+      totalProducts: productStats.total || 0,
+      inStockProducts: productStats.inStock || 0,
       totalReports: reportStats.total || 0,
       completedReports: reportStats.completed || 0,
       processingReports: reportStats.processing || 0,

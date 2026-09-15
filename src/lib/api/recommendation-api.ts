@@ -56,6 +56,23 @@ export interface AlternativeProduct {
     name: string;
     section?: string;
   }>;
+  provenance?: {
+    /** A retrieved record has a direct supplier source; all others are inference. */
+    status: 'retrieved' | 'inferred';
+    providers?: Array<'exa' | 'firecrawl'>;
+    sources?: Array<{
+      url: string;
+      title?: string;
+      excerpt?: string;
+    }>;
+    retrievedAt?: string;
+    cacheStatus?: 'fresh' | 'cached';
+    groundedBy?: Array<{
+      url: string;
+      title?: string;
+      excerpt?: string;
+    }>;
+  };
 }
 
 export interface CatalogMatchResponse {

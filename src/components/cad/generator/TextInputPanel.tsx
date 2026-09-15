@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useMemo, useRef, useEffect } from 'react';
+import { LoaderCircle, Mic, Square } from 'lucide-react';
 import { mlPromptTemplates } from '@/data/sample-data';
+import { useSpeechInput } from '@/hooks/useSpeechInput';
 import TemplateCardButton from './TemplateCardButton';
 
 interface TextInputPanelProps {
@@ -32,6 +34,20 @@ const TextInputPanel: React.FC<TextInputPanelProps> = React.memo(({
   prefilledPromptHighlight,
 }) => {
   const promptInputContainerRef = useRef<HTMLDivElement | null>(null);
+  const textInputRef = useRef(textInput);
+  const { isListening, isTranscribing, transcript, start, stop, error: speechError } = useSpeechInput();
+
+  useEffect(() => {
+    textInputRef.current = textInput;
+  }, [textInput]);
+
+  useEffect(() => {
+    if (!transcript) return;
+
+    const existingPrompt = textInputRef.current.trim();
+    const nextPrompt = `${existingPrompt}${existingPrompt ? ' ' : ''}${transcript}`.slice(0, 1000);
+    onTextInputChange(nextPrompt);
+  }, [onTextInputChange, transcript]);
 
   const brakeRotorQuickBadges = useMemo(() => (
     <div className="flex items-center gap-2 text-[10px] text-amber-700">
@@ -143,8 +159,9 @@ const TextInputPanel: React.FC<TextInputPanelProps> = React.memo(({
           <p className="text-sm font-medium text-gray-600">Output preferences:</p>
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center space-x-2">
-              <label className="text-xs text-gray-600">Format:</label>
+              <label htmlFor="cad-output-format" className="text-xs text-gray-600">Format:</label>
               <select
+                id="cad-output-format"
                 value={selectedFormat}
                 onChange={(e) => onFormatChange(e.target.value as 'step' | 'stl' | 'obj' | 'gltf')}
                 className="px-3 py-1.5 text-sm glass-card border-none outline-none cursor-pointer"
@@ -156,8 +173,9 @@ const TextInputPanel: React.FC<TextInputPanelProps> = React.memo(({
               </select>
             </div>
             <div className="flex items-center space-x-2">
-              <label className="text-xs text-gray-600">Units:</label>
+              <label htmlFor="cad-output-units" className="text-xs text-gray-600">Units:</label>
               <select
+                id="cad-output-units"
                 value={selectedUnits}
                 onChange={(e) => onUnitsChange(e.target.value as 'mm' | 'cm' | 'm' | 'in' | 'ft')}
                 className="px-3 py-1.5 text-sm glass-card border-none outline-none cursor-pointer"
@@ -186,11 +204,13 @@ const TextInputPanel: React.FC<TextInputPanelProps> = React.memo(({
                   prefilledPromptHighlight ? 'ring-2 ring-blue-400 ring-opacity-50 border-blue-200' : ''
                 }`}
               >
+                <label htmlFor="textInput" className="sr-only">CAD component description</label>
                 <textarea
                   id="textInput"
                   value={textInput}
                   onChange={(e) => onTextInputChange(e.target.value)}
                   placeholder="Describe the component you want to generate..."
+                  maxLength={1000}
                   className="w-full min-h-[80px] max-h-[200px] px-4 py-3 bg-transparent border-none outline-none resize-none text-gray-900 placeholder-gray-500"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey && textInput.trim() && !isPending) {
@@ -201,16 +221,31 @@ const TextInputPanel: React.FC<TextInputPanelProps> = React.memo(({
                 />
                 <div className="flex items-center justify-between px-4 pb-3">
                   <div className="flex items-center space-x-2">
-                    <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a2 2 0 00-2.828-2.828z" />
-                      </svg>
+                    <button
+                      type="button"
+                      onClick={isListening ? stop : () => void start()}
+                      disabled={isPending || isTranscribing}
+                      aria-label={isListening ? 'Stop recording CAD prompt' : 'Record CAD prompt with microphone'}
+                      aria-pressed={isListening}
+                      title={isListening ? 'Stop recording' : 'Record CAD prompt'}
+                      className={`rounded p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                        isListening ? 'bg-destructive/10 text-destructive' : 'text-gray-500 hover:bg-muted hover:text-primary'
+                      }`}
+                    >
+                      {isTranscribing ? (
+                        <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      ) : isListening ? (
+                        <Square className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <Mic className="h-4 w-4" aria-hidden="true" />
+                      )}
                     </button>
-                    <span className="text-xs text-gray-400">{textInput.length}/500</span>
+                    <span className="font-data text-xs text-gray-500">{textInput.length}/1000</span>
                   </div>
                   <button
                     onClick={onGenerate}
                     disabled={!textInput.trim() || isPending}
+                    aria-label="Generate CAD model"
                     className={`p-2 rounded-lg transition-all ${
                       textInput.trim() && !isPending
                         ? 'bg-primary text-white hover:bg-primary/90' 
@@ -226,6 +261,16 @@ const TextInputPanel: React.FC<TextInputPanelProps> = React.memo(({
                     )}
                   </button>
                 </div>
+                <p className="sr-only" role="status" aria-live="polite">
+                  {isListening
+                    ? 'Recording CAD prompt. Select the microphone button again when finished.'
+                    : isTranscribing
+                      ? 'Transcribing CAD prompt.'
+                      : ''}
+                </p>
+                {speechError && (
+                  <p className="px-4 pb-3 text-xs text-destructive" role="alert">{speechError}</p>
+                )}
               </div>
             </div>
           </div>

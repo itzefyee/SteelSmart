@@ -8,14 +8,28 @@ export interface ProductFilters {
   inStock?: boolean;
 }
 
+export interface ProductPage {
+  products: Product[];
+  total: number;
+}
+
+export interface ProductInventoryStatistics {
+  total: number;
+  inStock: number;
+}
+
 export type CreateProductInput = Omit<TablesInsert<'products'>, 'created_at' | 'updated_at' | 'search_vector'>;
 export type UpdateProductInput = Omit<TablesUpdate<'products'>, 'id' | 'created_at' | 'updated_at' | 'search_vector'>;
 
 export class ProductRepository {
-  async findAll(filters?: ProductFilters): Promise<Product[]> {
+  async findAll(
+    filters?: ProductFilters,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<ProductPage> {
     const supabase = await getSupabaseServer();
     
-    let query = supabase.from('products').select('*');
+    let query = supabase.from('products').select('*', { count: 'exact' });
     
     if (filters?.category) {
       query = query.eq('category', filters.category);
@@ -29,10 +43,26 @@ export class ProductRepository {
       query = query.eq('in_stock', filters.inStock);
     }
     
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(from, to);
     
     if (error) throw new Error(`Failed to fetch products: ${error.message}`);
-    return data || [];
+    return { products: data || [], total: count || 0 };
+  }
+
+  async getInventoryStatistics(): Promise<ProductInventoryStatistics> {
+    const supabase = await getSupabaseServer();
+    const { data, error } = await supabase.rpc('get_product_inventory_statistics');
+
+    if (error) throw new Error(`Failed to fetch inventory statistics: ${error.message}`);
+    const statistics = data?.[0];
+    return {
+      total: Number(statistics?.total) || 0,
+      inStock: Number(statistics?.in_stock) || 0,
+    };
   }
 
   async findById(id: string): Promise<Product | null> {

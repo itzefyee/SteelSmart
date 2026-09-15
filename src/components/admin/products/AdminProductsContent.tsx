@@ -29,6 +29,7 @@ import { useQueryClient } from '@tanstack/react-query';
 export default function AdminProductsContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const { addToast } = useToast();
   const queryClient = useQueryClient();
   
@@ -37,6 +38,7 @@ export default function AdminProductsContent() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
     }, 300);
 
     return () => {
@@ -45,9 +47,11 @@ export default function AdminProductsContent() {
   }, [searchTerm]);
   
   // Use React Query for data fetching with search filters
-  const { data: products = [], isLoading: loading, error } = useAdminProducts({
+  const { data: productsPage, isLoading: loading, error } = useAdminProducts({
     search: debouncedSearchTerm || undefined,
-  });
+  }, currentPage, 20);
+  const products = productsPage?.data || [];
+  const pagination = productsPage?.pagination;
   
   const deleteProductMutation = useDeleteAdminProduct();
 
@@ -107,7 +111,7 @@ export default function AdminProductsContent() {
           />
         </div>
         <div className="text-sm text-muted-foreground">
-          Showing {filteredProducts.length} of {products.length} products
+          Showing {filteredProducts.length} of {pagination?.total || 0} products
         </div>
       </div>
 
@@ -214,6 +218,30 @@ export default function AdminProductsContent() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {!loading && (pagination?.totalPages || 0) > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(page => Math.max(page - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {currentPage} of {pagination?.totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(page => Math.min(page + 1, pagination?.totalPages || page))}
+            disabled={currentPage >= (pagination?.totalPages || 0)}
+          >
+            Next
+          </Button>
+        </div>
       )}
     </div>
   );

@@ -11,12 +11,31 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category') || undefined;
     const search = searchParams.get('search') || undefined;
     const inStock = searchParams.get('inStock') === 'true' ? true : undefined;
+    const requestedPage = Number.parseInt(searchParams.get('page') || '1', 10);
+    const requestedLimit = Number.parseInt(searchParams.get('limit') || '20', 10);
+    const page = Number.isFinite(requestedPage) ? Math.max(requestedPage, 1) : 1;
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 100)
+      : 20;
 
     const service = new ProductService();
-    const products = await service.getAll({ category, search, inStock });
+    if (searchParams.get('summary') === 'true') {
+      const statistics = await service.getInventoryStatistics();
+      return NextResponse.json({ data: statistics });
+    }
+
+    const result = await service.getAll({ category, search, inStock }, page, limit);
 
     // Return with moderate caching for admin data
-    return NextResponse.json({ data: products }, {
+    return NextResponse.json({
+      data: result.products,
+      pagination: {
+        page,
+        limit,
+        total: result.total,
+        totalPages: result.total > 0 ? Math.ceil(result.total / limit) : 0,
+      },
+    }, {
       headers: {
         'Cache-Control': 'private, s-maxage=120, stale-while-revalidate=300', // 2 min cache, 5 min stale
       },

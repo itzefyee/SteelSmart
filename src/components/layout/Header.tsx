@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/AuthProvider';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCadToolsOpen, setIsCadToolsOpen] = useState(false);
+  const cadToolsMenuId = useId();
   const { user, loading } = useAuth();
 
   return (
@@ -21,32 +23,54 @@ const Header: React.FC = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav aria-label="Primary navigation" className="hidden md:flex items-center space-x-8">
             <Link href="/catalog" className="text-gray-700 hover:text-primary transition-colors">
               Catalog
             </Link>
-            <div className="relative group">
-              <button className="text-gray-700 hover:text-primary transition-colors flex items-center">
+            <div
+              className="relative"
+              onMouseEnter={() => setIsCadToolsOpen(true)}
+              onMouseLeave={() => setIsCadToolsOpen(false)}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) setIsCadToolsOpen(false);
+              }}
+            >
+              <button
+                type="button"
+                aria-expanded={isCadToolsOpen}
+                aria-controls={cadToolsMenuId}
+                aria-haspopup="menu"
+                onClick={() => setIsCadToolsOpen((open) => !open)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') setIsCadToolsOpen(false);
+                  if (event.key === 'ArrowDown') setIsCadToolsOpen(true);
+                }}
+                className="text-gray-700 hover:text-primary transition-colors flex items-center"
+              >
                 AI CAD Tools
                 <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                <div className="py-2">
-                  <Link href="/cad-generator" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+              <div
+                className={`absolute top-full left-0 w-64 pt-2 z-50 ${
+                  isCadToolsOpen ? 'block' : 'hidden'
+                }`}
+              >
+                <div id={cadToolsMenuId} role="menu" className="rounded-md border bg-white py-2 shadow-md">
+                  <Link role="menuitem" href="/cad-generator" onClick={() => setIsCadToolsOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
                     <svg className="w-4 h-4 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
                     </svg>
                     CAD Generator
                   </Link>
-                  <Link href="/cad-analyzer" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+                  <Link role="menuitem" href="/cad-analyzer" onClick={() => setIsCadToolsOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
                     <svg className="w-4 h-4 mr-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                     CAD Analyzer
                   </Link>
-                  <Link href="/product-recommender" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+                  <Link role="menuitem" href="/product-recommender" onClick={() => setIsCadToolsOpen(false)} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
                     <svg className="w-4 h-4 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                     </svg>
@@ -91,8 +115,12 @@ const Header: React.FC = () => {
           {/* Mobile menu button */}
           <div className="md:hidden">
             <button
+              type="button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-gray-700 hover:text-primary focus:outline-none"
+              aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-navigation"
             >
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {isMenuOpen ? (
@@ -107,7 +135,7 @@ const Header: React.FC = () => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t">
+          <nav id="mobile-navigation" aria-label="Mobile navigation" className="md:hidden py-4 border-t">
             <div className="flex flex-col space-y-2">
               <Link href="/catalog" className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg">
                 Catalog
@@ -170,7 +198,7 @@ const Header: React.FC = () => {
                 />
               </div>
             </div>
-          </div>
+          </nav>
         )}
       </div>
     </header>

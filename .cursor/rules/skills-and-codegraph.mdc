@@ -1,0 +1,24 @@
+---
+description: Route SteelSmart work through installed Codex skills and CodeGraph
+alwaysApply: true
+---
+
+# Skills and CodeGraph
+
+At task start, read the matching `SKILL.md` under `C:\Users\spoop\.codex\skills` and follow it. Do not improvise around it.
+
+## Routing
+
+- Locate symbols, callers, imports: CodeGraph MCP first — call `codegraph_explore` with `projectPath` set to this repo. If MCP is down, use `caveman-explore`.
+- Ambiguous bugs or intermittent failures: `investigate-first` before any product edit.
+- UI design, audit, polish, layout, color: `impeccable`. On Windows run `impeccable.cmd context` once per session; read `craft-floor.md` before UI edits.
+- Motion or wow-factor: `cast`, then `motion-dev` or `framer-motion`. Ask before new deps. Verify APIs at https://motion.dev/ when unsure.
+- Animation taste review: `emil-design-eng`. CAD / R3F 3D: `threejs-r3f`.
+- Narrow bug: `surgical-patch`. New feature slice: `lean-build`. Extract without behavior change: `safe-refactor`. Schema/API transition: `migration`.
+- Validate without expanding: `verify-and-stop`. Commit messages: `caveman-commit`.
+
+## Do not unless asked
+
+- Caveman terse mode (`/caveman`)
+- `agent-eval` benchmarks
+- Creating `PRODUCT.md` / `DESIGN.md` (only on Impeccable `init`)

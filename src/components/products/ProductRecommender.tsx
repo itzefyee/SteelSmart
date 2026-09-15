@@ -448,7 +448,7 @@ const ProductRecommender: React.FC = () => {
             className="glass-input text-base"
           />
           <p className="mt-1.5 text-xs text-gray-500">
-            💡 Search by product name, type, or keywords for faster results
+            Search by product name, type, or keywords for faster results.
           </p>
         </div>
         
@@ -485,11 +485,11 @@ const ProductRecommender: React.FC = () => {
                 className="glass-input w-full text-left flex items-center justify-between cursor-pointer"
               >
                 <span>
-                  {requirements.category === 'all' && '🔍 All Categories'}
-                  {requirements.category === 'structural' && '🏗️ Structural Steel'}
-                  {requirements.category === 'fasteners' && '🔩 Fasteners & Hardware'}
-                  {requirements.category === 'robotic' && '🤖 Robotic Components'}
-                  {requirements.category === 'custom' && '⚙️ Custom Parts'}
+                  {requirements.category === 'all' && 'All Categories'}
+                  {requirements.category === 'structural' && 'Structural Steel'}
+                  {requirements.category === 'fasteners' && 'Fasteners & Hardware'}
+                  {requirements.category === 'robotic' && 'Robotic Components'}
+                  {requirements.category === 'custom' && 'Custom Parts'}
                 </span>
                 <svg className={`w-4 h-4 text-gray-500 transition-transform ${categoryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -508,7 +508,7 @@ const ProductRecommender: React.FC = () => {
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                     >
-                      🔍 All Categories
+                      All Categories
                     </button>
                     <button
                       type="button"
@@ -518,7 +518,7 @@ const ProductRecommender: React.FC = () => {
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                     >
-                      🏗️ Structural Steel
+                      Structural Steel
                     </button>
                     <button
                       type="button"
@@ -528,7 +528,7 @@ const ProductRecommender: React.FC = () => {
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                     >
-                      🔩 Fasteners & Hardware
+                      Fasteners & Hardware
                     </button>
                     <button
                       type="button"
@@ -538,7 +538,7 @@ const ProductRecommender: React.FC = () => {
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                     >
-                      🤖 Robotic Components
+                      Robotic Components
                     </button>
                     <button
                       type="button"
@@ -548,7 +548,7 @@ const ProductRecommender: React.FC = () => {
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                     >
-                      ⚙️ Custom Parts
+                      Custom Parts
                     </button>
                   </div>
                 </div>
@@ -636,7 +636,7 @@ const ProductRecommender: React.FC = () => {
                 }`}
               >
                 <span className="flex items-center space-x-2">
-                  <span>🏪 Direct Matches</span>
+                  <span>Direct Matches</span>
                   <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
                     {catalogMatches.length}
                   </span>
@@ -747,7 +747,7 @@ const ProductRecommender: React.FC = () => {
                                 <div className="flex items-center space-x-2 mb-2 flex-wrap">
                                   <span className="text-lg font-semibold text-gray-900">{product.name}</span>
                                   <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                                    🏪 Catalog Match
+                                    Catalog Match
                                   </span>
                                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(score)}`}>
                                     {Math.round(score)}% Match
@@ -890,8 +890,12 @@ const ProductRecommender: React.FC = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="font-semibold text-gray-900 text-base line-clamp-1">{alt.name}</h3>
-                              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
-                                🤖 AI Suggest
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                alt.provenance?.status === 'retrieved'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-purple-100 text-purple-700'
+                              }`}>
+                                {alt.provenance?.status === 'retrieved' ? 'Retrieved supplier result' : 'Inferred suggestion'}
                               </span>
                             </div>
                             {alt.description && (
@@ -936,6 +940,23 @@ const ProductRecommender: React.FC = () => {
                         )}
 
                         <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                          {alt.provenance?.status === 'retrieved' && alt.provenance.sources?.slice(0, 1).map((source) => (
+                            <a
+                              key={source.url}
+                              href={source.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="max-w-full truncate rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-800 underline underline-offset-2"
+                              title={source.title || source.url}
+                            >
+                              Source: {source.title || 'Supplier catalogue'}
+                            </a>
+                          ))}
+                          {alt.provenance?.status === 'inferred' && alt.provenance.groundedBy?.length ? (
+                            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-800">
+                              Grounded by {alt.provenance.groundedBy.length} supplier source{alt.provenance.groundedBy.length === 1 ? '' : 's'}
+                            </span>
+                          ) : null}
                           {alt.supplierInfo?.suggestedSuppliers?.slice(0, 2).map((supplier, idx) => (
                             <span key={idx} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
                               {supplier}
@@ -1029,7 +1050,7 @@ const ProductRecommender: React.FC = () => {
                                       ? 'bg-blue-100 text-blue-700' 
                                       : 'bg-purple-100 text-purple-700'
                                   }`}>
-                                    {item.type === 'catalog' ? '🏪 Catalog' : '🤖 AI Alternative'}
+                                    {item.type === 'catalog' ? 'Catalog' : 'AI Alternative'}
                                   </span>
                                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(item.matchScore)}`}>
                                     {Math.round(item.matchScore)}% {getScoreLabel(item.matchScore)}

@@ -336,10 +336,10 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
               className="glass-input w-full text-left flex items-center justify-between cursor-pointer"
             >
               <span>
-                {selectedStatus === '' && '📋 All Statuses'}
-                {selectedStatus === 'completed' && '✅ Completed'}
-                {selectedStatus === 'failed' && '❌ Failed'}
-                {selectedStatus === 'processing' && '⏳ Processing'}
+                {selectedStatus === '' && 'All Statuses'}
+                {selectedStatus === 'completed' && 'Completed'}
+                {selectedStatus === 'failed' && 'Failed'}
+                {selectedStatus === 'processing' && 'Processing'}
               </span>
               <svg className={`w-4 h-4 text-gray-500 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -358,7 +358,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    📋 All Statuses
+                    All Statuses
                   </button>
                   <button
                     type="button"
@@ -369,7 +369,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    ✅ Completed
+                    Completed
                   </button>
                   <button
                     type="button"
@@ -380,7 +380,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    ❌ Failed
+                    Failed
                   </button>
                   <button
                     type="button"
@@ -391,7 +391,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    ⏳ Processing
+                    Processing
                   </button>
                 </div>
               </div>
@@ -412,11 +412,11 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
               className="glass-input w-full text-left flex items-center justify-between cursor-pointer"
             >
               <span>
-                {selectedFormat === '' && '📁 All Formats'}
-                {selectedFormat === 'step' && '📐 STEP'}
-                {selectedFormat === 'stl' && '🔷 STL'}
-                {selectedFormat === 'obj' && '🎨 OBJ'}
-                {selectedFormat === 'gltf' && '✨ GLTF'}
+                {selectedFormat === '' && 'All Formats'}
+                {selectedFormat === 'step' && 'STEP'}
+                {selectedFormat === 'stl' && 'STL'}
+                {selectedFormat === 'obj' && 'OBJ'}
+                {selectedFormat === 'gltf' && 'GLTF'}
               </span>
               <svg className={`w-4 h-4 text-gray-500 transition-transform ${formatDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -435,7 +435,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    📁 All Formats
+                    All Formats
                   </button>
                   <button
                     type="button"
@@ -446,7 +446,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    📐 STEP
+                    STEP
                   </button>
                   <button
                     type="button"
@@ -457,7 +457,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    🔷 STL
+                    STL
                   </button>
                   <button
                     type="button"
@@ -468,7 +468,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    🎨 OBJ
+                    OBJ
                   </button>
                   <button
                     type="button"
@@ -479,7 +479,7 @@ export default function CADHistorySection({ userId }: CADHistorySectionProps) {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   >
-                    ✨ GLTF
+                    GLTF
                   </button>
                 </div>
               </div>

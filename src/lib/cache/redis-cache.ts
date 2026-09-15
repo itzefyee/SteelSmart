@@ -124,7 +124,7 @@ export async function getCached<T>(
     }
 
     performanceMetrics.misses++;
-    console.log(`✗ Cache miss: ${key}`);
+    console.info(`Cache miss (fetching fresh data): ${key}`);
   } catch (error) {
     performanceMetrics.errors++;
     const duration = performance.now() - startTime;

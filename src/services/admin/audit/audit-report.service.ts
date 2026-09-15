@@ -42,8 +42,8 @@ export class AuditReportService {
     console.log(`🔍 Audit Report Input - Month: ${month}, Year: ${year}`);
     
     // Calculate date range for the month
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59);
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate = new Date(Date.UTC(year, month, 1));
     
     console.log(`🔍 Audit Date Range - Start: ${startDate.toISOString()}, End: ${endDate.toISOString()}`);
     
@@ -51,6 +51,21 @@ export class AuditReportService {
     const endDateStr = endDate.toISOString();
 
     try {
+      const { data: statistics, error: statisticsError } = await supabase.rpc(
+        'get_audit_report_statistics',
+        { p_start: startDateStr, p_end: endDateStr }
+      );
+
+      if (statisticsError) {
+        throw new Error(`Failed to aggregate audit logs: ${statisticsError.message}`);
+      }
+
+      return {
+        month,
+        year,
+        ...(statistics as unknown as Omit<AuditLogReportData, 'month' | 'year'>),
+      };
+
       // Get all audit logs for the month with user information
       const { data: auditLogs, error } = await (supabase as any)
         .from('audit_logs')

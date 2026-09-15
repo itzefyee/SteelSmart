@@ -1,6 +1,8 @@
 import { RecommendationScore } from '@/types';
 import { productMatcher } from '@/lib/product-matcher';
 import { getCached } from '@/lib/cache/redis-cache';
+import { alternativeSuggester, type AlternativeSuggestionResponse } from '@/lib/alternative-product-suggester';
+import { getSupabaseServer } from '@/lib/supabase-server';
 import type { ProductSpecs, CatalogMatchResult, AlternativeProduct } from '@/lib/api/recommendation-api';
 
 /**
@@ -132,9 +134,30 @@ export class RecommendationService {
       cacheKey,
       async () => {
         console.log(`Computing catalog matches for specs:`, normalizedSpecs);
-        // This would call the actual matching logic
-        // For now, return empty array - implement in repository
-        return [];
+        const supabase = await getSupabaseServer();
+        const scores = await productMatcher.matchFromSpecs(normalizedSpecs, supabase);
+        if (scores.length === 0) return [];
+
+        const { data: products, error } = await supabase
+          .from('products')
+          .select('*')
+          .in('id', scores.map(score => score.productId));
+
+        if (error) {
+          throw new Error(`Failed to load catalog matches: ${error.message}`);
+        }
+
+        const productsById = new Map((products || []).map(product => [product.id, product]));
+        return scores.flatMap(score => {
+          const product = productsById.get(score.productId);
+          return product ? [{
+            product,
+            matchScore: Math.round(score.score * 100),
+            rawScore: score.score,
+            reasoning: score.reasoning,
+            matchedSpecs: score.matchedSpecs,
+          }] : [];
+        });
       },
       this.CATALOG_MATCH_TTL
     );
@@ -154,6 +177,13 @@ export class RecommendationService {
    * @returns Array of AI-generated alternatives
    */
   static async getAlternatives(specs: ProductSpecs): Promise<AlternativeProduct[]> {
+    const response = await this.getAlternativeSuggestionResponse(specs);
+    return response.alternatives;
+  }
+
+  static async getAlternativeSuggestionResponse(
+    specs: ProductSpecs
+  ): Promise<AlternativeSuggestionResponse> {
     // Business logic: Validate specs
     this.validateSpecs(specs);
 
@@ -164,20 +194,24 @@ export class RecommendationService {
     const cacheKey = `recommendations:alternatives:${JSON.stringify(normalizedSpecs)}`;
 
     // Business logic: Fetch with caching (1 hour TTL for expensive AI calls)
-    const alternatives = await getCached<AlternativeProduct[]>(
+    return getCached<AlternativeSuggestionResponse>(
       cacheKey,
       async () => {
         console.log(`🤖 Calling Gemini AI for alternatives (EXPENSIVE):`, normalizedSpecs);
-        // This would call Gemini AI
-        // For now, return empty array - implement in repository
-        return [];
+        return alternativeSuggester.suggestAlternatives(
+          {
+            productName: normalizedSpecs.productName,
+            material: normalizedSpecs.material,
+            dimensions: normalizedSpecs.dimensions,
+            loadRequirements: normalizedSpecs.loadCapacity,
+            componentType: normalizedSpecs.componentType || normalizedSpecs.category,
+          },
+          'User-provided specifications'
+        );
       },
       this.ALTERNATIVES_TTL
     );
 
-    console.log(`✓ Alternatives cache ${alternatives.length > 0 ? 'HIT' : 'MISS'} for specs:`, normalizedSpecs);
-
-    return alternatives;
   }
 
   /**
@@ -207,7 +241,8 @@ export class RecommendationService {
       specs.dimensions ||
       specs.loadCapacity ||
       specs.category ||
-      specs.componentType
+      specs.componentType ||
+      specs.productName
     );
 
     if (!hasAnySpec) {
@@ -223,6 +258,7 @@ export class RecommendationService {
    */
   private static normalizeSpecs(specs: ProductSpecs): ProductSpecs {
     return {
+      productName: specs.productName?.trim().toLowerCase() || undefined,
       material: specs.material?.trim().toLowerCase() || undefined,
       dimensions: specs.dimensions?.trim().toLowerCase() || undefined,
       loadCapacity: specs.loadCapacity?.trim().toLowerCase() || undefined,

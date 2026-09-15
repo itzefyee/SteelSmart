@@ -66,7 +66,6 @@
     "opencascade.js": "^2.0.0-beta.b5ff984",
     "pdfkit": "^0.17.2",
     "postcss": "^8.5.6",
-    "puppeteer": "^24.34.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-dropzone": "^14.3.8",

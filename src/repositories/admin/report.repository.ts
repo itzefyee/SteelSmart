@@ -116,9 +116,7 @@ export class ReportRepository {
     const supabase = getSupabaseAdmin();
     
     try {
-      const { data, error } = await supabase
-        .from('admin_reports')
-        .select('status');
+      const { data, error } = await supabase.rpc('get_admin_report_statistics');
       
       if (error) {
         console.warn('Reports table not found, returning empty statistics:', error.message);
@@ -133,7 +131,7 @@ export class ReportRepository {
       }
       
       const stats: ReportStatistics = {
-        total: data?.length || 0,
+        total: 0,
         pending: 0,
         processing: 0,
         completed: 0,
@@ -141,18 +139,20 @@ export class ReportRepository {
       };
       
       data?.forEach((report) => {
+        const count = Number(report.report_count) || 0;
+        stats.total += count;
         switch (report.status) {
           case 'PENDING':
-            stats.pending++;
+            stats.pending += count;
             break;
           case 'PROCESSING':
-            stats.processing++;
+            stats.processing += count;
             break;
           case 'COMPLETED':
-            stats.completed++;
+            stats.completed += count;
             break;
           case 'FAILED':
-            stats.failed++;
+            stats.failed += count;
             break;
         }
       });

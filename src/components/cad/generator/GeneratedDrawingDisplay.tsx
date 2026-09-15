@@ -3,8 +3,23 @@
 import React, { Suspense, lazy } from 'react';
 import { Button } from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const CADPreview3D = lazy(() => import('@/components/cad/CADPreview3D'));
+
+const CADPreviewErrorFallback = (error: Error, retry: () => void) => (
+  <div className="w-full h-96 flex flex-col items-center justify-center rounded-lg border border-red-200 bg-red-50 p-6 text-center" role="alert">
+    <p className="font-semibold text-red-800">Unable to load the 3D preview</p>
+    <p className="mt-2 text-sm text-red-700">{error.message || 'The 3D renderer encountered an unexpected error.'}</p>
+    <button
+      type="button"
+      onClick={retry}
+      className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+    >
+      Retry preview
+    </button>
+  </div>
+);
 
 interface GeneratedDrawing {
   id: number;
@@ -91,13 +106,17 @@ const GeneratedDrawingDisplay: React.FC<GeneratedDrawingDisplayProps> = React.me
           <h3 className="text-lg font-medium text-gray-900 mb-4">3D Model Preview</h3>
           <div className="glass-card p-4">
             {cadFileForPreview ? (
-              <Suspense fallback={<div className="w-full h-96 flex items-center justify-center"><LoadingSpinner /></div>}>
-                <CADPreview3D
-                  key={`cad-preview-${generatedDrawing?.id}-${Date.now()}`}
-                  file={cadFileForPreview}
-                  showStats={true}
-                />
-              </Suspense>
+              <ErrorBoundary
+                key={`cad-preview-${generatedDrawing.id}`}
+                fallback={CADPreviewErrorFallback}
+              >
+                <Suspense fallback={<div className="w-full h-96 flex items-center justify-center"><LoadingSpinner /></div>}>
+                  <CADPreview3D
+                    file={cadFileForPreview}
+                    showStats={true}
+                  />
+                </Suspense>
+              </ErrorBoundary>
             ) : (
               <div className="w-full h-96 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
                 <div className="text-center p-4">

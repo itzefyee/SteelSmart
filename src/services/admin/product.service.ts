@@ -3,6 +3,7 @@ import type { Product } from '@/types';
 import { NotFoundError } from '@/lib/errors/app-errors';
 import { validateRequired, validatePositiveNumber } from '@/lib/validation-utils';
 import { AuditLogService } from '@/services/admin/audit/audit-log.service';
+import { ProductEmbeddingService } from '@/services/product-embedding.service';
 import { getSupabaseServer } from '@/lib/supabase-server';
 
 // Singleton pattern for repository to reuse connections
@@ -19,8 +20,12 @@ export class ProductService {
     this.repository = repositoryInstance;
   }
 
-  async getAll(filters?: ProductFilters): Promise<Product[]> {
-    return this.repository.findAll(filters);
+  async getAll(filters?: ProductFilters, page: number = 1, limit: number = 20) {
+    return this.repository.findAll(filters, page, limit);
+  }
+
+  async getInventoryStatistics() {
+    return this.repository.getInventoryStatistics();
   }
 
   async getById(id: string): Promise<Product> {
@@ -67,6 +72,10 @@ export class ProductService {
         console.error('Failed to create audit log for product creation:', auditError);
       }
 
+      // Keep the optional semantic index current without making catalog writes
+      // depend on an embedding provider or service-role credential.
+      await ProductEmbeddingService.upsertProductEmbedding(product);
+
       return product;
     } catch (error) {
       throw error;
@@ -105,6 +114,8 @@ export class ProductService {
         // Log audit error but don't fail the product update
         console.error('Failed to create audit log for product update:', auditError);
       }
+
+      await ProductEmbeddingService.upsertProductEmbedding(product);
 
       return product;
     } catch (error) {

@@ -64,51 +64,6 @@ const nextConfig = {
       };
     }
 
-    // Optimize for faster development builds
-    if (dev) {
-      // Faster builds in development
-      config.optimization = {
-        ...config.optimization,
-        removeAvailableModules: false,
-        removeEmptyChunks: false,
-        splitChunks: {
-          chunks: 'all',
-          minSize: 20000,
-          maxSize: 244000,
-          cacheGroups: {
-            default: {
-              minChunks: 2,
-              priority: -20,
-              reuseExistingChunk: true,
-            },
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              priority: -10,
-              chunks: 'all',
-              enforce: true,
-            },
-            // Separate chunk for large libraries
-            three: {
-              test: /[\\/]node_modules[\\/](three|@react-three)[\\/]/,
-              name: 'three',
-              priority: 10,
-              chunks: 'all',
-            },
-            supabase: {
-              test: /[\\/]node_modules[\\/]@supabase[\\/]/,
-              name: 'supabase',
-              priority: 10,
-              chunks: 'all',
-            },
-          },
-        },
-      };
-      
-      // Faster module resolution
-      config.resolve.symlinks = false;
-    }
-
     return config;
   },
 }

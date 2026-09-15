@@ -169,11 +169,6 @@ export interface CADModelData {
   edgeAnalysis?: EdgeAnalysis;
   weldJointAnalysis?: WeldJointAnalysis;
   bendAnalysis?: BendAnalysis;
-  // Internal: cached shape for on-demand analysis
-  _internalShapeData?: {
-    fileContent: ArrayBuffer;
-    fileType: string;
-  };
 }
 
 export interface CADPart {
@@ -847,10 +842,26 @@ export class CADParser {
     console.log(`Extracting geometry with unit scale: ${unitScale}`);
 
     try {
+      // Scale tessellation quality to the model rather than forcing every model
+      // through the same 0.1-unit deflection. This preserves small features while
+      // avoiding excessive triangles for large parts.
+      const bbox = new this.oc.Bnd_Box_1();
+      this.oc.BRepBndLib.Add(shape, bbox, false);
+      const bboxMin = bbox.CornerMin();
+      const bboxMax = bbox.CornerMax();
+      const maxDimension = Math.max(
+        Math.abs(bboxMax.X() - bboxMin.X()),
+        Math.abs(bboxMax.Y() - bboxMin.Y()),
+        Math.abs(bboxMax.Z() - bboxMin.Z())
+      );
+      const deflection = Number.isFinite(maxDimension)
+        ? Math.min(Math.max(maxDimension * 0.001, 0.01), 1)
+        : 0.1;
+
       // Triangulate the shape
       const triangulation = new this.oc.BRepMesh_IncrementalMesh_2(
         shape, 
-        0.1, // deflection
+        deflection,
         false, 
         0.5, 
         true
@@ -866,13 +877,6 @@ export class CADParser {
       let minX = Infinity, minY = Infinity, minZ = Infinity;
       let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
 
-      // Get bounding box
-      const bbox = new this.oc.Bnd_Box_1();
-      this.oc.BRepBndLib.Add(shape, bbox, false);
-      
-      const bboxMin = bbox.CornerMin();
-      const bboxMax = bbox.CornerMax();
-      
       // CRITICAL: Apply unit conversion to bounding box
       minX = bboxMin.X() * unitScale;
       minY = bboxMin.Y() * unitScale;
@@ -1080,16 +1084,14 @@ export class CADParser {
           }
 
           // Extract vertices
-          const meshVertices: number[] = [];
-          const meshNormals: number[] = [];
-          const meshIndices: number[] = [];
+          let partMinX = Infinity, partMinY = Infinity, partMinZ = Infinity;
+          let partMaxX = -Infinity, partMaxY = -Infinity, partMaxZ = -Infinity;
 
           for (let i = 0; i < positionAttribute.count; i++) {
             const x = positionAttribute.getX(i);
             const y = positionAttribute.getY(i);
             const z = positionAttribute.getZ(i);
 
-            meshVertices.push(x, y, z);
             vertices.push(x, y, z);
 
             minX = Math.min(minX, x);
@@ -1099,15 +1101,20 @@ export class CADParser {
             maxY = Math.max(maxY, y);
             maxZ = Math.max(maxZ, z);
 
+            partMinX = Math.min(partMinX, x);
+            partMinY = Math.min(partMinY, y);
+            partMinZ = Math.min(partMinZ, z);
+            partMaxX = Math.max(partMaxX, x);
+            partMaxY = Math.max(partMaxY, y);
+            partMaxZ = Math.max(partMaxZ, z);
+
             // Extract normals if available
             if (normalAttribute) {
               const nx = normalAttribute.getX(i);
               const ny = normalAttribute.getY(i);
               const nz = normalAttribute.getZ(i);
-              meshNormals.push(nx, ny, nz);
               normals.push(nx, ny, nz);
             } else {
-              meshNormals.push(0, 0, 1);
               normals.push(0, 0, 1);
             }
           }
@@ -1116,24 +1123,14 @@ export class CADParser {
           if (indexAttribute) {
             for (let i = 0; i < indexAttribute.count; i++) {
               const index = indexAttribute.getX(i);
-              meshIndices.push(vertexOffset + index);
               indices.push(vertexOffset + index);
             }
           } else {
             // No indices, create them sequentially
             for (let i = 0; i < positionAttribute.count; i++) {
-              meshIndices.push(vertexOffset + i);
               indices.push(vertexOffset + i);
             }
           }
-
-          // Calculate bounding box for this part
-          const partMinX = Math.min(...meshVertices.filter((_, i) => i % 3 === 0));
-          const partMinY = Math.min(...meshVertices.filter((_, i) => i % 3 === 1));
-          const partMinZ = Math.min(...meshVertices.filter((_, i) => i % 3 === 2));
-          const partMaxX = Math.max(...meshVertices.filter((_, i) => i % 3 === 0));
-          const partMaxY = Math.max(...meshVertices.filter((_, i) => i % 3 === 1));
-          const partMaxZ = Math.max(...meshVertices.filter((_, i) => i % 3 === 2));
 
           // Calculate approximate volume (bounding box volume)
           const partVolume = (partMaxX - partMinX) * (partMaxY - partMinY) * (partMaxZ - partMinZ);
@@ -1319,12 +1316,6 @@ export class CADParser {
         throw new Error(`Unsupported or unrecognized file format. Declared: ${declaredExtension}, Detected: ${detectedFormat}. File may be corrupted or in an unsupported format.`);
     }
 
-    // Store file content for on-demand manufacturing analysis
-    modelData._internalShapeData = {
-      fileContent: arrayBuffer,
-      fileType: detectedFormat,
-    };
-
     return modelData;
   }
 
@@ -1334,12 +1325,13 @@ export class CADParser {
    */
   async analyzeManufacturing(
     modelData: CADModelData,
-    materialGrade: string = 'A36'
+    materialGrade: string = 'A36',
+    sourceFile?: File
   ): Promise<CADModelData> {
     await this.initialize();
 
-    if (!modelData._internalShapeData) {
-      console.warn('Cannot run manufacturing analysis: no internal shape data available');
+    if (!sourceFile) {
+      console.warn('Cannot run manufacturing analysis: no source CAD file available');
       return modelData;
     }
 
@@ -1352,7 +1344,11 @@ export class CADParser {
     console.log('Running on-demand manufacturing analysis...');
 
     try {
-      const { fileContent, fileType } = modelData._internalShapeData;
+      const fileContent = await sourceFile.arrayBuffer();
+      const fileType = this.detectFileFormat(
+        fileContent,
+        sourceFile.name.split('.').pop()?.toLowerCase()
+      );
 
       // Re-parse to get shape object for analysis
       // Only STEP files support detailed manufacturing analysis

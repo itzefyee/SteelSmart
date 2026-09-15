@@ -54,10 +54,12 @@ interface GeminiAnalysisResponse {
 export class GeminiClient {
   private apiKey: string;
   private appUrl: string;
+  private model: string;
 
   constructor() {
     this.apiKey = process.env.OPENROUTER_API_KEY || '';
     this.appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    this.model = process.env.OPENROUTER_MODEL || 'openrouter/free';
   }
 
   async analyzeDrawing(
@@ -116,13 +118,13 @@ export class GeminiClient {
       console.log(`File: ${filename}`);
       console.log(`Size: ${fileBuffer.length} bytes`);
       console.log(`Type: ${mimeType}`);
-      console.log(`Model: mistralai/devstral-2512:free`);
+      console.log(`Model: ${this.model}`);
       console.log(`Catalog products included: YES`);
       console.log(`CAD model data included: ${cadModelData ? 'YES' : 'NO'}`);
       console.log('========================================');
 
-      // Prepare image URL for OpenRouter (data URL format)
-      // NOTE: Image input commented out - mistralai/devstral-2512:free doesn't support images
+      // Prepare image URL for OpenRouter (data URL format). This request is
+      // intentionally text-only so it works with the auto-routed free model.
       // const imageDataUrl = `data:${mimeType};base64,${base64Data}`;
 
       // Add file metadata to prompt since we can't send the image
@@ -150,7 +152,7 @@ export class GeminiClient {
           'X-Title': 'SteelSmart CAD Analyzer',
         },
         body: JSON.stringify({
-          model: 'mistralai/devstral-2512:free', // Free text model (no image support)
+          model: this.model,
           messages: [
             {
               role: 'system',

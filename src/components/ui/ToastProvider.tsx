@@ -108,6 +108,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 type="button"
                 className="text-gray-400 hover:text-gray-600 transition-colors"
                 onClick={() => removeToast(toast.id)}
+                aria-label={`Dismiss ${toast.type ?? 'info'} notification`}
               >
                 <span className="sr-only">Close</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

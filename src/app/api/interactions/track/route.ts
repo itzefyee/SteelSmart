@@ -54,17 +54,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET endpoint to retrieve user's interaction history (optional)
-// TODO: Re-enable after regenerating Supabase types with user_product_interactions table
 export async function GET(request: NextRequest) {
   try {
-    // Temporarily disabled - table exists but not in TypeScript types
-    return NextResponse.json({
-      success: false,
-      error: 'Interaction history endpoint temporarily disabled',
-    }, { status: 501 });
-
-    /* 
     const supabase = await getSupabaseServer();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -76,12 +67,23 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const requestedLimit = Number.parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 100)
+      : 20;
     const action = searchParams.get('action');
+
+    const validActions = ['view', 'click', 'search', 'rfq', 'purchase', 'add_to_cart'];
+    if (action && !validActions.includes(action)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid interaction action' },
+        { status: 400 }
+      );
+    }
 
     let query = supabase
       .from('user_product_interactions')
-      .select('*, products(id, name, category, price)')
+      .select('id, product_id, action, search_context, session_id, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -100,7 +102,6 @@ export async function GET(request: NextRequest) {
       success: true,
       data: data || [],
     });
-    */
   } catch (error) {
     console.error('Get interactions API error:', error);
     return NextResponse.json(

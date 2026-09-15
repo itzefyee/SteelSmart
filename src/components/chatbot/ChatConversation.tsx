@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
 import { Bot, ExternalLink, Loader2, Reply, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
@@ -326,14 +325,12 @@ const ChatConversation: React.FC<ChatConversationProps> = ({ history, onHistoryC
           {visualEntries.map((entry) =>
             entry.role === 'bot' ? (
               <div key={entry.id} className="flex items-start gap-3">
-                <motion.div
+                <div
                   className="w-9 h-9 rounded-full flex items-center justify-center text-white border border-white/30 shadow"
                   style={{ background: BOT_AVATAR_BG }}
-                  animate={{ y: [0, 6, 0] }}
-                  transition={{ repeat: Infinity, duration: 3, repeatType: 'reverse', ease: 'easeInOut' as const }}
                 >
                   <Bot className="w-4 h-4" />
-                </motion.div>
+                </div>
                 <div className="flex-1 rounded-2xl px-4 py-3 border border-slate-200 bg-white/90 text-sm text-slate-700 shadow-sm">
                   <p dangerouslySetInnerHTML={{ __html: markdownToHtml(entry.node.message) }} />
                   {renderMedia(entry.node)}

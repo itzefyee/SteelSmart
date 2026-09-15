@@ -6,14 +6,16 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Download, Trash2, Search, FileText, FilePlus } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { MotionConfig, motion } from 'framer-motion';
 import Link from 'next/link';
 import type { Report } from '@/types';
 import { useToast } from '@/components/ui/ToastProvider';
 import { useAdminReports, useAdminReportStatistics, useDeleteAdminReport, adminReportsKeys } from '@/hooks/admin/useAdminReports';
 import { useQueryClient } from '@tanstack/react-query';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export default function AdminReportsContent() {
+  const prefersReducedMotion = useReducedMotion();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const { addToast } = useToast();
@@ -114,6 +116,7 @@ export default function AdminReportsContent() {
   };
 
   return (
+    <MotionConfig reducedMotion={prefersReducedMotion ? 'always' : 'never'}>
     <div className="p-6 space-y-6">
       {/* Header */}
       <motion.div
@@ -321,5 +324,6 @@ export default function AdminReportsContent() {
         </motion.div>
       )}
     </div>
+    </MotionConfig>
   );
 }

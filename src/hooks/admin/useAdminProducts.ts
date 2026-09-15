@@ -7,18 +7,34 @@ interface ProductFilters {
   inStock?: boolean;
 }
 
+export interface PaginatedProducts {
+  data: Product[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 // Admin Products API
 const adminProductsApi = {
-  getAll: async (filters?: ProductFilters): Promise<Product[]> => {
+  getAll: async (
+    filters?: ProductFilters,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<PaginatedProducts> => {
     const params = new URLSearchParams();
     if (filters?.category) params.set('category', filters.category);
     if (filters?.search) params.set('search', filters.search);
     if (filters?.inStock !== undefined) params.set('inStock', filters.inStock.toString());
+    params.set('page', page.toString());
+    params.set('limit', limit.toString());
     
     const response = await fetch(`/api/admin/products?${params}`);
     if (!response.ok) throw new Error('Failed to fetch products');
     const data = await response.json();
-    return data.data;
+    return data;
   },
 
   getById: async (id: string): Promise<Product> => {
@@ -62,16 +78,17 @@ const adminProductsApi = {
 export const adminProductsKeys = {
   all: ['admin', 'products'] as const,
   lists: () => [...adminProductsKeys.all, 'list'] as const,
-  list: (filters?: ProductFilters) => [...adminProductsKeys.lists(), filters] as const,
+  list: (filters?: ProductFilters, page = 1, limit = 20) =>
+    [...adminProductsKeys.lists(), filters, page, limit] as const,
   details: () => [...adminProductsKeys.all, 'detail'] as const,
   detail: (id: string) => [...adminProductsKeys.details(), id] as const,
 };
 
 // Hooks
-export function useAdminProducts(filters?: ProductFilters) {
+export function useAdminProducts(filters?: ProductFilters, page: number = 1, limit: number = 20) {
   return useQuery({
-    queryKey: adminProductsKeys.list(filters),
-    queryFn: () => adminProductsApi.getAll(filters),
+    queryKey: adminProductsKeys.list(filters, page, limit),
+    queryFn: () => adminProductsApi.getAll(filters, page, limit),
     staleTime: 0, // Always fetch fresh data
     gcTime: 0, // Don't keep in cache
     refetchOnMount: true, // Always refetch when component mounts

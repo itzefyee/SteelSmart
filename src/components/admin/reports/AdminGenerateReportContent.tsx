@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { MotionConfig, motion } from 'framer-motion';
 import { ArrowLeft, FileText, Calendar, Settings, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 type ReportType = 'AUDIT_LOG' | 'RFQ_REPORT';
 
@@ -40,6 +41,7 @@ const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
 export default function AdminGenerateReportContent() {
+  const prefersReducedMotion = useReducedMotion();
   const router = useRouter();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -141,6 +143,7 @@ export default function AdminGenerateReportContent() {
   };
 
   return (
+    <MotionConfig reducedMotion={prefersReducedMotion ? 'always' : 'never'}>
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -320,5 +323,6 @@ export default function AdminGenerateReportContent() {
         </div>
       </form>
     </motion.div>
+    </MotionConfig>
   );
 }

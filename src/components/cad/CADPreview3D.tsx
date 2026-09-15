@@ -31,6 +31,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingStage, setLoadingStage] = useState<string>('Initializing...');
   const [error, setError] = useState<string>('');
+  const [isContextLost, setIsContextLost] = useState(false);
   const [modelData, setModelData] = useState<CADModelData | null>(initialModelData || null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
@@ -145,11 +146,18 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     camera.lookAt(center);
 
     // Renderer with performance optimizations
-    const renderer = new THREE.WebGLRenderer({ 
-      antialias: true,
-      alpha: false, // Disable alpha for better performance
-      powerPreference: 'high-performance' // Request high-performance GPU
-    });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false, // Disable alpha for better performance
+        powerPreference: 'high-performance' // Request high-performance GPU
+      });
+    } catch (rendererError) {
+      console.error('Unable to initialize the 3D preview renderer:', rendererError);
+      setError('Unable to initialize the 3D preview. Your browser may not support WebGL.');
+      return;
+    }
     renderer.setSize(width, height);
     // Dynamic pixel ratio based on device performance
     // Lower pixel ratio on mobile devices for better performance
@@ -158,6 +166,7 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+    setIsContextLost(false);
 
     // Controls - Enhanced interactive controls
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -311,6 +320,24 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     controls.addEventListener('start', handleControlStart);
     controls.addEventListener('change', handleControlChange);
     controls.addEventListener('end', handleControlEnd);
+
+    // Browsers can reclaim a WebGL context under GPU or memory pressure. Keep the
+    // preview mounted so the browser can restore it instead of leaving a dead canvas.
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      setIsContextLost(true);
+      stopAnimation();
+    };
+
+    const handleContextRestored = () => {
+      renderer.resetState();
+      setIsContextLost(false);
+      needsRender = true;
+      startAnimation();
+    };
+
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
+    renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored);
     
     // Pause rendering when tab is hidden (Page Visibility API)
     const handleVisibilityChange = () => {
@@ -341,6 +368,8 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
       controls.removeEventListener('start', handleControlStart);
       controls.removeEventListener('change', handleControlChange);
       controls.removeEventListener('end', handleControlEnd);
+      renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
+      renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored);
       
       // Stop animation
       stopAnimation();
@@ -385,7 +414,10 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
         }
       }
     };
-  }, [modelData, isLoading, modelColor, wireframeColor]);
+  // Colors are updated by the material-only effect below; including them here
+  // would rebuild the renderer and scene on every color selection.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelData, isLoading]);
 
   // Update colors dynamically without reloading scene
   useEffect(() => {
@@ -466,12 +498,12 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
     if (!onPreviewLoaded) return;
     if (isLoading) {
       onPreviewLoaded(false);
-    } else if (error) {
+    } else if (error || isContextLost) {
       onPreviewLoaded(false);
     } else if (modelData) {
       onPreviewLoaded(true);
     }
-  }, [isLoading, error, modelData, onPreviewLoaded]);
+  }, [isLoading, error, isContextLost, modelData, onPreviewLoaded]);
 
   if (isLoading) {
     return (
@@ -607,6 +639,18 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
           : 'h-[350px] md:h-[450px]'
       } ${className}`}
     >
+      {isContextLost && (
+        <div
+          className="absolute inset-0 z-20 flex items-center justify-center bg-white/90 px-6 text-center"
+          role="status"
+          aria-live="polite"
+        >
+          <div>
+            <p className="font-medium text-gray-900">3D preview paused</p>
+            <p className="mt-1 text-sm text-gray-600">Restoring the WebGL context…</p>
+          </div>
+        </div>
+      )}
       {/* Controls overlay */}
       <div className="absolute top-4 right-4 flex flex-col space-y-2 z-10">
         <div className="bg-white/95 rounded-lg p-2 shadow-lg">
@@ -911,5 +955,3 @@ const CADPreview3D: React.FC<CADPreview3DProps> = ({
 };
 
 export default CADPreview3D;
-
-

@@ -3,6 +3,7 @@ import { RecommendationScore, DrawingAnalysis } from '@/types';
 import { alternativeSuggester, type AlternativeSuggestionResponse } from './alternative-product-suggester';
 import { getSupabaseServer } from './supabase-server';
 import type { Tables } from './database.types';
+import { ProductEmbeddingService } from '@/services/product-embedding.service';
 
 type SupabaseClient = Awaited<ReturnType<typeof getSupabaseServer>>;
 type ProductRow = Tables<'products'>;
@@ -215,7 +216,8 @@ export class ProductMatcher {
     const wordTokens = allTokens.filter(t => /^[a-z]+$/i.test(t) && t.length > 1);
     const numericTokens = allTokens.filter(t => /\d/.test(t));
     
-    // Build search query - search for each significant word
+    // Query the GIN-backed vector first. The ilike path below is retained only
+    // as a mixed-version fallback while the search-vector migration rolls out.
     let query = client
       .from('products')
       .select('*')
@@ -226,23 +228,49 @@ export class ProductMatcher {
       query = query.eq('category', filterCategory);
     }
 
-    // Build OR conditions for each word token
-    if (wordTokens.length > 0) {
-      const orConditions = wordTokens
-        .map(token => `name.ilike.%${token}%,description.ilike.%${token}%`)
-        .join(',');
-      query = query.or(orConditions);
-    } else {
-      // Fallback to full search term
+    const fullTextQuery = [...wordTokens, ...numericTokens].join(' ') || searchTerm.trim();
+    const { data, error } = await query.textSearch('search_vector', fullTextQuery, {
+      config: 'english',
+      type: 'websearch',
+    });
+
+    let products: ProductRow[] = data || [];
+
+    if (error) {
+      console.warn('Full-text product search unavailable; falling back to legacy search:', error.message);
+      let fallbackQuery = client
+        .from('products')
+        .select('*')
+        .limit(30);
+
+      if (filterCategory && filterCategory !== 'all') {
+        fallbackQuery = fallbackQuery.eq('category', filterCategory);
+      }
+
       const searchPattern = `%${searchTerm.toLowerCase()}%`;
-      query = query.or(`name.ilike.${searchPattern},description.ilike.${searchPattern}`);
+      const fallback = await fallbackQuery.or(
+        `name.ilike.${searchPattern},description.ilike.${searchPattern}`
+      );
+      products = fallback.data || [];
     }
 
-    const { data: products, error } = await query;
-
-    if (error || !products || products.length === 0) {
-      return [];
+    // Blend semantic neighbors into the full-text candidates. It is optional:
+    // missing Gemini credentials, vectors, or RPCs leave lexical matching intact.
+    const semanticScores = await this.findEmbeddingMatches(searchTerm, client);
+    if (semanticScores.size > 0) {
+      const existingIds = new Set(products.map(product => product.id));
+      const semanticProducts = await this.fetchProductsByIds([...semanticScores.keys()], client);
+      semanticProducts.forEach(product => {
+        if (
+          !existingIds.has(product.id) &&
+          (!filterCategory || filterCategory === 'all' || product.category === filterCategory)
+        ) {
+          products.push(product);
+        }
+      });
     }
+
+    if (products.length === 0) return [];
 
     // Get structured specs for scoring
     const specsMap = await this.getStructuredSpecsMap(products.map(p => p.id), client);
@@ -339,13 +367,20 @@ export class ProductMatcher {
       const confidenceMultiplier = 0.90 + (0.10 * dataQuality.completeness); // 90-100%
 
       // Apply confidence multiplier
+      const semanticScore = semanticScores.get(product.id) || 0;
+      if (semanticScore > 0) {
+        relevanceScore = Math.max(relevanceScore, semanticScore * 0.8);
+        matchedSpecs.push('semanticSimilarity');
+      }
       const finalScore = relevanceScore * confidenceMultiplier;
 
       // Build reasoning
       const matchedWords = wordTokens.filter(t => productNameLower.includes(t));
       let reasoning = matchedWords.length > 0 
         ? `Matches: ${matchedWords.join(', ')}`
-        : `Matches search term "${searchTerm}"`;
+        : semanticScore > 0
+          ? `Semantic match for "${searchTerm}"`
+          : `Matches search term "${searchTerm}"`;
       if (filterCategory && filterCategory !== 'all') {
         reasoning += ` in ${filterCategory} category`;
       }
@@ -366,6 +401,31 @@ export class ProductMatcher {
     .sort((a, b) => b.score - a.score);
 
     return scored;
+  }
+
+  private async findEmbeddingMatches(
+    searchTerm: string,
+    client: SupabaseClient
+  ): Promise<Map<string, number>> {
+    const embedding = await ProductEmbeddingService.createQueryEmbedding(searchTerm);
+    if (!embedding) return new Map();
+
+    const { data, error } = await client.rpc('match_product_embeddings', {
+      query_embedding: embedding,
+      match_count: 8,
+      required_source: ProductEmbeddingService.source,
+    });
+
+    if (error) {
+      console.warn('Semantic product matching unavailable; using full-text results:', error.message);
+      return new Map();
+    }
+
+    return new Map(
+      (data || [])
+        .filter(match => Number.isFinite(match.similarity) && match.similarity >= 0.35)
+        .map(match => [match.product_id, Math.min(Math.max(match.similarity, 0), 1)])
+    );
   }
 
   /**

@@ -31,8 +31,8 @@ export class RFQReportService {
     
     try {
       // Create date range for the specified month/year
-      const startDate = new Date(year, month - 1, 1); // month is 0-indexed in Date constructor
-      const endDate = new Date(year, month, 0); // Last day of the month
+      const startDate = new Date(Date.UTC(year, month - 1, 1));
+      const endDate = new Date(Date.UTC(year, month, 1));
       
       // Format period string for display
       const monthNames = [
@@ -40,6 +40,15 @@ export class RFQReportService {
         'July', 'August', 'September', 'October', 'November', 'December'
       ];
       const period = `${monthNames[month - 1]} ${year}`;
+
+      const { data: statisticsData, error: statisticsError } = await supabase.rpc(
+        'get_rfq_report_statistics',
+        { p_start: startDate.toISOString(), p_end: endDate.toISOString() }
+      );
+      if (statisticsError) {
+        throw new Error(`Failed to aggregate RFQ report data: ${statisticsError.message}`);
+      }
+      const statistics = statisticsData as unknown as RFQReportStatistics;
       
       // Fetch RFQ items from database for the specified month/year
       const { data: rfqItems, error } = await supabase
@@ -73,24 +82,12 @@ export class RFQReportService {
         created_at: item.created_at || new Date().toISOString()
       }));
       
-      // Calculate business logic statistics
-      const totalInquiries = items.length;
-      const actionRequired = items.filter(item => item.status === 'pending').length;
-      const quotedCount = items.filter(item => item.status === 'quoted').length;
+      const totalInquiries = Number(statistics?.totalInquiries) || 0;
+      const actionRequired = Number(statistics?.actionRequired) || 0;
+      const quotedCount = Number(statistics?.quotedCount) || 0;
       const conversionRate = totalInquiries > 0 ? ((quotedCount / totalInquiries) * 100).toFixed(1) : '0.0';
       
-      // Find top material (most frequent)
-      const materialCounts = new Map<string, number>();
-      items.forEach(item => {
-        if (item.material) {
-          const current = materialCounts.get(item.material) || 0;
-          materialCounts.set(item.material, current + 1);
-        }
-      });
-      
-      const topMaterial = materialCounts.size > 0 
-        ? Array.from(materialCounts.entries()).sort((a, b) => b[1] - a[1])[0][0]
-        : 'N/A';
+      const topMaterial = statistics?.topMaterial || 'N/A';
       
       // Generate urgent list (pending items with deadlines, sorted by date ascending, top 5)
       const urgentList = items
@@ -98,10 +95,7 @@ export class RFQReportService {
         .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
         .slice(0, 5);
       
-      // Material breakdown
-      const materialBreakdown = Array.from(materialCounts.entries())
-        .map(([material, count]) => ({ material, count }))
-        .sort((a, b) => b.count - a.count);
+      const materialBreakdown = statistics?.materialBreakdown || [];
 
       return {
         period,
@@ -416,4 +410,12 @@ export class RFQReportService {
       throw error;
     }
   }
+}
+
+interface RFQReportStatistics {
+  totalInquiries: number;
+  actionRequired: number;
+  quotedCount: number;
+  topMaterial: string;
+  materialBreakdown: { material: string; count: number }[];
 }

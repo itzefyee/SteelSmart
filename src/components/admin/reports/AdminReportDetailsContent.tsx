@@ -17,17 +17,19 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Download, Trash2, FileText, Calendar, Clock, User } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { MotionConfig, motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { useToast } from '@/components/ui/ToastProvider';
 import { useAdminReport, useDeleteAdminReport } from '@/hooks/admin/useAdminReports';
 import type { Report } from '@/types';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface AdminReportDetailsContentProps {
   reportId: string;
 }
 
 export function AdminReportDetailsContent({ reportId }: AdminReportDetailsContentProps) {
+  const prefersReducedMotion = useReducedMotion();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -203,6 +205,7 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
   ];
 
   return (
+    <MotionConfig reducedMotion={prefersReducedMotion ? 'always' : 'never'}>
     <div className="min-h-screen bg-background">
       {/* Back Button - Close to Sidebar */}
       <div className="p-6 pb-0">
@@ -379,5 +382,6 @@ export function AdminReportDetailsContent({ reportId }: AdminReportDetailsConten
         </motion.div>
       </div>
     </div>
+    </MotionConfig>
   );
 }

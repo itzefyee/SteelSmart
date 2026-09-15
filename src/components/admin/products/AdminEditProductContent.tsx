@@ -48,7 +48,7 @@ export function AdminEditProductContent({ productId }: AdminEditProductContentPr
 
   // Use React Query hook for available products
   const { data: availableProductsData, isLoading: isLoadingProducts } = useAdminProducts();
-  const availableProducts = availableProductsData || [];
+  const availableProducts = availableProductsData?.data || [];
   
   // React Query mutation for updating products
   const updateProductMutation = useUpdateAdminProduct();

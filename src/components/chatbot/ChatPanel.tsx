@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { Minus, Palette } from 'lucide-react';
 import ChatThemeBackground from './ChatThemeBackground';
 import { CHAT_THEMES, ChatThemeDefinition, ChatThemeId } from './chat-themes';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -97,7 +98,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   onSelectTheme,
   children,
 }) => {
+  const prefersReducedMotion = useReducedMotion();
   return (
+    <MotionConfig reducedMotion={prefersReducedMotion ? 'always' : 'never'}>
     <AnimatePresence>
       {isOpen && (
         <motion.aside
@@ -137,9 +140,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         </motion.aside>
       )}
     </AnimatePresence>
+    </MotionConfig>
   );
 };
 
 export default ChatPanel;
-
 

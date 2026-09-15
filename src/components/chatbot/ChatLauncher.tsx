@@ -4,6 +4,7 @@ import React from 'react';
 import { motion, Variants } from 'framer-motion';
 import { Bot } from 'lucide-react';
 import { ChatThemeDefinition } from './chat-themes';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface ChatLauncherProps {
   isOpen: boolean;
@@ -12,22 +13,18 @@ interface ChatLauncherProps {
 }
 
 const ChatLauncher: React.FC<ChatLauncherProps> = ({ isOpen, onToggle, theme }) => {
+  const prefersReducedMotion = useReducedMotion();
   const variants: Variants = {
     idle: {
-      y: [0, -10],
+      y: 0,
       opacity: 1,
       scale: 1,
       rotate: 0,
-      transition: {
-        y: {
-          duration: 1.6,
-          repeat: Infinity,
-          repeatType: 'reverse',
-          ease: 'easeInOut' as const,
-        },
-      },
     },
-    open: {
+    open: prefersReducedMotion ? {
+      opacity: 0,
+      transition: { duration: 0 },
+    } : {
       y: [0, 30, 120],
       opacity: [1, 0.9, 0],
       scale: [1, 0.95, 0.9],
@@ -49,8 +46,8 @@ const ChatLauncher: React.FC<ChatLauncherProps> = ({ isOpen, onToggle, theme }) 
       style={{ pointerEvents: isOpen ? 'none' : 'auto' }}
       variants={variants}
       animate={isOpen ? 'open' : 'idle'}
-      whileHover={{ scale: isOpen ? 1 : 1.08 }}
-      whileTap={{ scale: 0.96 }}
+      whileHover={prefersReducedMotion || isOpen ? undefined : { scale: 1.03 }}
+      whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
     >
       <div className="relative">
         <span
@@ -72,4 +69,3 @@ const ChatLauncher: React.FC<ChatLauncherProps> = ({ isOpen, onToggle, theme }) 
 };
 
 export default ChatLauncher;
-

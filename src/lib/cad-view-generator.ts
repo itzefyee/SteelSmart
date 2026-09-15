@@ -24,6 +24,17 @@ export class CADViewGenerator {
   private wireframe: THREE.LineSegments | null = null;
   private perspectiveDistance = 20;
   private boundingSphereRadius = 1;
+  private isContextLost = false;
+
+  private handleContextLost = (event: Event): void => {
+    event.preventDefault();
+    this.isContextLost = true;
+  };
+
+  private handleContextRestored = (): void => {
+    this.renderer.resetState();
+    this.isContextLost = false;
+  };
 
   constructor(private options: ViewOptions = {}) {
     const width = options.width || 800;
@@ -62,6 +73,8 @@ export class CADViewGenerator {
       preserveDrawingBuffer: true, // Required for toDataURL
     });
     this.renderer.setSize(width, height);
+    this.renderer.domElement.addEventListener('webglcontextlost', this.handleContextLost);
+    this.renderer.domElement.addEventListener('webglcontextrestored', this.handleContextRestored);
 
     // Add lights
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -222,6 +235,10 @@ export class CADViewGenerator {
   }
 
   private renderCamera(name: string, camera: THREE.Camera): GeneratedView {
+    if (this.isContextLost) {
+      throw new Error('WebGL context is unavailable. Please try generating views again.');
+    }
+
     this.renderer.render(this.scene, camera);
 
     // Get image data
@@ -243,71 +260,26 @@ export class CADViewGenerator {
   /**
    * Generate all standard orthographic views
    */
-  generateAllViews(): GeneratedView[] {
-    const views: GeneratedView[] = [];
+  generateAllViews(viewNames?: readonly string[]): GeneratedView[] {
     const distance = 20; // Camera distance from origin
+    const definitions = [
+      { name: 'top', position: new THREE.Vector3(0, distance, 0), up: new THREE.Vector3(0, 0, -1) },
+      { name: 'bottom', position: new THREE.Vector3(0, -distance, 0), up: new THREE.Vector3(0, 0, 1) },
+      { name: 'front', position: new THREE.Vector3(0, 0, distance), up: new THREE.Vector3(0, 1, 0) },
+      { name: 'back', position: new THREE.Vector3(0, 0, -distance), up: new THREE.Vector3(0, 1, 0) },
+      { name: 'right', position: new THREE.Vector3(distance, 0, 0), up: new THREE.Vector3(0, 1, 0) },
+      { name: 'left', position: new THREE.Vector3(-distance, 0, 0), up: new THREE.Vector3(0, 1, 0) },
+    ];
 
-    // Top view (looking down -Y axis)
-    views.push(
-      this.generateView(
-        'top',
-        new THREE.Vector3(0, distance, 0),
-        new THREE.Vector3(0, 0, -1)
-      )
-    );
-
-    // Bottom view (looking up +Y axis)
-    views.push(
-      this.generateView(
-        'bottom',
-        new THREE.Vector3(0, -distance, 0),
-        new THREE.Vector3(0, 0, 1)
-      )
-    );
-
-    // Front view (looking from +Z axis)
-    views.push(
-      this.generateView(
-        'front',
-        new THREE.Vector3(0, 0, distance),
-        new THREE.Vector3(0, 1, 0)
-      )
-    );
-
-    // Back view (looking from -Z axis)
-    views.push(
-      this.generateView(
-        'back',
-        new THREE.Vector3(0, 0, -distance),
-        new THREE.Vector3(0, 1, 0)
-      )
-    );
-
-    // Right view (looking from +X axis)
-    views.push(
-      this.generateView(
-        'right',
-        new THREE.Vector3(distance, 0, 0),
-        new THREE.Vector3(0, 1, 0)
-      )
-    );
-
-    // Left view (looking from -X axis)
-    views.push(
-      this.generateView(
-        'left',
-        new THREE.Vector3(-distance, 0, 0),
-        new THREE.Vector3(0, 1, 0)
-      )
-    );
-
-    return views;
+    return definitions
+      .filter(({ name }) => !viewNames || viewNames.includes(name))
+      .map(({ name, position, up }) => this.generateView(name, position, up));
   }
 
   /**
    * Generate perspective/isometric views
    */
-  generatePerspectiveViews(): GeneratedView[] {
+  generatePerspectiveViews(limit?: number): GeneratedView[] {
     const views: GeneratedView[] = [];
     const meshMaterial = this.mesh?.material as THREE.MeshStandardMaterial;
     const wireframeMaterial = this.wireframe?.material as THREE.LineBasicMaterial;
@@ -332,7 +304,7 @@ export class CADViewGenerator {
       { name: 'iso-back-bottom-left', vector: new THREE.Vector3(-1, -1, -1) },
     ];
 
-    directions.forEach(({ name, vector }) => {
+    directions.slice(0, limit).forEach(({ name, vector }) => {
       const upVector =
         Math.abs(vector.y) > 0.95
           ? new THREE.Vector3(0, 0, vector.y > 0 ? 1 : -1)
@@ -355,14 +327,15 @@ export class CADViewGenerator {
    * Generate specific views (e.g., only top, front, right)
    */
   generateViews(viewNames: string[]): GeneratedView[] {
-    const allViews = this.generateAllViews();
-    return allViews.filter((view) => viewNames.includes(view.name));
+    return this.generateAllViews(viewNames);
   }
 
   /**
    * Cleanup resources
    */
   dispose(): void {
+    this.renderer.domElement.removeEventListener('webglcontextlost', this.handleContextLost);
+    this.renderer.domElement.removeEventListener('webglcontextrestored', this.handleContextRestored);
     if (this.mesh) {
       this.mesh.geometry.dispose();
       if (Array.isArray(this.mesh.material)) {

@@ -100,11 +100,11 @@ const RFQTracking: React.FC = () => {
               >
                 <span>
                   {statusFilter === 'all' && 'All Statuses'}
-                  {statusFilter === 'Submitted' && '📤 Submitted'}
-                  {statusFilter === 'In Review' && '🔍 In Review'}
-                  {statusFilter === 'Approved' && '✅ Approved'}
-                  {statusFilter === 'Rejected' && '❌ Rejected'}
-                  {statusFilter === 'Completed' && '✔️ Completed'}
+                  {statusFilter === 'Submitted' && 'Submitted'}
+                  {statusFilter === 'In Review' && 'In Review'}
+                  {statusFilter === 'Approved' && 'Approved'}
+                  {statusFilter === 'Rejected' && 'Rejected'}
+                  {statusFilter === 'Completed' && 'Completed'}
                 </span>
                 <svg className={`w-4 h-4 text-gray-500 transition-transform ${statusDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -133,7 +133,7 @@ const RFQTracking: React.FC = () => {
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors"
                     >
-                      📤 Submitted
+                      Submitted
                     </button>
                     <button
                       type="button"
@@ -143,7 +143,7 @@ const RFQTracking: React.FC = () => {
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-50 transition-colors"
                     >
-                      🔍 In Review
+                      In Review
                     </button>
                     <button
                       type="button"
@@ -153,7 +153,7 @@ const RFQTracking: React.FC = () => {
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 transition-colors"
                     >
-                      ✅ Approved
+                      Approved
                     </button>
                     <button
                       type="button"
@@ -163,7 +163,7 @@ const RFQTracking: React.FC = () => {
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 transition-colors"
                     >
-                      ❌ Rejected
+                      Rejected
                     </button>
                     <button
                       type="button"
@@ -173,7 +173,7 @@ const RFQTracking: React.FC = () => {
                       }}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                      ✔️ Completed
+                      Completed
                     </button>
                   </div>
                 </div>
