@@ -1,0 +1,9 @@
+{
+  "source": "stub",
+  "note": "Placeholder STL until Meshcraft fills Zoo STEP",
+  "units": "mm",
+  "gen_s": null,
+  "cost": "UNKNOWN",
+  "downloadableStep": false,
+  "closedSolid": "UNKNOWN"
+}
