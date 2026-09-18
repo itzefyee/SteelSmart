@@ -15,7 +15,7 @@ const CADPreview3D = dynamic(() => import('@/components/cad/CADPreview3D'), {
   ),
 });
 
-type ColumnStatus = 'stub' | 'missing' | 'na' | 'success' | 'fail';
+type ColumnKey = 'zoo' | 'img2threejs' | 'textToCad';
 
 type ColumnMeta = {
   source?: string;
@@ -29,7 +29,7 @@ type ColumnMeta = {
 };
 
 type ZooColumn = {
-  status: ColumnStatus;
+  status: string;
   format: string;
   step: string | null;
   stl: string | null;
@@ -37,7 +37,7 @@ type ZooColumn = {
 };
 
 type TextToCadColumn = {
-  status: ColumnStatus;
+  status: string;
   format: string;
   step: string | null;
   stl: string | null;
@@ -46,7 +46,7 @@ type TextToCadColumn = {
 };
 
 type Img2Column = {
-  status: ColumnStatus;
+  status: string;
   format: string;
   comparisonPng: string | null;
   glb: string | null;
@@ -61,7 +61,6 @@ type FixtureSlot = {
   kind: string;
   promptPath: string;
   imagePath?: string | null;
-  imageCaptionPath?: string | null;
   zoo: ZooColumn;
   textToCad: TextToCadColumn;
   img2threejs: Img2Column;
@@ -74,8 +73,6 @@ type Manifest = {
   licenses: Record<string, { spdx?: string; name?: string; url: string }>;
   slots: FixtureSlot[];
 };
-
-type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
 type RuntimeMetrics = {
   status: string;
@@ -105,8 +102,9 @@ function ExperimentalBanner() {
     >
       <p className="font-semibold tracking-wide">Experimental — CAD Compare</p>
       <p className="mt-1 opacity-90">
-        Fixture-only. No live Zoo / img2threejs / text-to-cad API calls. Engineering CAD ≠ procedural
-        Three.js. Missing Meshcraft binaries show honest empty / N/A states.
+        Fixture-only demo. Lazy 3D: only one WebGL viewer mounts at a time (active column). Demo
+        assets are existing repo STL/images — not Meshcraft STEP packs. Engineering CAD ≠ procedural
+        Three.js.
       </p>
     </div>
   );
@@ -116,23 +114,50 @@ function ColumnShell({
   title,
   subtitle,
   badge,
+  active,
+  onActivate,
   children,
 }: {
   title: string;
   subtitle: string;
   badge: string;
+  active: boolean;
+  onActivate: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex min-h-[520px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white/90 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+    <section
+      className={`flex min-h-[480px] flex-col overflow-hidden rounded-xl border shadow-sm ${
+        active
+          ? 'border-sky-400 ring-2 ring-sky-300/50 dark:border-sky-500'
+          : 'border-slate-200 dark:border-slate-700'
+      } bg-white/90 dark:bg-slate-900/80`}
+    >
       <header className="border-b border-slate-200 px-4 py-3 dark:border-slate-700">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+          <button
+            type="button"
+            onClick={onActivate}
+            className="text-left text-base font-semibold text-slate-900 hover:underline dark:text-slate-50"
+          >
+            {title}
+          </button>
           <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
             {badge}
           </span>
         </div>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
+        {!active ? (
+          <button
+            type="button"
+            onClick={onActivate}
+            className="mt-2 rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+          >
+            Activate column (loads 3D if available)
+          </button>
+        ) : (
+          <p className="mt-2 text-[11px] font-medium text-sky-700 dark:text-sky-300">Active — 3D mounted here only</p>
+        )}
       </header>
       <div className="relative flex flex-1 flex-col gap-3 p-3">{children}</div>
     </section>
@@ -141,7 +166,7 @@ function ColumnShell({
 
 function PlaceholderPane({ label, detail }: { label: string; detail: string }) {
   return (
-    <div className="flex min-h-[240px] flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 text-center dark:border-slate-600 dark:bg-slate-800/50">
+    <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 text-center dark:border-slate-600 dark:bg-slate-800/50">
       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</p>
       <p className="mt-2 max-w-xs text-xs text-slate-500 dark:text-slate-400">{detail}</p>
     </div>
@@ -149,32 +174,29 @@ function PlaceholderPane({ label, detail }: { label: string; detail: string }) {
 }
 
 function MetricsCard({ metrics }: { metrics: RuntimeMetrics }) {
-  const rows: Array<[string, string, string?]> = [
+  const rows: Array<[string, string]> = [
     ['Status', metrics.status],
     ['Format', metrics.format],
     ['File size', metrics.fileSizeKiB],
-    ['Viewer load', metrics.viewerLoadMs, 'Fetch + parse/preview callback when available'],
+    ['Viewer load', metrics.viewerLoadMs],
     ['Vertices', metrics.vertices],
     ['Faces', metrics.faces],
-    ['BBox (mm)', metrics.bbox],
-    ['Volume', metrics.volume, 'STEP analysis only'],
-    ['Surface area', metrics.surfaceArea, 'STEP analysis only'],
-    ['Holes', metrics.holes, 'STEP manufacturing analysis only'],
-    ['Gen time (offline)', metrics.gen_s],
-    ['Cost', metrics.cost, 'Never invented — UNKNOWN/N/A from meta'],
-    ['Downloadable STEP?', metrics.downloadableStep],
+    ['BBox', metrics.bbox],
+    ['Volume', metrics.volume],
+    ['Surface', metrics.surfaceArea],
+    ['Holes', metrics.holes],
+    ['Gen time', metrics.gen_s],
+    ['Cost', metrics.cost],
+    ['STEP download?', metrics.downloadableStep],
     ['Editability', metrics.editability],
   ];
-
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 dark:border-slate-700 dark:bg-slate-800/40">
       <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Metrics</p>
       <dl className="grid grid-cols-1 gap-1 text-[11px]">
-        {rows.map(([k, v, tip]) => (
+        {rows.map(([k, v]) => (
           <div key={k} className="flex justify-between gap-2 border-b border-slate-200/70 py-0.5 last:border-0 dark:border-slate-700/70">
-            <dt className="text-slate-500" title={tip}>
-              {k}
-            </dt>
+            <dt className="text-slate-500">{k}</dt>
             <dd className="text-right font-medium text-slate-800 dark:text-slate-100">{v}</dd>
           </div>
         ))}
@@ -194,53 +216,52 @@ async function fetchAsFile(url: string): Promise<{ file: File; bytes: number }> 
   const blob = await res.blob();
   const name = fileNameFromUrl(url);
   const lower = name.toLowerCase();
-  const type =
-    lower.endsWith('.stl')
-      ? 'model/stl'
-      : lower.endsWith('.step') || lower.endsWith('.stp')
-        ? 'application/step'
-        : lower.endsWith('.glb')
-          ? 'model/gltf-binary'
-          : blob.type || 'application/octet-stream';
+  const type = lower.endsWith('.stl')
+    ? 'model/stl'
+    : lower.endsWith('.step') || lower.endsWith('.stp')
+      ? 'application/step'
+      : lower.endsWith('.glb')
+        ? 'model/gltf-binary'
+        : blob.type || 'application/octet-stream';
   return { file: new File([blob], name, { type }), bytes: blob.size };
 }
 
-function CadColumnViewer({
+/** Single WebGL mount — parent must render at most one of these. */
+function LazyCadViewer({
+  mountKey,
   urls,
   onMetrics,
 }: {
+  mountKey: string;
   urls: string[];
-  onMetrics: (partial: Partial<RuntimeMetrics> & { loadState?: LoadState; error?: string }) => void;
+  onMetrics: (partial: Partial<RuntimeMetrics>) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
-  const [state, setState] = useState<LoadState>('idle');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const [t0, setT0] = useState<number | null>(null);
-  const urlKey = urls.join('|');
 
   useEffect(() => {
     let cancelled = false;
+    setFile(null);
+    setError('');
+    setLoading(true);
     async function run() {
       if (!urls.length) {
-        setFile(null);
-        setState('empty');
-        onMetrics({ loadState: 'empty', fileSizeKiB: NA, viewerLoadMs: NA });
+        setLoading(false);
+        onMetrics({ fileSizeKiB: NA, viewerLoadMs: NA });
         return;
       }
-      setState('loading');
-      setError('');
       const start = performance.now();
       setT0(start);
-      onMetrics({ loadState: 'loading', viewerLoadMs: '…' });
       let lastErr = '';
       for (const url of urls) {
         try {
           const { file: next, bytes } = await fetchAsFile(url);
           if (cancelled) return;
           setFile(next);
-          setState('ready');
+          setLoading(false);
           onMetrics({
-            loadState: 'ready',
             fileSizeKiB: `${(bytes / 1024).toFixed(1)} KiB`,
             format: fileNameFromUrl(url).split('.').pop() || NA,
           });
@@ -250,17 +271,16 @@ function CadColumnViewer({
         }
       }
       if (cancelled) return;
-      setFile(null);
-      setState('empty');
       setError(lastErr);
-      onMetrics({ loadState: 'empty', fileSizeKiB: NA, viewerLoadMs: NA, error: lastErr });
+      setLoading(false);
+      onMetrics({ fileSizeKiB: NA, viewerLoadMs: NA });
     }
     run();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlKey]);
+  }, [mountKey, urls.join('|')]);
 
   const markPreview = useCallback(
     (ok: boolean) => {
@@ -271,24 +291,20 @@ function CadColumnViewer({
     [onMetrics, t0],
   );
 
-  if (state === 'loading' || state === 'idle') {
+  if (loading) {
     return (
       <div className="flex min-h-[240px] items-center justify-center">
         <LoadingSpinner />
       </div>
     );
   }
-  if (state !== 'ready' || !file) {
-    return (
-      <PlaceholderPane
-        label="Fixture unavailable"
-        detail={error || 'No prebaked STEP/STL/GLB for this column yet.'}
-      />
-    );
+  if (!file) {
+    return <PlaceholderPane label="3D unavailable" detail={error || 'No mesh URL for this column.'} />;
   }
   return (
     <div className="min-h-[240px] overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
       <CADPreview3D
+        key={mountKey}
         file={file}
         className="h-[280px] w-full"
         showStats={false}
@@ -299,12 +315,7 @@ function CadColumnViewer({
   );
 }
 
-function baseMetrics(
-  status: string,
-  format: string,
-  meta: ColumnMeta,
-  editability: string,
-): RuntimeMetrics {
+function baseMetrics(status: string, format: string, meta: ColumnMeta, editability: string): RuntimeMetrics {
   return {
     status,
     format,
@@ -324,18 +335,24 @@ function baseMetrics(
   };
 }
 
+function meshUrlsFor(slot: FixtureSlot, col: ColumnKey): string[] {
+  if (col === 'zoo') return [slot.zoo.step, slot.zoo.stl].filter(Boolean) as string[];
+  if (col === 'textToCad') return [slot.textToCad.step, slot.textToCad.stl].filter(Boolean) as string[];
+  if (col === 'img2threejs') return slot.img2threejs.glb ? [slot.img2threejs.glb] : [];
+  return [];
+}
+
 export default function CADCompareClient() {
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [manifestError, setManifestError] = useState('');
-  const [slotId, setSlotId] = useState<string>('');
+  const [slotId, setSlotId] = useState('');
+  const [activeColumn, setActiveColumn] = useState<ColumnKey>('zoo');
   const [promptText, setPromptText] = useState('');
-  const [zooMetrics, setZooMetrics] = useState<RuntimeMetrics | null>(null);
-  const [imgMetrics, setImgMetrics] = useState<RuntimeMetrics | null>(null);
-  const [ttcMetrics, setTtcMetrics] = useState<RuntimeMetrics | null>(null);
+  const [metrics, setMetrics] = useState<RuntimeMetrics | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    (async () => {
       try {
         const res = await fetch('/lab-fixtures/manifest.json');
         if (!res.ok) throw new Error(`manifest HTTP ${res.status}`);
@@ -344,24 +361,25 @@ export default function CADCompareClient() {
         setManifest(data);
         setSlotId(data.defaultSlotId || data.slots[0]?.id || '');
       } catch (e) {
-        if (cancelled) return;
-        setManifestError(e instanceof Error ? e.message : 'Failed to load manifest');
+        if (!cancelled) setManifestError(e instanceof Error ? e.message : 'manifest failed');
       }
-    }
-    load();
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const slot = useMemo(
-    () => manifest?.slots.find((s) => s.id === slotId) || null,
-    [manifest, slotId],
-  );
+  const slot = useMemo(() => manifest?.slots.find((s) => s.id === slotId) || null, [manifest, slotId]);
+
+  useEffect(() => {
+    // Slot change: unmount previous viewers by resetting active column + metrics
+    setActiveColumn('zoo');
+    setMetrics(null);
+  }, [slotId]);
 
   useEffect(() => {
     let cancelled = false;
-    async function loadPrompt() {
+    (async () => {
       if (!slot?.promptPath) {
         setPromptText('');
         return;
@@ -373,8 +391,7 @@ export default function CADCompareClient() {
       } catch {
         if (!cancelled) setPromptText('');
       }
-    }
-    loadPrompt();
+    })();
     return () => {
       cancelled = true;
     };
@@ -382,34 +399,16 @@ export default function CADCompareClient() {
 
   useEffect(() => {
     if (!slot) return;
-    setZooMetrics(baseMetrics(slot.zoo.status, slot.zoo.format, slot.zoo.meta, 're-prompt only (Zoo)'));
-    setImgMetrics(
-      baseMetrics(slot.img2threejs.status, slot.img2threejs.format, slot.img2threejs.meta, 'edit TS factory'),
-    );
-    setTtcMetrics(
-      baseMetrics(
-        slot.textToCad.status,
-        slot.textToCad.format,
-        slot.textToCad.meta,
-        'edit Python @step script',
-      ),
-    );
-  }, [slot]);
-
-  const zooUrls = useMemo(() => {
-    if (!slot) return [] as string[];
-    return [slot.zoo.step, slot.zoo.stl].filter(Boolean) as string[];
-  }, [slot]);
-
-  const ttcUrls = useMemo(() => {
-    if (!slot) return [] as string[];
-    return [slot.textToCad.step, slot.textToCad.stl].filter(Boolean) as string[];
-  }, [slot]);
-
-  const imgGlbUrls = useMemo(() => {
-    if (!slot?.img2threejs.glb) return [] as string[];
-    return [slot.img2threejs.glb];
-  }, [slot]);
+    if (activeColumn === 'zoo') {
+      setMetrics(baseMetrics(slot.zoo.status, slot.zoo.format, slot.zoo.meta, 're-prompt only (Zoo)'));
+    } else if (activeColumn === 'img2threejs') {
+      setMetrics(baseMetrics(slot.img2threejs.status, slot.img2threejs.format, slot.img2threejs.meta, 'edit TS factory'));
+    } else {
+      setMetrics(
+        baseMetrics(slot.textToCad.status, slot.textToCad.format, slot.textToCad.meta, 'edit Python @step script'),
+      );
+    }
+  }, [slot, activeColumn]);
 
   if (manifestError) {
     return (
@@ -436,6 +435,63 @@ export default function CADCompareClient() {
   }
 
   const licenses = manifest.licenses;
+  const activeUrls = meshUrlsFor(slot, activeColumn);
+  const mountKey = `${slotId}:${activeColumn}`;
+
+  const renderColumnBody = (col: ColumnKey) => {
+    const isActive = activeColumn === col;
+    if (col === 'img2threejs') {
+      const png = slot.img2threejs.comparisonPng;
+      return (
+        <>
+          {png ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={png}
+              alt="visual comparison"
+              className="max-h-[220px] w-full rounded-lg border border-slate-200 object-contain dark:border-slate-700"
+            />
+          ) : (
+            <PlaceholderPane label="No comparison image" detail="Missing product/demo PNG." />
+          )}
+          <p className="text-[11px] text-slate-500">
+            Procedural / visual only — not STEP. {slot.img2threejs.meta.note}
+          </p>
+          {isActive && activeUrls.length ? (
+            <LazyCadViewer
+              mountKey={mountKey}
+              urls={activeUrls}
+              onMetrics={(partial) => setMetrics((prev) => (prev ? { ...prev, ...partial } : prev))}
+            />
+          ) : isActive ? (
+            <PlaceholderPane label="No GLB for this demo" detail="Image-only stand-in; activate Zoo/text-to-cad for 3D STL." />
+          ) : (
+            <PlaceholderPane label="3D idle" detail="Activate this column to mount WebGL (if GLB exists)." />
+          )}
+        </>
+      );
+    }
+
+    const metaNote = col === 'zoo' ? slot.zoo.meta.note : slot.textToCad.meta.note;
+    if (!isActive) {
+      return (
+        <PlaceholderPane
+          label="3D not mounted"
+          detail={`Click Activate to load the single WebGL viewer here. ${metaNote || ''}`}
+        />
+      );
+    }
+    return (
+      <>
+        <LazyCadViewer
+          mountKey={mountKey}
+          urls={activeUrls}
+          onMetrics={(partial) => setMetrics((prev) => (prev ? { ...prev, ...partial } : prev))}
+        />
+        <p className="text-[11px] text-slate-500">{metaNote}</p>
+      </>
+    );
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -448,8 +504,7 @@ export default function CADCompareClient() {
             <div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl">CAD Compare</h1>
               <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-slate-300">
-                Precomputed fixtures comparing SteelSmart Current (Zoo), img2threejs, and text-to-cad.
-                Labels: Engineering CAD vs Procedural Three.js.
+                One fixture slot + one active column WebGL mount. Demo assets from existing repo STL/images.
               </p>
             </div>
             <label className="block text-sm">
@@ -473,169 +528,65 @@ export default function CADCompareClient() {
           <div className="mb-4 rounded-lg border border-slate-200 bg-white/80 p-3 text-sm dark:border-slate-700 dark:bg-slate-900/60">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Prompt / input</p>
             <p className="mt-1 whitespace-pre-wrap text-slate-800 dark:text-slate-100">{promptText || '—'}</p>
-            {slot.kind === 'photo' ? (
-              <p className="mt-2 text-xs text-slate-500">
-                Photo slot: img2threejs uses the image; Zoo + text-to-cad use the shared text prompt. Image
-                asset pending Meshcraft.
-              </p>
+            {slot.imagePath ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={slot.imagePath}
+                alt="slot input"
+                className="mt-3 max-h-40 rounded border border-slate-200 object-contain dark:border-slate-700"
+              />
             ) : null}
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <ColumnShell title="Current (Zoo)" subtitle={manifest.labels.zoo} badge={slot.zoo.status}>
-              {zooUrls.length ? (
-                <CadColumnViewer
-                  urls={zooUrls}
-                  onMetrics={(partial) =>
-                    setZooMetrics((prev) => ({
-                      ...(prev ||
-                        baseMetrics(slot.zoo.status, slot.zoo.format, slot.zoo.meta, 're-prompt only (Zoo)')),
-                      ...partial,
-                      status: slot.zoo.status,
-                      note: slot.zoo.meta.note || '',
-                      downloadableStep: slot.zoo.meta.downloadableStep ? 'true' : 'false',
-                      gen_s: slot.zoo.meta.gen_s != null ? `${slot.zoo.meta.gen_s} s` : NA,
-                      cost: slot.zoo.meta.cost || NA,
-                      editability: 're-prompt only (Zoo)',
-                    }))
-                  }
-                />
-              ) : (
-                <PlaceholderPane
-                  label="Zoo fixture pending"
-                  detail={slot.zoo.meta.note || 'No STEP/STL path in manifest for this slot.'}
-                />
-              )}
-              {zooMetrics ? <MetricsCard metrics={zooMetrics} /> : null}
+            <ColumnShell
+              title="Current (Zoo)"
+              subtitle={manifest.labels.zoo}
+              badge={slot.zoo.status}
+              active={activeColumn === 'zoo'}
+              onActivate={() => setActiveColumn('zoo')}
+            >
+              {renderColumnBody('zoo')}
+              {activeColumn === 'zoo' && metrics ? <MetricsCard metrics={metrics} /> : null}
             </ColumnShell>
 
             <ColumnShell
               title="img2threejs"
               subtitle={manifest.labels.img2threejs}
               badge={slot.img2threejs.status}
+              active={activeColumn === 'img2threejs'}
+              onActivate={() => setActiveColumn('img2threejs')}
             >
-              {slot.img2threejs.status === 'na' ? (
-                <PlaceholderPane
-                  label="N/A — image pipeline"
-                  detail={slot.img2threejs.meta.note || 'No photo for this text-only slot.'}
-                />
-              ) : (
-                <>
-                  {slot.img2threejs.comparisonPng ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={slot.img2threejs.comparisonPng}
-                      alt="img2threejs comparison"
-                      className="max-h-[280px] w-full rounded-lg border border-slate-200 object-contain dark:border-slate-700"
-                    />
-                  ) : (
-                    <PlaceholderPane
-                      label="Comparison PNG pending"
-                      detail={slot.img2threejs.meta.note || 'Awaiting Meshcraft comparison sheet.'}
-                    />
-                  )}
-                  {imgGlbUrls.length ? (
-                    <CadColumnViewer
-                      urls={imgGlbUrls}
-                      onMetrics={(partial) =>
-                        setImgMetrics((prev) => ({
-                          ...(prev ||
-                            baseMetrics(
-                              slot.img2threejs.status,
-                              slot.img2threejs.format,
-                              slot.img2threejs.meta,
-                              'edit TS factory',
-                            )),
-                          ...partial,
-                          status: slot.img2threejs.status,
-                          note: slot.img2threejs.meta.note || '',
-                          downloadableStep: 'false',
-                          editability: 'edit TS factory',
-                        }))
-                      }
-                    />
-                  ) : null}
-                  <div className="flex flex-wrap gap-2 text-[11px]">
-                    {slot.img2threejs.ts ? (
-                      <a className="underline" href={slot.img2threejs.ts}>
-                        TS factory
-                      </a>
-                    ) : (
-                      <span className="text-slate-500">TS: N/A</span>
-                    )}
-                    {slot.img2threejs.spec ? (
-                      <a className="underline" href={slot.img2threejs.spec}>
-                        ObjectSculptSpec JSON
-                      </a>
-                    ) : (
-                      <span className="text-slate-500">JSON: N/A</span>
-                    )}
-                    <span className="text-slate-500" title="Pipeline does not produce STEP">
-                      STEP: N/A
-                    </span>
-                  </div>
-                </>
-              )}
-              {imgMetrics ? <MetricsCard metrics={imgMetrics} /> : null}
+              {renderColumnBody('img2threejs')}
+              {activeColumn === 'img2threejs' && metrics ? <MetricsCard metrics={metrics} /> : null}
             </ColumnShell>
 
             <ColumnShell
               title="text-to-cad"
               subtitle={manifest.labels.textToCad}
               badge={slot.textToCad.status}
+              active={activeColumn === 'textToCad'}
+              onActivate={() => setActiveColumn('textToCad')}
             >
-              {ttcUrls.length ? (
-                <CadColumnViewer
-                  urls={ttcUrls}
-                  onMetrics={(partial) =>
-                    setTtcMetrics((prev) => ({
-                      ...(prev ||
-                        baseMetrics(
-                          slot.textToCad.status,
-                          slot.textToCad.format,
-                          slot.textToCad.meta,
-                          'edit Python @step script',
-                        )),
-                      ...partial,
-                      status: slot.textToCad.status,
-                      note: slot.textToCad.meta.note || '',
-                      downloadableStep: slot.textToCad.meta.downloadableStep ? 'true' : 'false',
-                      editability: 'edit Python @step script',
-                    }))
-                  }
-                />
-              ) : (
-                <PlaceholderPane
-                  label="text-to-cad fixture pending"
-                  detail={slot.textToCad.meta.note || 'No STEP/STL path in manifest for this slot.'}
-                />
-              )}
-              {slot.textToCad.snapshot ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={slot.textToCad.snapshot}
-                  alt="text-to-cad snapshot"
-                  className="max-h-32 w-full rounded border border-slate-200 object-contain dark:border-slate-700"
-                />
-              ) : null}
-              {ttcMetrics ? <MetricsCard metrics={ttcMetrics} /> : null}
+              {renderColumnBody('textToCad')}
+              {activeColumn === 'textToCad' && metrics ? <MetricsCard metrics={metrics} /> : null}
             </ColumnShell>
           </div>
 
           <p className="mt-6 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-            Compare fixtures are precomputed offline. SteelSmart under{' '}
+            Compare fixtures are precomputed / demo-only. SteelSmart under{' '}
             <a className="underline" href={licenses.steelsmart.url} target="_blank" rel="noreferrer">
-              {licenses.steelsmart.spdx || 'CC BY-NC 4.0'}
+              {licenses.steelsmart.spdx}
             </a>
-            . Column tools: Zoo text-to-CAD (
+            . Zoo (
             <a className="underline" href={licenses.zoo.url} target="_blank" rel="noreferrer">
-              zoo.dev Terms
+              Terms
             </a>
             ), img2threejs (
             <a className="underline" href={licenses.img2threejs.url} target="_blank" rel="noreferrer">
               {licenses.img2threejs.spdx}
             </a>
-            ), text-to-cad/cadgen (
+            ), text-to-cad (
             <a className="underline" href={licenses.textToCad.url} target="_blank" rel="noreferrer">
               {licenses.textToCad.spdx}
             </a>
