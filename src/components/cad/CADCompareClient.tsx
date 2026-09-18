@@ -16,6 +16,7 @@ const CADPreview3D = dynamic(() => import('@/components/cad/CADPreview3D'), {
 });
 
 type ColumnKey = 'zoo' | 'img2threejs' | 'textToCad';
+type ActiveColumn = ColumnKey | null;
 
 type ColumnMeta = {
   source?: string;
@@ -102,7 +103,7 @@ function ExperimentalBanner() {
     >
       <p className="font-semibold tracking-wide">Experimental — CAD Compare</p>
       <p className="mt-1 opacity-90">
-        Fixture-only demo. Lazy 3D: only one WebGL viewer mounts at a time (active column). Demo
+        Fixture-only demo. Cold load idle until a slot is clicked. Lazy 3D: only one WebGL viewer mounts (active column). Demo
         assets are existing repo STL/images — not Meshcraft STEP packs. Engineering CAD ≠ procedural
         Three.js.
       </p>
@@ -335,7 +336,8 @@ function baseMetrics(status: string, format: string, meta: ColumnMeta, editabili
   };
 }
 
-function meshUrlsFor(slot: FixtureSlot, col: ColumnKey): string[] {
+function meshUrlsFor(slot: FixtureSlot, col: ActiveColumn): string[] {
+  if (!col) return [];
   if (col === 'zoo') return [slot.zoo.step, slot.zoo.stl].filter(Boolean) as string[];
   if (col === 'textToCad') return [slot.textToCad.step, slot.textToCad.stl].filter(Boolean) as string[];
   if (col === 'img2threejs') return slot.img2threejs.glb ? [slot.img2threejs.glb] : [];
@@ -346,7 +348,7 @@ export default function CADCompareClient() {
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [manifestError, setManifestError] = useState('');
   const [slotId, setSlotId] = useState('');
-  const [activeColumn, setActiveColumn] = useState<ColumnKey>('zoo');
+  const [activeColumn, setActiveColumn] = useState<ActiveColumn>(null);
   const [promptText, setPromptText] = useState('');
   const [metrics, setMetrics] = useState<RuntimeMetrics | null>(null);
 
@@ -359,7 +361,7 @@ export default function CADCompareClient() {
         const data = (await res.json()) as Manifest;
         if (cancelled) return;
         setManifest(data);
-        setSlotId(data.defaultSlotId || data.slots[0]?.id || '');
+        // Hard gate: cold load idle — no slot until user clicks.
       } catch (e) {
         if (!cancelled) setManifestError(e instanceof Error ? e.message : 'manifest failed');
       }
@@ -372,8 +374,8 @@ export default function CADCompareClient() {
   const slot = useMemo(() => manifest?.slots.find((s) => s.id === slotId) || null, [manifest, slotId]);
 
   useEffect(() => {
-    // Slot change: unmount previous viewers by resetting active column + metrics
-    setActiveColumn('zoo');
+    // Slot change: unmount viewers; require column Activate click.
+    setActiveColumn(null);
     setMetrics(null);
   }, [slotId]);
 
@@ -398,7 +400,10 @@ export default function CADCompareClient() {
   }, [slot]);
 
   useEffect(() => {
-    if (!slot) return;
+    if (!slot || !activeColumn) {
+      setMetrics(null);
+      return;
+    }
     if (activeColumn === 'zoo') {
       setMetrics(baseMetrics(slot.zoo.status, slot.zoo.format, slot.zoo.meta, 're-prompt only (Zoo)'));
     } else if (activeColumn === 'img2threejs') {
@@ -422,12 +427,51 @@ export default function CADCompareClient() {
     );
   }
 
-  if (!manifest || !slot) {
+  if (!manifest) {
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
         <main className="flex flex-1 items-center justify-center">
           <LoadingSpinner />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!slot) {
+    const licenses = manifest.licenses;
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="home-wavy-bg relative flex-1 overflow-hidden">
+          <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <ExperimentalBanner />
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl">CAD Compare</h1>
+            <p className="mt-2 mb-6 max-w-3xl text-sm text-slate-600 dark:text-slate-300">
+              Cold load is idle — click a fixture slot to load anything (no 3D / no model fetch until then).
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {manifest.slots.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setSlotId(s.id)}
+                  className="rounded-xl border border-slate-200 bg-white/90 p-4 text-left shadow-sm hover:border-sky-400 dark:border-slate-700 dark:bg-slate-900/80"
+                >
+                  <p className="font-semibold text-slate-900 dark:text-slate-50">{s.title}</p>
+                  <p className="mt-1 text-xs text-slate-500">{s.id}</p>
+                </button>
+              ))}
+            </div>
+            <p className="mt-6 text-xs text-slate-500">
+              SteelSmart under{" "}
+              <a className="underline" href={licenses.steelsmart.url} target="_blank" rel="noreferrer">
+                {licenses.steelsmart.spdx}
+              </a>
+              .
+            </p>
+          </div>
         </main>
         <Footer />
       </div>
