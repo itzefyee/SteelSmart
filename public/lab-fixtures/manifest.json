@@ -1,0 +1,235 @@
+{
+  "version": 2,
+  "route": "/cad-compare",
+  "experimental": true,
+  "liveGeneration": false,
+  "lazyViewer": true,
+  "defaultSlotId": "steel-bracket-l",
+  "labels": {
+    "zoo": "Engineering CAD (STEP/STL demo)",
+    "img2threejs": "Procedural Three.js (visual)",
+    "textToCad": "Engineering CAD (STEP/STL demo)"
+  },
+  "licenses": {
+    "steelsmart": {
+      "spdx": "CC-BY-NC-4.0",
+      "url": "https://creativecommons.org/licenses/by-nc/4.0/"
+    },
+    "img2threejs": {
+      "spdx": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    },
+    "textToCad": {
+      "spdx": "MIT",
+      "url": "https://github.com/earthtojake/text-to-cad/blob/main/LICENSE"
+    },
+    "zoo": {
+      "name": "Zoo Terms",
+      "url": "https://zoo.dev/terms-and-conditions"
+    }
+  },
+  "slots": [
+    {
+      "id": "steel-bracket-l",
+      "title": "Steel L-bracket",
+      "kind": "steel-text",
+      "promptPath": "/lab-fixtures/slots/steel-bracket-l/input.prompt.txt",
+      "zoo": {
+        "status": "demo",
+        "format": "stl",
+        "step": null,
+        "stl": "/lab-fixtures/slots/steel-bracket-l/zoo/model.stl",
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo reuse of existing stub STL from repo (not slot-faithful STEP). No Meshcraft.",
+          "units": "mm",
+          "gen_s": null,
+          "cost": "UNKNOWN",
+          "downloadableStep": false,
+          "closedSolid": "UNKNOWN"
+        }
+      },
+      "textToCad": {
+        "status": "demo",
+        "format": "stl",
+        "step": null,
+        "stl": "/lab-fixtures/slots/steel-bracket-l/text-to-cad/model.stl",
+        "snapshot": null,
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo reuse of existing stub STL from repo (not slot-faithful STEP). No Meshcraft.",
+          "units": "mm",
+          "gen_s": null,
+          "cost": "N/A",
+          "downloadableStep": false,
+          "closedSolid": "UNKNOWN"
+        }
+      },
+      "img2threejs": {
+        "status": "demo",
+        "format": "png",
+        "comparisonPng": "/lab-fixtures/slots/steel-bracket-l/img2threejs/comparison.png",
+        "glb": null,
+        "ts": null,
+        "spec": null,
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo product image from public/images/products (visual only \u2014 not engineering CAD). Text slot uses product image as visual stand-in.",
+          "silhouette": null
+        }
+      }
+    },
+    {
+      "id": "steel-plate-holes",
+      "title": "Steel plate with holes",
+      "kind": "steel-text",
+      "promptPath": "/lab-fixtures/slots/steel-plate-holes/input.prompt.txt",
+      "zoo": {
+        "status": "demo",
+        "format": "stl",
+        "step": null,
+        "stl": "/lab-fixtures/slots/steel-plate-holes/zoo/model.stl",
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo reuse of existing stub STL from repo (not slot-faithful STEP). No Meshcraft.",
+          "units": "mm",
+          "gen_s": null,
+          "cost": "UNKNOWN",
+          "downloadableStep": false,
+          "closedSolid": "UNKNOWN"
+        }
+      },
+      "textToCad": {
+        "status": "demo",
+        "format": "stl",
+        "step": null,
+        "stl": "/lab-fixtures/slots/steel-plate-holes/text-to-cad/model.stl",
+        "snapshot": null,
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo reuse of existing stub STL from repo (not slot-faithful STEP). No Meshcraft.",
+          "units": "mm",
+          "gen_s": null,
+          "cost": "N/A",
+          "downloadableStep": false,
+          "closedSolid": "UNKNOWN"
+        }
+      },
+      "img2threejs": {
+        "status": "demo",
+        "format": "png",
+        "comparisonPng": "/lab-fixtures/slots/steel-plate-holes/img2threejs/comparison.png",
+        "glb": null,
+        "ts": null,
+        "spec": null,
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo product image from public/images/products (visual only \u2014 not engineering CAD). Text slot uses product image as visual stand-in.",
+          "silhouette": null
+        }
+      }
+    },
+    {
+      "id": "steel-ibeam-simple",
+      "title": "Steel I-beam",
+      "kind": "steel-text",
+      "promptPath": "/lab-fixtures/slots/steel-ibeam-simple/input.prompt.txt",
+      "zoo": {
+        "status": "demo",
+        "format": "stl",
+        "step": null,
+        "stl": "/lab-fixtures/slots/steel-ibeam-simple/zoo/model.stl",
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo reuse of existing stub STL from repo (not slot-faithful STEP). No Meshcraft.",
+          "units": "mm",
+          "gen_s": null,
+          "cost": "UNKNOWN",
+          "downloadableStep": false,
+          "closedSolid": "UNKNOWN"
+        }
+      },
+      "textToCad": {
+        "status": "demo",
+        "format": "stl",
+        "step": null,
+        "stl": "/lab-fixtures/slots/steel-ibeam-simple/text-to-cad/model.stl",
+        "snapshot": null,
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo reuse of existing stub STL from repo (not slot-faithful STEP). No Meshcraft.",
+          "units": "mm",
+          "gen_s": null,
+          "cost": "N/A",
+          "downloadableStep": false,
+          "closedSolid": "UNKNOWN"
+        }
+      },
+      "img2threejs": {
+        "status": "demo",
+        "format": "png",
+        "comparisonPng": "/lab-fixtures/slots/steel-ibeam-simple/img2threejs/comparison.png",
+        "glb": null,
+        "ts": null,
+        "spec": null,
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo product image from public/images/products (visual only \u2014 not engineering CAD). Text slot uses product image as visual stand-in.",
+          "silhouette": null
+        }
+      }
+    },
+    {
+      "id": "photo-angle-bracket",
+      "title": "Photo angle bracket",
+      "kind": "photo",
+      "promptPath": "/lab-fixtures/slots/photo-angle-bracket/input.prompt.txt",
+      "imagePath": "/lab-fixtures/slots/photo-angle-bracket/input.image.jpg",
+      "imageCaptionPath": "/lab-fixtures/slots/photo-angle-bracket/input.image.caption.txt",
+      "zoo": {
+        "status": "demo",
+        "format": "stl",
+        "step": null,
+        "stl": "/lab-fixtures/slots/photo-angle-bracket/zoo/model.stl",
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo reuse of existing stub STL from repo (not slot-faithful STEP). No Meshcraft.",
+          "units": "mm",
+          "gen_s": null,
+          "cost": "UNKNOWN",
+          "downloadableStep": false,
+          "closedSolid": "UNKNOWN"
+        }
+      },
+      "textToCad": {
+        "status": "demo",
+        "format": "stl",
+        "step": null,
+        "stl": "/lab-fixtures/slots/photo-angle-bracket/text-to-cad/model.stl",
+        "snapshot": null,
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo reuse of existing stub STL from repo (not slot-faithful STEP). No Meshcraft.",
+          "units": "mm",
+          "gen_s": null,
+          "cost": "N/A",
+          "downloadableStep": false,
+          "closedSolid": "UNKNOWN"
+        }
+      },
+      "img2threejs": {
+        "status": "demo",
+        "format": "png",
+        "comparisonPng": "/lab-fixtures/slots/photo-angle-bracket/img2threejs/comparison.png",
+        "glb": null,
+        "ts": null,
+        "spec": null,
+        "meta": {
+          "source": "repo-demo",
+          "note": "Demo product image from public/images/products (visual only \u2014 not engineering CAD).",
+          "silhouette": null
+        }
+      }
+    }
+  ]
+}

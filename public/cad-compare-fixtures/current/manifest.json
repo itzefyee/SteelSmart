@@ -1,0 +1,10 @@
+{
+  "id": "stub-bracket",
+  "label": "L-bracket plate (static fixture)",
+  "prompt": "Simple 40x20x5 mm steel plate stub — prebaked, not generated live",
+  "pipeline": "current-zoo",
+  "artifact": "/cad-compare-fixtures/current/stub-bracket.stl",
+  "format": "stl",
+  "source": "static-fixture",
+  "note": "PR1 stub only. Do not call live Zoo."
+}
